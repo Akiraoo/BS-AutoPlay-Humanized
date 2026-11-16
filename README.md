@@ -1,91 +1,106 @@
-# AutoPlay
+# BS-AutoPlay-Humanized
 
 [English](README_EN.md) | [中文](README.md)
 
 [![Game Version](https://img.shields.io/badge/Beat%20Saber-1.40.8-blue.svg)](https://beatsaber.com/)
 [![BSIPA](https://img.shields.io/badge/BSIPA-^4.3.0-orange.svg)](https://github.com/bsmg/BeatSaber-IPA-Reloaded)
-[![BeatLeader](https://img.shields.io/badge/BeatLeader-^0.9.33-red.svg)](https://beatleader.com/)
+[![BeatLeader](https://img.shields.io/badge/BeatLeader-^0.10.666-red.svg)](https://beatleader.com/)
+[![BSML](https://img.shields.io/badge/BSML-^1.12.0-purple.svg)](https://github.com/monkeymanboy/BeatSaberMarkupLanguage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**AutoPlay** 是一个为 **Beat Saber** 开发的开源模组，能够为任意选中的谱面一键生成超拟真 `.bsor` 回放，并直接在游戏内自动唤起BeatLeader回放器进行观赏。
+> **非官方分支**：原作是 haha6ha 的 [AutoPlay](https://github.com/haha6ha/AutoPlay)。本分支適配 BeatLeader **0.10.666**，並把揮刀動作改成「從真人回放訓練出來的模型」驅動。
 
-<video src="./Demo.mp4" controls width="600"></video>
+為 **Beat Saber** 任意選中的譜面一鍵生成擬真 `.bsor` 回放，並直接在遊戲內用 BeatLeader 回放器播放。
 
-[Demo2](https://t.me/haha_2ha/18)
+## ✨ 和原版的差異
 
-## ⚖️ 免责声明
+- **適配 BeatLeader 0.10.666**（含譜面成績上傳修正的版本）
+- **真人動作模型**：揮刀軌跡、手腕扭轉、反手、8 字形回揮、停頓時的手部小幅晃動，全部從真人 BeatLeader 回放統計而來
+  - 依照 NJS / JD / RT 決定預備動作的時機，不是到最後一刻才猛砍
+  - 依「前後兩刀的轉向角度」分組的揮刀模板，tech 譜也能走出合理的路徑
+  - 無方向方塊用動態規劃挑最順的方向，不打亂節奏
+  - 手腕指向限位（模擬人體關節的活動範圍）、扭轉彈簧、手臂延遲，避免瞬移和翻轉
+  - 躲牆時光劍會跟著身體移動，頭部傾斜角度收斂，觀看不暈
+- **模型是獨立檔案**（`.apmodel`），可以換、可以自己訓練、可以分享
+- **遊戲內訓練**：用你自己最近 80 份本機回放訓練出你的動作風格（會驗證玩家 ID，只用你本人的回放）
+- **簽章**：作者發布的模型有 RSA 簽名，遊戲內會顯示「官方 ✓」；被改過的模型會被標示出來
+- **浮水印**：生成的 `.bsor` 會在 `customData["AutoPlay"]` 記錄產生器版本、模型名稱與指紋
 
-- 本模组仅用于**谱面演示、回放效果观赏、算法学习与研究**。
-- 用此模组生成的 `.bsor` 回放，Player 都会被标记为 "Auto Play"
-- 请勿将本工具用于任何破坏天梯与多人排位公平性的行为，尊重 BeatLeader 与 BeatSaber 社区规范。
+## ⚖️ 免責聲明
 
-## 📕 未来发展
-这个项目未来没有维护计划
+- 本模組僅用於**譜面演示、回放觀賞、演算法學習與研究**。
+- 生成的 `.bsor` 回放，玩家都會被標記為 "Auto Play"，並帶有上述浮水印。
+- 請勿用於任何破壞排行榜或多人對戰公平性的行為，尊重 BeatLeader 與 Beat Saber 社群規範。
 
-如果大家的反应够激烈我就会继续开发
+## 🚀 安裝
 
-### 目前的已知问题
-- 躲炸弹效果不是很好
-- 如果有其他严重的问题也可以跟我反馈，很严重我在维护
+1. 先裝好前置模組：**BSIPA**、**BeatLeader 0.10.666+**、**BeatSaberMarkupLanguage (BSML)**
+2. 把 `auto_replay.dll` 放進 `Beat Saber/Plugins/`（從 [Releases](../../releases) 下載，或自己從原始碼建置）
+3. 放一個模型到 `Beat Saber/UserData/AutoPlay/Models/`：
+   - 直接用作者的範例模型：[`sample-model/Akiraoo-v2.apmodel`](sample-model/Akiraoo-v2.apmodel)
+   - 或是進遊戲後用自己的回放訓練（見下方）
+4. 啟動遊戲
 
-如果你有任何问题想马上联系作者 [TG@haha_ha2](https://t.me/haha_2ha)
+> 沒有任何模型時，按 PEPE 按鈕不會生成，會提示你先放模型或訓練。
 
-想要什么模组都可以告诉我，如果我想做的话我就会做
+## 🎮 使用
 
-**我非常欢迎各种形式的打赏，这个可以重点私信我** 😏
+1. 進入 Solo，選好曲子與難度（可以加修飾符、左手模式）
+2. 按歌單和排行榜中間的 **PEPE 蛙按鈕**，生成 `.bsor` 回放
+3. 模組會自動用 BeatLeader 回放器播放
 
-## 🚀 安装方法
+### 模型設定（設定 → 模組設定 → AutoPlay）
 
-1. 前往本仓库的 [Releases](../../releases) 页面，找到对应的版本 `auto_play.dll`，虽然我们也只有一个版本:>
-2. 将 `auto_play.dll` 复制到你的 Beat Saber 安装目录下的 `Plugins` 文件夹中：
-   ```text
-   你的BeatSaber路径/Plugins/auto_play.dll
-   ```
-   如果你不知道的话可以去 steam 按 “浏览本地目录” 查看
-3. 启动游戏即可生效。
+| 項目 | 說明 |
+|---|---|
+| 使用中的模型 | 切換 `Models/` 裡的模型，下方顯示簽章狀態、回放數、模板數、指紋 |
+| 用我的回放訓練 | 讀取 `UserData/BeatLeader/Replays` 裡**你本人**最近 80 份回放（Standard、Hard 以上、無加速修飾符；不夠會放寬，最少 10 份），在背景訓練，約數秒完成。輸出為未打包的 `Models/<名稱>/model.json`（可讀）與訓練報告 |
+| 打包成 .apmodel | 把本機訓練的模型打包成單一 `.apmodel`（混淆、不簽名），方便分享 |
+| 重新整理 | 重新掃描 `Models/` 資料夾 |
 
-## 🎮 使用说明
+BeatLeader 每打完一首歌都會自動存回放到本機，所以重新訓練時會自動用上你最新的遊玩紀錄。
 
-1. 启动 Beat Saber，进入Solo模式
-2. 选择你想要的曲子和难度，你也可以加选Mod和左手模式，身高永远150厘米不可以更改
-3. 你会在歌单和排行榜中间看到一个PEPE蛙按钮，按一下就会生成对应的 `.bsor` 回放
-4. 接着模组会自动使用Beatleader的回放播放器播放生成的回放
-5. 好好欣赏
+## 📦 模型格式
 
-## 📂 代码
+- **未打包**：`Models/<名稱>/model.json`，純文字參數（手部位置模型、扭轉模型、指向限位、揮刀模板、反手扭轉偏移）
+- **打包**：`Models/*.apmodel`，`APMD` 標頭 + 混淆後的 gzip 內容 + 可選的 RSA-2048 / SHA-256 簽章
+  - 混淆只是讓參數不能一眼讀出，**不是加密**
+  - 遊戲內只有公鑰（`Core/OfficialKey.cs`），用來驗證作者簽名
 
-- 主体架构来自 Google Gemini
-- 回放/地图分析和大方向调整来自 Claude Code
-- 最后微调 haha
-
-### 📝 结构
-
-```
-AutoPlay/
-├── auto_replay.csproj        # 项目文件
-├── AutoReplayGenerator.cs    # 回放数据生成核心
-├── AutoReplayManager.cs      # 自动化调度中枢，获取选定谱面及修饰符并驱动生成与播放流程
-├── AutoReplayMath.cs         # 数学与运动学工具库
-├── LeaderboardPatches.cs     # 按钮控件
-├── NoteEventBuilder.cs       # 音符击打事件构建器
-├── NoteSwingPlanner.cs       # 剑挥砍的算法，几乎都完美了
-├── PepeButtonController.cs   # PEPE蛙按钮
-├── Plugin.cs                 # 负责 BSIPA 初始化与 Harmony 补丁管理
-├── PoseCalculator.cs         # 躲掩体的控件，其中包含头显蹲下和探头
-├── ReplayFileSaver.cs        # 保存回放至本地
-└── manifest.json             # BSIPA 模组元数据清单与依赖声明
-```
-
-### 👨‍💻 从源码构建
+## 👨‍💻 從原始碼建置
 
 ```bash
-git clone https://github.com/haha6ha/AutoPlay.git
-cd AutoPlay
-dotnet build -c Release
+git clone https://github.com/Akiraoo/BS-AutoPlay-Humanized.git
+cd BS-AutoPlay-Humanized
+dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="你的BeatSaber路徑"
 ```
 
-## 📄 开源协议
+- 預設會把 dll 複製到遊戲的 `Plugins/`；加 `-p:CopyToGame=false` 可以關掉
+- 命令列模型工具：`tools/ApModelTool`（train / pack / sign / unpack / inspect / keygen），和遊戲內共用 `Core/` 的訓練器
+- 分析與離線模擬用的 Python 腳本：見 [`tools/README.md`](tools/README.md)
 
-本项目基于 [MIT License](LICENSE) 开源。
+### 📝 結構
 
+```
+├── Core/                     # 不依賴 Unity：模型格式、.apmodel 打包/簽章、bsor 讀取、訓練器
+├── UI/                       # BSML 設定頁
+├── AutoReplayGenerator.cs    # 回放生成核心（含浮水印）
+├── AutoReplayManager.cs      # 取得選定譜面並驅動生成與播放
+├── NoteSwingPlanner.cs       # 揮刀規劃：模板、無方向方塊 DP、躲炸彈
+├── PoseCalculator.cs         # 頭部躲牆、手部軌跡（扭轉彈簧、反手、手臂延遲、停頓晃動）
+├── HumanModel.cs             # 手部位置 / 扭轉 / 限位模型
+├── SwingTemplates.cs         # 揮刀模板查詢
+├── RollOffsets.cs            # 反手扭轉偏移
+├── ModelManager.cs           # 模型載入、選擇、儲存、打包
+├── sample-model/             # 作者的範例模型（已簽名）
+└── tools/                    # ApModelTool 與 Python 分析工具
+```
 
+## 🙏 致謝
+
+- 原作：[haha6ha/AutoPlay](https://github.com/haha6ha/AutoPlay)
+- 範例模型只使用作者 Akiraoo 本人的 BeatLeader 回放訓練
+
+## 📄 授權
+
+[MIT License](LICENSE)
