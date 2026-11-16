@@ -1,0 +1,10 @@
+bin/
+obj/
+*.dll
+*.pdb
+.vs/
+*.user
+dist/
+tools/*.json
+tools/*.log
+__pycache__/

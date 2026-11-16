@@ -11,11 +11,19 @@ namespace AutoReplay
         public const float DuckHeadHeight = 1.00f;
         public const float CutDistanceZ = 1.50f;
 
-        // Wrist positions held at chest height (Middle row: y = 1.25m)
-        // Left wrist between 4 and 5 (col 0 and 1): x = -0.35m
-        // Right wrist between 6 and 7 (col 2 and 3): x = +0.35m
-        public static readonly Vector3 LeftWristBase = new Vector3(-0.35f, 1.25f, 0.20f);
-        public static readonly Vector3 RightWristBase = new Vector3(0.35f, 1.25f, 0.20f);
+        // 手的基准位置 (剑指向正前方附近时手柄所在处), 来自 HumanModel 的真人统计.
+        // 实际手腕位置随剑的指向移动, 见 HumanModel.WristFor
+        public static Vector3 LeftWristBase => HumanModel.HandBase(true);
+        public static Vector3 RightWristBase => HumanModel.HandBase(false);
+
+        // ================= 平滑噪声 (待机微动) =================
+        // 几个不成倍数的正弦叠加, 输出约 [-1, 1], 连续且平滑, 不需要随机数状态
+        public static float Noise(float t, float seed)
+        {
+            return 0.5f * Mathf.Sin(t * 1.37f + seed * 12.9898f)
+                 + 0.3f * Mathf.Sin(t * 2.71f + seed * 78.233f)
+                 + 0.2f * Mathf.Sin(t * 5.03f + seed * 37.719f);
+        }
 
         // Cardinal resting poses (+10 degrees larger swing)
         public static readonly Quaternion PoseUp = Quaternion.Euler(-90f, 0f, 0f);

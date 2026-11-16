@@ -11,6 +11,7 @@ namespace AutoReplay
         public static Plugin Instance { get; private set; }
         public static IPALogger Log { get; private set; }
         public const string HarmonyId = "com.autoreplay.beatsaber";
+        public const string Version = "1.1.0";
         private Harmony _harmony;
 
         [Init]
@@ -34,6 +35,9 @@ namespace AutoReplay
             {
                 Log.Error($"AutoReplay Harmony patching failed: {ex}");
             }
+
+            ModelManager.Initialize();
+            UI.SettingsHost.Register();
         }
 
         [OnExit]

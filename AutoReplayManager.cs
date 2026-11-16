@@ -27,6 +27,13 @@ namespace AutoReplay
                 return;
             }
 
+            if (ModelManager.Current == null)
+            {
+                Plugin.Log?.Warn("[AutoPlay] 沒有載入模型, 無法生成回放. " + (ModelManager.LastError ?? "") +
+                                 " 请到 设定 > Mod Settings > AutoPlay 用自己的回放训练, 或把 .apmodel 放进 " + ModelManager.ModelsDir);
+                return;
+            }
+
             try
             {
                 _isProcessing = true;
@@ -140,7 +147,12 @@ namespace AutoReplay
                 Plugin.Log?.Info($"Starting BeatLeader Replayer with modifiers: {AutoReplayMath.EncodeModifiers(modifiers)}");
                 var replayerSettings = ReplayerSettings.UserSettings ?? new ReplayerSettings();
                 replayerSettings.IgnoreModifiers = false;
-                await ReplayerMenuLoader.Instance.StartReplayAsync(replay, dummyPlayer, replayerSettings, null);
+                // BeatLeader 0.10.x: 签名变为 (replay, player, optionalData, settings, finishCallback, token)
+                var started = await ReplayerMenuLoader.Instance.StartReplayAsync(replay, dummyPlayer, settings: replayerSettings);
+                if (!started)
+                {
+                    Plugin.Log?.Error("BeatLeader replayer failed to start (beatmap could not be loaded).");
+                }
             }
             catch (Exception ex)
             {

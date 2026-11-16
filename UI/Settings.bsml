@@ -1,0 +1,15 @@
+<vertical xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'
+          child-control-height='true' child-expand-height='false' child-control-width='true' child-expand-width='true'
+          child-align='UpperCenter' spacing='1' pad-top='3' pad-left='3' pad-right='3'>
+  <dropdown-list-setting id='model-dropdown' text='使用中的模型' value='selected-model' choices='model-choices'
+                         apply-on-change='true' on-change='model-changed' hover-hint='UserData/AutoPlay/Models 裡的 .apmodel 和本機訓練的模型'/>
+  <text text='~model-status' font-size='3.2' color='#CCCCCC'/>
+  <horizontal child-expand-width='false' spacing='2' pref-height='9'>
+    <button text='用我的回放訓練' on-click='train-click' interactable='~can-train' pref-height='8' pref-width='34'
+            hover-hint='讀取本機最近 80 份自己的 BeatLeader 回放 (會檢查玩家 ID), 訓練出你的動作模型'/>
+    <button text='打包成 .apmodel' on-click='pack-click' interactable='~can-pack' pref-height='8' pref-width='34'
+            hover-hint='把選中的本機模型 (未打包) 打包成單一 .apmodel 文件, 方便分享'/>
+    <button text='重新整理' on-click='refresh-click' pref-height='8' pref-width='24'/>
+  </horizontal>
+  <text text='~task-status' font-size='3' color='#FFD27F'/>
+</vertical>

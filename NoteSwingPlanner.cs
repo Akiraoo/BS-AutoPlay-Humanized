@@ -21,6 +21,8 @@ namespace AutoReplay
         public Quaternion hitPose;
         public Quaternion endPose;
         public bool isChainedWithPrev;
+        public Vector3 target;         // 方块中心 (命中时剑要穿过这里)
+        public int cutDirection;       // 谱面上的切割方向 (0..7 箭头, 8 点块), 用于反手扭转
 
         // 关键帧: 时间落在 (上一个音符命中时刻, 本音符命中时刻] 内, 最后一个就是命中帧(时间≈note.time)
         public PoseKey[] keys;
@@ -47,7 +49,21 @@ namespace AutoReplay
         public const float AlternateMaxGap = 0.36f;  // 反向交替只用于间隔 <= 此值(来不及复位)的连续快刀; 间隔更长时 上一刀只做正常后挥(PostAngle),
                                                      // 手停在这个位置(剑朝上), 到下一刀前 MaxConnectTime 才转到预挥位 -> 不会一挥完就把剑翻到脑后并停在那里
         public const float LeadInTime = 0.3f;        // 第一刀之前从初始姿态过渡的时间
-        const int ArcSteps = 6;                      // 每段弧线的关键帧数
+        const int ArcSteps = 10;                     // 每段弧线的关键帧数
+        public const float TrackStep = 1f / 120f;    // 模板轨道的关键帧间隔
+        public const float IdleGap = 2.0f;           // 第一刀之前/最后一刀之后 当作"间隔很长"
+        public const float MinPreLead = 0.10f;       // 预挥最远点至少提前这么久
+        public const float PerceptionDelay = 0.20f;  // 方块出现后到开始反应的时间
+        public static float ReactionTime = 0.60f;
+        // 点块方向规划: 和上一刀同向(要复位)的代价 = ResetScale * exp(-间隔/ResetTau) + ResetBase
+        // 真人数据: 不管间隔多长, 点块 93% 和上一刀反向; 但一整串点块的起始方向由后面的箭头决定, 需要时在长间隔处复位
+        public const float ResetScale = 3.0f;
+        public const float ResetTau = 0.45f;
+        public const float ResetBase = 0.4f;
+        public const float StackGap = 0.06f;         // 间隔 <= 此值的两块, 真人当成同一刀 (统计模板时也是这样合并的)
+        // 长间隔: 超过这么久, 后挥完就停在原地, 到预挥窗口才开始下一刀 (不再按来回挥的模板硬插值)
+        public const float RestGap = 1.2f;
+        public const float RestFade = 0.35f;    // 方块从出现到被切的时间(RT), 由 AutoReplayGenerator 按 NJS/JD 设定
 
         // ================= 规划 =================
         // noArrows = true (NA 无箭头模式): 所有方块一律当点块处理, 完全不看谱面里的切割方向(tech 之类的方向设计都不管),
@@ -65,11 +81,14 @@ namespace AutoReplay
             var chained = new bool[n];
 
             // ---------- 1. 决定每一刀的方向, 以及是否和上一刀合并成一刀 ----------
+            // 点块(无箭头)的方向不再只看上一刀, 而是对整串音符做全局规划 (见 PlanDotDirections)
+            Vector3[] dotDir = noArrows ? null : PlanDotDirections(notes, isLeft);
             for (int i = 0; i < n; i++)
             {
                 var note = notes[i];
-                v[i] = (AutoReplayMath.GetNotePos(note) - wristPos).normalized;
-                hitQ[i] = Quaternion.LookRotation(v[i], Vector3.up);
+                // 手腕会跟着剑的指向移动, 所以命中姿态要用不动点求解, 保证剑尖仍然正好穿过方块中心
+                hitQ[i] = HumanModel.AimAt(isLeft, AutoReplayMath.GetNotePos(note));
+                v[i] = hitQ[i] * Vector3.forward;
 
                 float gap = (i > 0) ? note.time - notes[i - 1].time : float.MaxValue;
 
@@ -78,14 +97,12 @@ namespace AutoReplay
                 Vector3 d;
                 bool sliderTail = false;   // 这个块是不是接在上一个块后面的滑块(沿上一刀方向继续走)
                 if (HasDirection(note)) d = CutDir(note);
-                else if (i == 0) d = Vector3.down;               // 初始剑向上, 第一刀从上往下
-                else if (gap <= DotChainGap) d = dir[i - 1];     // 极近的点块(叠块): 沿用上一刀方向
-                else if (IsSliderTail(notes[i - 1], note, dir[i - 1], gap))
+                else
                 {
-                    d = dir[i - 1];                              // 点块滑块(含斜对角): 沿用上一刀方向, 并进同一刀
-                    sliderTail = true;
+                    d = dotDir[i];
+                    // 点块滑块(含斜对角): 规划结果沿用了上一刀方向 -> 并进同一刀
+                    sliderTail = i > 0 && Vector3.Dot(d, dir[i - 1]) >= ChainAlign && IsSliderTail(notes[i - 1], note, dir[i - 1], gap);
                 }
-                else d = -dir[i - 1];                            // 点块: 和上一刀反向, 上下交替
 
                 // 同一层(时间几乎相同)的点块排在方向块前面: 它们会被强制并成一刀, 点块直接用后面方向块的方向,
                 // 否则点块会先按"和上一刀反向"随便猜一个方向, 导致整刀的预挥平面/交替判定都错
@@ -120,76 +137,140 @@ namespace AutoReplay
             }
             int m = strokes.Count;
 
-            // ---------- 3. 每个笔画的预挥/后挥 时长与角度 ----------
-            var preT = new float[m];
-            var preA = new float[m];
-            var postT = new float[m];
-            var postA = new float[m];
-            preT[0] = NominalPreTime; preA[0] = PreAngle;
-            postT[m - 1] = NominalPostTime; postA[m - 1] = PostAngle;
+            // ---------- 3. 每个笔画和前后笔画的关系 (间隔, 是否来回反向) ----------
+            // 命中姿态统一用 HumanModel.Compose 的滚转约定 (只有指向重要, 滚转之后会换成真人模型)
+            for (int i = 0; i < n; i++) hitQ[i] = HumanModel.Compose(v[i], 0f);
 
-            for (int k = 1; k < m; k++)
+            var sStart = new float[m];
+            var sEnd = new float[m];
+            var gapPrev = new float[m];
+            var gapNext = new float[m];
+            var relPrev = new int[m];   // 和上一笔挥动方向的夹角分组 (SwingTemplates.RelBin)
+            var relNext = new int[m];
+            var preScale = new float[m];
+            for (int k = 0; k < m; k++)
             {
-                int a = strokes[k - 1][1];
-                int b = strokes[k][0];
-                float g = notes[b].time - notes[a].time;
-                bool alternate = g <= AlternateMaxGap && Vector3.Dot(dir[a], dir[b]) <= AlternateDot;
-
-                if (alternate)
-                {
-                    // 反向交替: 上一刀的后挥 == 下一刀的预挥(同一段弧往返), 时间平分
-                    float T = Mathf.Min(0.45f * g, NominalPreTime);
-                    float ang = Mathf.Min(PreAngle, MaxAvgSpeed * T);
-                    postT[k - 1] = T; postA[k - 1] = ang;
-                    preT[k] = T; preA[k] = ang;
-                }
+                sStart[k] = notes[strokes[k][0]].time;
+                sEnd[k] = notes[strokes[k][1]].time;
+            }
+            for (int k = 0; k < m; k++)
+            {
+                if (k == 0) { gapPrev[k] = IdleGap; relPrev[k] = SwingTemplates.RelBack; }
                 else
                 {
-                    // 同向(间隔够长)或垂直: 后挥 -> 复位 -> 预挥
-                    float tp = Mathf.Min(NominalPostTime, 0.25f * g);
-                    float tr = Mathf.Min(NominalPreTime, 0.40f * g);
-                    postT[k - 1] = tp; postA[k - 1] = Mathf.Min(PostAngle, MaxAvgSpeed * tp);
-                    preT[k] = tr; preA[k] = Mathf.Min(PreAngle, MaxAvgSpeed * tr);
+                    gapPrev[k] = sStart[k] - sStart[k - 1];
+                    relPrev[k] = SwingTemplates.RelBin(dir[strokes[k - 1][1]], dir[strokes[k][0]]);
                 }
+                if (k == m - 1) { gapNext[k] = IdleGap; relNext[k] = SwingTemplates.RelBack; }
+                else
+                {
+                    gapNext[k] = sStart[k + 1] - sStart[k];
+                    relNext[k] = SwingTemplates.RelBin(dir[strokes[k][1]], dir[strokes[k + 1][0]]);
+                }
+
+                // 反应时间限制: 方块出现后还要一点时间才看得到/反应过来, 预挥最远点不能比这更早.
+                // 太早的话把模板的预挥部分在时间上压缩 (RT 由 NJS / JD 算出, 见 AutoReplayGenerator)
+                int s0 = strokes[k][0];
+                float lead = SwingTemplates.PreExtremeLead(relPrev[k], SwingTemplates.DirClass(dir[s0]), gapPrev[k]);
+                float maxLead = Mathf.Max(MinPreLead, ReactionTime - PerceptionDelay);
+                preScale[k] = lead > maxLead ? lead / maxLead : 1f;
             }
 
-            // ---------- 4. 生成统一的关键帧轨道 ----------
-            var track = new List<PoseKey>(n * 12);
+            // ---------- 4. 用真人挥刀模板生成统一的关键帧轨道 ----------
+            //  命中帧之间: 上一笔的后挥模板 和 下一笔的预挥模板 混合 (在下一笔的挥动坐标系里对角度插值,
+            //  这样同向复位时剑会从前方/侧边绕回去, 来回挥时则是一条带 8 字偏移的往返弧)
+            var track = new List<PoseKey>(n * 16);
             var hitIdx = new int[n];
             var endQ = new Quaternion[n];
             var endT = new float[n];
             for (int i = 0; i < n; i++) { endQ[i] = hitQ[i]; endT[i] = notes[i].time; }
 
+            float side = isLeft ? -1f : 1f;   // 模板的侧向角以右手为准, 左手镜像
+
+            // 某一笔的预挥 / 后挥在 t 时刻的 (alpha, beta), 以及对应的坐标系
+            Vector3 FrameDir(int i, float alpha, float beta)
+            {
+                Vector3 fc = v[i];
+                Vector3 d3 = dir[i] - Vector3.Dot(dir[i], fc) * fc;
+                if (d3.sqrMagnitude < 1e-6f) d3 = Vector3.Cross(axis[i], fc);
+                d3.Normalize();
+                Vector3 nn = Vector3.Cross(fc, d3);
+                float a = alpha * Mathf.Deg2Rad, b = beta * side * Mathf.Deg2Rad;
+                return (Mathf.Cos(b) * (Mathf.Cos(a) * fc + Mathf.Sin(a) * d3) + Mathf.Sin(b) * nn).normalized;
+            }
+            void PreAB(int k, float t, out float a, out float b)
+            {
+                int i = strokes[k][0];
+                SwingTemplates.Eval(relPrev[k], SwingTemplates.DirClass(dir[i]), gapPrev[k], (t - sStart[k]) * preScale[k], out a, out b);
+            }
+            void PostAB(int k, float t, out float a, out float b)
+            {
+                int i = strokes[k][1];
+                SwingTemplates.Eval(relNext[k], SwingTemplates.DirClass(dir[i]), gapNext[k], t - sEnd[k], out a, out b);
+            }
+            // 预挥窗口: 从最远点再往前留一点准备时间
+            float PreWindow(int k) => Mathf.Min(0.75f, SwingTemplates.PreExtremeLead(relPrev[k], SwingTemplates.DirClass(dir[strokes[k][0]]), gapPrev[k]) / preScale[k] + 0.15f);
+            Vector3 PreDir(int k, float t) { PreAB(k, t, out float a, out float b); return FrameDir(strokes[k][0], a, b); }
+            Vector3 PostDir(int k, float t) { PostAB(k, t, out float a, out float b); return FrameDir(strokes[k][1], a, b); }
+            // 长间隔/第一刀之前/最后一刀之后: 后挥结束后就停在原地 (模板在 +0.4s 之后保持不变, 只有待机微动在晃),
+            // 到下一刀的预挥窗口才开始动. 不再额外切换到"休息姿势", 否则空档里会多出一次上下摆动
+            Vector3 ViaRest(int kPost, int kPre, float t)
+            {
+                Vector3 f = kPost >= 0 ? PostDir(kPost, t) : PreDir(kPre, t);
+                if (kPre >= 0)
+                {
+                    float wPre = AutoReplayMath.SmoothStep((t - (sStart[kPre] - PreWindow(kPre) - RestFade)) / RestFade);
+                    if (wPre > 0f) f = Vector3.Slerp(f, PreDir(kPre, t), wPre);
+                }
+                return f.normalized;
+            }
+            Vector3 DirAt(float t)
+            {
+                if (t <= sStart[0]) return ViaRest(-1, 0, t);
+                if (t >= sEnd[m - 1]) return ViaRest(m - 1, -1, t);
+                int k = 0;
+                { int lo = 0, hi = m - 1; while (lo < hi) { int mid = (lo + hi + 1) >> 1; if (sEnd[mid] <= t) lo = mid; else hi = mid - 1; } k = lo; }
+                if (sStart[k + 1] - sEnd[k] > RestGap) return ViaRest(k, k + 1, t);
+                int nextS = strokes[k + 1][0];
+                PostAB(k, t, out float pa, out float pb);
+                Vector3 fPost = FrameDir(strokes[k][1], pa, pb);
+                PreAB(k + 1, t, out float qa, out float qb);
+                // 上一笔的后挥模板 和 下一笔的预挥模板 描述的是同一段真人动作, 直接在指向上球面插值.
+                // (离线对比真人 replay: 原本在下一笔坐标系里对角度插值, tech 常见的 90° 转向在中段会偏 89°;
+                //  直接球面插值后中段误差降到约 30°, 和真人自己两次游玩之间的差异相当)
+                float w = AutoReplayMath.SmoothStep((t - sEnd[k]) / Mathf.Max(1e-4f, sStart[k + 1] - sEnd[k]));
+                return Vector3.Slerp(fPost, FrameDir(nextS, qa, qb), w).normalized;
+            }
+
+            // 关键帧时刻: 均匀网格 (笔画内部除外) + 命中帧 + 每笔一个结束帧
+            var keyTimes = new List<(float t, byte tag)>();
             for (int k = 0; k < m; k++)
             {
-                int s = strokes[k][0];
-                int e = strokes[k][1];
-                float preStart = notes[s].time - preT[k];
-                Quaternion preStartPose = PoseAt(axis[s], hitQ[s], -preA[k]);
-
-                if (k == 0) Add(track, preStart - LeadInTime, AutoReplayMath.PoseUp);
-                Connect(track, preStart, preStartPose);
-
-                // 预挥: 在第一个块的切割平面内, 从 -preA 扫到 0
-                for (int j = 0; j < ArcSteps; j++)
+                for (int i = strokes[k][0]; i <= strokes[k][1]; i++) keyTimes.Add((notes[i].time, (byte)1));
+                float nextT = k + 1 < m ? sStart[k + 1] : sEnd[k] + 1f;
+                keyTimes.Add((sEnd[k] + Mathf.Min(0.1f, 0.4f * (nextT - sEnd[k])), (byte)2));
+            }
+            {
+                float g0 = sStart[0] - LeadInTime - 0.7f, g1 = sEnd[m - 1] + 1.0f;
+                int k = 0;
+                for (float t = g0; t <= g1; t += TrackStep)
                 {
-                    float u = j / (float)ArcSteps;
-                    Add(track, preStart + u * preT[k], PoseAt(axis[s], hitQ[s], -preA[k] * Out(1f - u)));
+                    while (k < m && sEnd[k] < t - 2e-3f) k++;
+                    if (k < m && t > sStart[k] - 2e-3f && t < sEnd[k] + 2e-3f) continue;   // 笔画内部 / 命中帧附近
+                    keyTimes.Add((t, (byte)0));
                 }
+            }
+            keyTimes.Sort((x, y) => x.t != y.t ? x.t.CompareTo(y.t) : y.tag.CompareTo(x.tag) * -1);
 
-                // 命中帧: 严格等于 视线方向, 保证剑尖过方块中心
-                for (int i = s; i <= e; i++)
+            {
+                int hi = 0;
+                for (int j = 0; j < keyTimes.Count; j++)
                 {
-                    AddTagged(track, notes[i].time, hitQ[i], 1);
+                    var (t, tag) = keyTimes[j];
+                    if (tag == 0 && j > 0 && Mathf.Abs(keyTimes[j - 1].t - t) < 2e-3f) continue;
+                    Quaternion q = tag == 1 ? hitQ[hi++] : HumanModel.Compose(DirAt(t), 0f);
+                    if (tag == 0) Add(track, t, q); else AddTagged(track, t, q, tag);
                 }
-
-                // 后挥: 在最后一个块的切割平面内, 从 0 扫到 +postA
-                for (int j = 1; j <= ArcSteps; j++)
-                {
-                    float u = j / (float)ArcSteps;
-                    Add(track, notes[e].time + u * postT[k], PoseAt(axis[e], hitQ[e], postA[k] * Out(u)));
-                }
-                MarkLast(track, 2);
             }
 
             // ---------- 4.5 躲炸弹: 只改非命中帧, 命中帧原样保留 ----------
@@ -198,12 +279,12 @@ namespace AutoReplay
                 int found = 0;
                 for (int pass = 0; pass < 2; pass++)
                 {
-                    int c = BombAvoider.Apply(track, notes, bombs, wristPos);
+                    int c = BombAvoider.Apply(track, notes, bombs, wristPos, isLeft);
                     if (pass == 0) found = c;
                     if (c == 0) break;
                 }
                 int hitLeft, nearLeft;
-                BombAvoider.CountRemaining(track, bombs, wristPos, out hitLeft, out nearLeft);
+                BombAvoider.CountRemaining(track, bombs, wristPos, isLeft, out hitLeft, out nearLeft);
                 Plugin.Log?.Info(string.Format("[BombAvoider v6] hand={0} notes={1} bombs={2} hitZ={3} speed={4} len={5} 需躲避={6} 躲避后: 仍会撞={7} 仍过近={8}",
                     isLeft ? "L" : "R", n, bombs.Count, BombAvoider.BombHitZ, BombAvoider.BombSpeed, BombAvoider.SaberLen, found, hitLeft, nearLeft));
             }
@@ -243,6 +324,8 @@ namespace AutoReplay
                     hitPose = hitQ[i],
                     endPose = endQ[i],
                     isChainedWithPrev = chained[i],
+                    target = AutoReplayMath.GetNotePos(notes[i]),
+                    cutDirection = noArrows ? (int)NoteCutDirection.Any : (int)notes[i].cutDirection,
                     keys = keys,
                     tail = null
                 };
@@ -306,12 +389,8 @@ namespace AutoReplay
             return a.q;
         }
 
-        // 往返挥动用的缓动: 命中处速度 1.25x, 远端速度 0.75x, 单调
-        static float Out(float s)
-        {
-            s = Mathf.Clamp01(s);
-            return s * (1f + 0.25f * (1f - s));
-        }
+        // 缓动: 预挥用 cos, 后挥用 sin -> 命中处速度最快, 两端(挥到最远处)速度为 0,
+        // 来回挥的折返点不会再出现"速度瞬间反向"的顿挫感 (原本远端还保留 0.75 倍速度)
 
         // 在切割平面内, 绕 axis 从命中姿态旋转 theta 度. 不用 LookRotation, 避免竖直时 roll 翻转
         static Quaternion PoseAt(Vector3 axis, Quaternion hit, float theta)
@@ -404,6 +483,76 @@ namespace AutoReplay
             }
         }
 
+        // 点块方向的全局规划 (动态规划 / Viterbi):
+        //   每个点块的候选方向 = 上/下 (按真人习惯略微外倾) + 左右/斜向 (有额外代价, 只在滑块等场合才划算);
+        //   箭头块只有自己的方向.
+        //   相邻两刀: 反向(来回挥) 代价 0; 同向需要复位, 间隔越短代价越高 (ResetScale/ResetTau/ResetBase);
+        //   叠块/滑块(间隔极短或沿上一刀方向排列) 同向代价 0.
+        // 这样一整串点块会从后面的箭头倒推起始方向, 必要时在长间隔处复位 —— 和真人一样.
+        static Vector3[] PlanDotDirections(List<NoteData> notes, bool isLeft)
+        {
+            int n = notes.Count;
+            var cand = new List<Vector3>[n];
+            var prior = new List<float>[n];
+            float upTilt = (isLeft ? -10f : 5f) * Mathf.Deg2Rad;    // 真人点块上挑略往外
+            float downTilt = (isLeft ? 6f : 2f) * Mathf.Deg2Rad;
+            for (int i = 0; i < n; i++)
+            {
+                cand[i] = new List<Vector3>(); prior[i] = new List<float>();
+                if (HasDirection(notes[i])) { cand[i].Add(CutDir(notes[i])); prior[i].Add(0f); continue; }
+                cand[i].Add(new Vector3(Mathf.Sin(downTilt), -Mathf.Cos(downTilt), 0f)); prior[i].Add(0f);
+                cand[i].Add(new Vector3(Mathf.Sin(upTilt), Mathf.Cos(upTilt), 0f)); prior[i].Add(i == 0 ? 0.2f : 0f);
+                float dg = 0.7071f;
+                foreach (var v in new[] { Vector3.left, Vector3.right })
+                { cand[i].Add(v); prior[i].Add(0.35f); }
+                foreach (var v in new[] { new Vector3(-dg, dg, 0f), new Vector3(dg, dg, 0f), new Vector3(-dg, -dg, 0f), new Vector3(dg, -dg, 0f) })
+                { cand[i].Add(v); prior[i].Add(0.25f); }
+            }
+
+            var cost = new float[n][];
+            var back = new int[n][];
+            cost[0] = prior[0].ToArray();
+            back[0] = new int[cand[0].Count];
+            for (int i = 1; i < n; i++)
+            {
+                float g = notes[i].time - notes[i - 1].time;
+                cost[i] = new float[cand[i].Count];
+                back[i] = new int[cand[i].Count];
+                for (int b = 0; b < cand[i].Count; b++)
+                {
+                    float best = float.MaxValue; int arg = 0;
+                    for (int a = 0; a < cand[i - 1].Count; a++)
+                    {
+                        float c = cost[i - 1][a] + TransitionCost(notes[i - 1], notes[i], cand[i - 1][a], cand[i][b], g);
+                        if (c < best) { best = c; arg = a; }
+                    }
+                    cost[i][b] = best + prior[i][b];
+                    back[i][b] = arg;
+                }
+            }
+            var res = new Vector3[n];
+            int cur = 0;
+            for (int b = 1; b < cand[n - 1].Count; b++) if (cost[n - 1][b] < cost[n - 1][cur]) cur = b;
+            for (int i = n - 1; i >= 0; i--)
+            {
+                res[i] = cand[i][cur];
+                cur = back[i][cur];
+            }
+            return res;
+        }
+
+        static float TransitionCost(NoteData prev, NoteData note, Vector3 a, Vector3 b, float g)
+        {
+            float dt = Vector3.Dot(a, b);
+            if (g <= StackGap) return dt >= ChainAlign ? 0f : (g <= ForceChainGap ? 6f : 3f);   // 叠块/几乎同时: 当成同一刀
+            if (dt <= AlternateDot) return 0f;                                  // 来回挥
+            if (g <= ChainGap && dt >= SliderDirAlign && IsSliderTail(prev, note, a, g, b)) return 0f;   // 滑块
+            float reset = ResetScale * Mathf.Exp(-g / ResetTau) + ResetBase;
+            // 垂直转向比完全同向容易一点
+            if (dt < ChainAlign) reset *= 0.4f + 0.6f * Mathf.InverseLerp(AlternateDot, ChainAlign, dt);
+            return reset;
+        }
+
         // 滑块判定: note 是不是接在 prev 后面、沿 prev 这一刀的切割方向继续走的块.
         //  - 间隔 <= ChainGap
         //  - 两块不在同一格, 且 连线方向 和 prevDir 夹角够小 (斜对角也算: 直箭头接斜对角约45度, 斜箭头接斜对角0度)
@@ -472,19 +621,22 @@ namespace AutoReplay
 
         /// <summary>炸弹在 note.time 时 z=BombHitZ, 之后继续往玩家飞.
         /// 中心 z &lt; 手腕z+剑长+半径 时剑尖够得着; z &lt; 手腕z-半径 时已经飞过手.</summary>
-        static void Configure(Vector3 wrist)
+        static bool s_isLeft;
+
+        static void Configure(Vector3 wrist, bool isLeft)
         {
-            float reachZ = wrist.z + SaberLen + BombRadius;
+            s_isLeft = isLeft;
+            float reachZ = wrist.z + HumanModel.MaxWristForwardZ + SaberLen + BombRadius;
             float behindZ = wrist.z - BombRadius;
             Before = (reachZ - BombHitZ) / BombSpeed;
             After = (BombHitZ - behindZ) / BombSpeed;
         }
 
         /// <returns>本轮发现的碰撞数(0 说明已经全部躲开)</returns>
-        public static int Apply(List<PoseKey> track, List<NoteData> notes, List<NoteData> bombs, Vector3 wrist)
+        public static int Apply(List<PoseKey> track, List<NoteData> notes, List<NoteData> bombs, Vector3 wrist, bool isLeft)
         {
             if (bombs == null || bombs.Count == 0 || track.Count < 2) return 0;
-            Configure(wrist);
+            Configure(wrist, isLeft);
 
             var bl = new List<Bomb>(bombs.Count);
             foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
@@ -530,7 +682,7 @@ namespace AutoReplay
                 if (f.z > 0.05f) aim = wrist + f * ((B[bi].p.z - wrist.z) / f.z);
                 Vector3 target = OppositeTarget(B, tF, tL);
                 Vector3 safe = PickSafePoint(cands, B, wrist, tF, tL, aim, target);
-                Vector3 safeDir = (safe - wrist).normalized;
+                Vector3 safeDir = HumanModel.AimAt(s_isLeft, safe) * Vector3.forward;
 
                 // 躲避姿势: 只改"剑指向", 滚转(绕剑身)沿用入场时原轨迹的姿势 -> 不会凭空多转半圈/一圈
                 Quaternion qIn = Sample(track, tF - Ramp);
@@ -635,10 +787,10 @@ namespace AutoReplay
         }
 
         /// <summary>躲避完成后的自检: hit=仍会撞到的炸弹数, near=离炸弹小于安全余量的数. 每个仍会撞的炸弹会单独打一行日志</summary>
-        public static void CountRemaining(List<PoseKey> track, List<NoteData> bombs, Vector3 wrist, out int hit, out int near)
+        public static void CountRemaining(List<PoseKey> track, List<NoteData> bombs, Vector3 wrist, bool isLeft, out int hit, out int near)
         {
             hit = 0; near = 0;
-            Configure(wrist);
+            Configure(wrist, isLeft);
             var bl = new List<Bomb>(bombs.Count);
             foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
             bl.Sort((x, y) => x.t.CompareTo(y.t));
@@ -737,7 +889,7 @@ namespace AutoReplay
         static Vector3 PickSafePoint(List<Vector3> cands, Bomb[] B, Vector3 wrist, float t0, float t1, Vector3 aim, Vector3 target)
         {
             // 1) 斜对角目标本身能躲开 -> 直接朝它
-            Quaternion qt = Quaternion.LookRotation((target - wrist).normalized, Vector3.up);
+            Quaternion qt = HumanModel.AimAt(s_isLeft, target);
             if (ClearanceConst(qt, B, wrist, t0, t1) >= Safety + 0.02f) return target;
 
             // 2) 否则在候选点里, 取"能躲开"且离目标最近的; 都躲不开就取最安全的
@@ -746,7 +898,7 @@ namespace AutoReplay
             for (int g = 0; g < cands.Count; g++)
             {
                 Vector3 p = cands[g];
-                Quaternion q = Quaternion.LookRotation((p - wrist).normalized, Vector3.up);
+                Quaternion q = HumanModel.AimAt(s_isLeft, p);
                 float c = ClearanceConst(q, B, wrist, t0, t1);
                 if (c > fallbackClear) { fallbackClear = c; fallback = p; }
                 if (c >= Safety + 0.02f)
@@ -833,10 +985,12 @@ namespace AutoReplay
             return best;
         }
 
+        // wrist 是手腕的基准位置; 实际手腕位置随剑的指向移动 (和 PoseCalculator 用同一个手臂模型)
         static float SaberDist(Vector3 c, Vector3 wrist, Quaternion q)
         {
-            Vector3 f = q * Vector3.forward;
-            Vector3 a = wrist + f * SaberStart;
+            // 和最终输出用同一套人体模型: 先限位, 再由指向算手腕位置
+            Vector3 f = HumanModel.LimitForward(s_isLeft, q * Vector3.forward);
+            Vector3 a = HumanModel.WristForDir(s_isLeft, f) + f * SaberStart;
             Vector3 ab = f * (SaberLen - SaberStart);
             float s = Mathf.Clamp01(Vector3.Dot(c - a, ab) / ab.sqrMagnitude);
             return (c - (a + ab * s)).magnitude;
