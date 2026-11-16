@@ -39,7 +39,8 @@ namespace AutoReplay.Tools
 
         static void Usage()
         {
-            Console.WriteLine("ApModelTool train <Replays> <out model.json> [--player ID] [--max 80] [--name N] [--author A]");
+            Console.WriteLine("ApModelTool train <Replays> <out model.json> [--player ID] [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--days N]\n" +
+                              "                  [--per-map 3] [--max 300] [--min-stars 0] [--stars] [--offline] [--name N] [--author A]");
             Console.WriteLine("ApModelTool pack <model.json> <out.apmodel> [--sign private.xml]");
             Console.WriteLine("ApModelTool unpack <in.apmodel> <out model.json>");
             Console.WriteLine("ApModelTool inspect <file>");
@@ -52,21 +53,45 @@ namespace AutoReplay.Tools
             return i >= 0 && i + 1 < a.Length ? a[i + 1] : def;
         }
 
+        static DateTime? Date(string s, bool endOfDay)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            var d = DateTime.SpecifyKind(DateTime.ParseExact(s, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            return endOfDay ? d.AddDays(1).AddSeconds(-1) : d;
+        }
+
         static int Train(string[] a)
         {
-            var o = new TrainOptions
+            var sel = new SelectionOptions
             {
                 replaysDir = a[1],
                 playerId = Opt(a, "--player"),
-                maxReplays = int.Parse(Opt(a, "--max", "80")),
+                fromUtc = Date(Opt(a, "--from"), false),
+                toUtc = Date(Opt(a, "--to"), true),
+                perMapCap = int.Parse(Opt(a, "--per-map", "3")),
+                maxReplays = int.Parse(Opt(a, "--max", "300")),
+                minStars = float.Parse(Opt(a, "--min-stars", "0"), System.Globalization.CultureInfo.InvariantCulture),
+            };
+            string days = Opt(a, "--days");
+            if (days != null) sel.fromUtc = DateTime.UtcNow.Date.AddDays(-int.Parse(days));
+            bool useStars = Array.IndexOf(a, "--stars") >= 0 || sel.minStars > 0;
+            var o = new TrainOptions
+            {
+                selection = sel,
                 modelName = Opt(a, "--name", "my-model"),
                 author = Opt(a, "--author", ""),
-                progress = s => { if (!s.StartsWith("[")) Console.WriteLine(s); },
+                modVersion = "ApModelTool",
+                mode = days != null ? "auto" : "manual",
+                rollingDays = days != null ? int.Parse(days) : 0,
+                stars = useStars ? new StarService(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(a[2])), "star-cache.json")) : null,
+                network = Array.IndexOf(a, "--offline") < 0,
+                progress = s => { if (!s.StartsWith("[") && !s.StartsWith("   ")) Console.WriteLine(s); },
             };
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var model = ModelTrainer.Train(o, out _);
             File.WriteAllText(a[2], JsonConvert.SerializeObject(model, Formatting.Indented));
             Console.WriteLine($"已写入 {a[2]} ({sw.Elapsed.TotalSeconds:F1}s)");
+            foreach (var l in ModelInfoText.Lines(model)) Console.WriteLine("  " + l);
             return 0;
         }
 
@@ -97,8 +122,8 @@ namespace AutoReplay.Tools
             if (a[1].EndsWith(ApModelFile.Extension, StringComparison.OrdinalIgnoreCase)) json = ApModelFile.Unpack(File.ReadAllBytes(a[1]), out trust);
             else { json = File.ReadAllText(a[1]); trust = ModelTrust.Unpacked; }
             var m = JsonConvert.DeserializeObject<AutoPlayModel>(json);
-            Console.WriteLine($"名称: {m.meta.name}  作者: {m.meta.author}  建立: {m.meta.createdUtc}  训练器: {m.meta.trainer}");
-            Console.WriteLine($"replay {m.meta.replayCount} 份, 挥刀 {m.meta.swingCount} 次, 模板 {m.templates.groups.Count} 组");
+            foreach (var l in ModelInfoText.Lines(m)) Console.WriteLine(l);
+            Console.WriteLine($"模板 {m.templates.groups.Count} 组");
             Console.WriteLine($"签名状态: {trust}   指纹: {ApModelFile.Fingerprint(json)}");
             Console.WriteLine($"检查: {m.Validate() ?? "OK"}");
             return 0;

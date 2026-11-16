@@ -22,7 +22,8 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
   - Wrist aim limits (human joint range), a roll spring and arm lag prevent teleports and flips
   - Sabers follow the body when dodging walls; head tilt is kept small so it's comfortable to watch
 - **Models are separate files** (`.apmodel`): swap them, train your own, share them
-- **In-game training** from your own 80 most recent local replays (the player ID is checked, so only your own replays are used)
+- **In-game training** from your own local replays within a chosen date range (the player ID is checked, so only your own replays are used), with optional background retraining as new replays come in
+- **Model info**: trainer version, date range, filters, BeatLeader / ScoreSaber star distribution and more, with no player ID
 - **Signing**: author-released models carry an RSA signature and show as "Official ✓"; modified models are flagged
 - **Watermark**: generated `.bsor` files record generator version, model name and fingerprint in `customData["AutoPlay"]`
 
@@ -51,14 +52,34 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 
 ### Model settings (Settings → Mod Settings → AutoPlay)
 
+**Model tab**
+- Switch between models in `Models/`; shows signature status, fingerprint and **model info**:
+  - trainer and AutoPlay version, player name, device, game / BeatLeader version
+  - date range and filters, how many replays survive each step, data period, map count, swing count
+  - NPS, BeatLeader star distribution (unranked maps have AI estimates too) with tech / pass / acc ratings, ScoreSaber ranked count and stars
+  - **No player ID is stored.** Info in unsigned models is for reference only
+- Pack to `.apmodel` (obfuscated, unsigned), Refresh
+
+**Training tab**
 | Item | Description |
 |---|---|
-| Active model | Switch between models in `Models/`; shows signature status, replay count, template count and fingerprint |
-| Train with my replays | Reads **your own** 80 most recent replays from `UserData/BeatLeader/Replays` (Standard, Hard or above, no speed modifiers; relaxed if there aren't enough, minimum 10) and trains in the background in a few seconds. Output is an unpacked, readable `Models/<name>/model.json` plus a training report |
-| Pack to .apmodel | Packs a locally trained model into a single obfuscated, unsigned `.apmodel` for sharing |
-| Refresh | Rescans the `Models/` folder |
+| From / To | Date range (slide fully right = no limit) |
+| Max per map | Only the newest N replays of the same map + difficulty (default 3), so grinding one map doesn't dominate the model |
+| Total limit | Above this, replays are **sampled evenly** across the range (default 300). Affects training time, not model size |
+| Min BL stars | Filter by BeatLeader stars (maps without stars are kept) |
+| Look up BL / SS stars | Public APIs, no account needed; cached in `UserData/AutoPlay/star-cache.json` |
 
-BeatLeader saves a local replay after every play, so retraining always picks up your latest sessions.
+- A live preview shows `in range → own → eligible → deduplicated → star filter → used`
+- **Only your own replays**: the logged-in player ID is fetched from the platform and every replay must match
+- Always excluded: non-Standard, left-handed, FS / SF / SS, and replays averaging below 1.5 NPS
+- Output is an unpacked, readable `Models/my-<date>/model.json` plus a training report
+
+**Auto-training tab**
+- With "Keep following new replays" on, `Models/my-auto/` is retrained in the background **while idle in the menu** after every N new replays (default 10)
+- The rolling window uses the Training tab's "From" (e.g. last 30 days) and the same filters; it pauses when you start a song
+- It only switches to the new version if you're already using `my-auto`; the previous one is kept in `my-auto.bak/`
+
+> More data isn't always better: in testing, 80 → 300 → 900 replays drifted further from real play (style changes over time), so prefer a recent window.
 
 ## 📦 Model format
 

@@ -10,11 +10,10 @@ using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components.Settings;
 using BeatSaberMarkupLanguage.Settings;
 using BeatSaberMarkupLanguage.Util;
-using Zenject;
 
 namespace AutoReplay.UI
 {
-    /// <summary>设定 > Mod Settings > AutoPlay: 选模型 / 用自己的回放训练 / 打包成 .apmodel</summary>
+    /// <summary>设定 > 模组设定 > AutoPlay: 三个分页 (模型 / 训练 / 自动训练)</summary>
     public class SettingsHost : INotifyPropertyChanged
     {
         public static readonly SettingsHost Instance = new SettingsHost();
@@ -30,16 +29,23 @@ namespace AutoReplay.UI
             {
                 try { BSMLSettings.Instance.AddSettingsMenu("AutoPlay", "AutoReplay.UI.Settings.bsml", Instance); }
                 catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] Settings menu failed: {ex}"); }
+                try { AutoTrainer.Ensure(); } catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] AutoTrainer failed: {ex}"); }
+                Instance.SchedulePreview();
             };
             ModelManager.Changed += () => Instance.RefreshAll();
+            TrainingService.StateChanged += () => Instance.OnTrainingState();
+            AutoTrainer.StatusChanged += () => Instance.Notify(nameof(AutoStatus));
         }
+
+        static TrainSettings T => ModelManager.Train;
 
         [UIComponent("model-dropdown")] private DropDownListSetting _dropdown = null;
 
-        private bool _busy;
+        private string _packStatus = "";
         private string _taskStatus = "";
+        private string _preview = "";
 
-        // ---------- 下拉选单 ----------
+        // =============================== 模型 ===============================
         [UIValue("model-choices")]
         public List<object> ModelChoices => ModelManager.Entries.Select(e => (object)e.displayName).DefaultIfEmpty("(沒有模型)").ToList();
 
@@ -60,12 +66,11 @@ namespace AutoReplay.UI
             var e = ModelManager.Entries.FirstOrDefault(x => x.displayName == value as string);
             if (e != null && e.id != ModelManager.CurrentId)
             {
-                if (!ModelManager.Select(e.id)) SetTask(ModelManager.LastError);
+                if (!ModelManager.Select(e.id)) SetPack(ModelManager.LastError);
             }
             RefreshAll();
         }
 
-        // ---------- 状态 ----------
         [UIValue("model-status")]
         public string ModelStatus
         {
@@ -73,25 +78,38 @@ namespace AutoReplay.UI
             {
                 var m = ModelManager.Current;
                 if (m == null) return ModelManager.LastError ?? "沒有載入模型";
-                return $"{ModelManager.TrustLabel(ModelManager.CurrentTrust)} · {m.meta.name}" +
-                       (string.IsNullOrEmpty(m.meta.author) ? "" : $" by {m.meta.author}") +
-                       $"\n{m.meta.replayCount} 份回放 · {m.meta.swingCount} 次揮刀 · {m.templates.groups.Count} 組模板 · 指紋 {ModelManager.CurrentFingerprint}";
+                string s = ModelManager.TrustLabel(ModelManager.CurrentTrust) + " · 指紋 " + ModelManager.CurrentFingerprint;
+                if (ModelManager.CurrentTrust == ModelTrust.Unsigned || ModelManager.CurrentTrust == ModelTrust.Unpacked)
+                    s += " · 未簽名, 資訊僅供參考";
+                return s;
             }
         }
 
-        [UIValue("task-status")] public string TaskStatus => _taskStatus;
-        [UIValue("can-train")] public bool CanTrain => !_busy;
-        [UIValue("can-pack")]
-        public bool CanPack => !_busy && ModelManager.Entries.Any(x => x.id == ModelManager.CurrentId && !x.packed);
+        [UIValue("model-info")]
+        public string ModelInfo
+        {
+            get
+            {
+                var m = ModelManager.Current;
+                if (m == null) return "";
+                try { return string.Join("\n", ModelInfoText.Lines(m)); }
+                catch (Exception ex) { return "模型資訊讀取失敗: " + ex.Message; }
+            }
+        }
 
-        // ---------- 按钮 ----------
+        [UIValue("pack-status")] public string PackStatus => _packStatus;
+
+        [UIValue("can-pack")]
+        public bool CanPack => !TrainingService.Busy && ModelManager.Entries.Any(x => x.id == ModelManager.CurrentId && !x.packed);
+
         [UIAction("refresh-click")]
         private void OnRefresh()
         {
             ModelManager.Refresh();
             if (ModelManager.Current == null && ModelManager.Entries.Count > 0) ModelManager.Select(ModelManager.Entries[0].id);
             RefreshAll();
-            SetTask($"找到 {ModelManager.Entries.Count} 個模型");
+            SetPack($"找到 {ModelManager.Entries.Count} 個模型");
+            SchedulePreview();
         }
 
         [UIAction("pack-click")]
@@ -101,81 +119,115 @@ namespace AutoReplay.UI
             {
                 string id = ModelManager.Pack(ModelManager.CurrentId);
                 RefreshAll();
-                SetTask($"已打包: Models/{id}");
+                SetPack($"已打包: Models/{id}");
             }
-            catch (Exception ex) { SetTask("打包失敗: " + ex.Message); }
+            catch (Exception ex) { SetPack("打包失敗: " + ex.Message); }
         }
+
+        // =============================== 訓練 ===============================
+        [UIValue("from-days")]
+        public float FromDays { get => T.fromDaysAgo; set { T.fromDaysAgo = Clamp(value, 1, TrainSettings.AllDays); Changed(); } }
+
+        [UIValue("to-days")]
+        public float ToDays { get => T.toDaysAgo; set { T.toDaysAgo = Clamp(value, 0, TrainSettings.AllDays - 1); Changed(); } }
+
+        [UIValue("per-map")]
+        public float PerMap { get => T.perMapCap; set { T.perMapCap = Clamp(value, 1, 10); Changed(); } }
+
+        [UIValue("max-replays")]
+        public float MaxReplays { get => T.maxReplays; set { T.maxReplays = Clamp(value, 50, 1000); Changed(); } }
+
+        [UIValue("min-stars")]
+        public float MinStars { get => T.minStars; set { T.minStars = Math.Max(0f, value); Changed(); } }
+
+        [UIValue("lookup-stars")]
+        public bool LookupStars { get => T.lookupStars; set { T.lookupStars = value; Changed(); } }
+
+        [UIAction("fmt-from")]
+        private string FmtFrom(float v)
+        {
+            int d = (int)Math.Round(v);
+            return d >= TrainSettings.AllDays ? "不限日期" : $"{DateTime.Now.Date.AddDays(-d):yyyy-MM-dd} ({d} 天前)";
+        }
+
+        [UIAction("fmt-to")]
+        private string FmtTo(float v)
+        {
+            int d = (int)Math.Round(v);
+            return d <= 0 ? "今天" : $"{DateTime.Now.Date.AddDays(-d):yyyy-MM-dd} ({d} 天前)";
+        }
+
+        [UIAction("fmt-count")] private string FmtCount(float v) => $"{(int)Math.Round(v)} 份";
+        [UIAction("fmt-stars")] private string FmtStars(float v) => v <= 0f ? "不限" : $"{v:0.0} ★";
+
+        [UIValue("preview")] public string Preview => _preview;
+        [UIValue("task-status")] public string TaskStatus => _taskStatus;
+        [UIValue("can-train")] public bool CanTrain => !TrainingService.Busy;
 
         [UIAction("train-click")]
         private async void OnTrain()
         {
-            if (_busy) return;
-            _busy = true;
+            if (TrainingService.Busy) return;
+            try { await TrainingService.TrainAsync(false, CancellationToken.None); }
+            catch { }   // 讯息已经在 TrainingService.Progress
+            SetTask(TrainingService.Progress + (ModelManager.CurrentTrust == ModelTrust.Unpacked ? "\n想分享可以到「模型」頁按「打包成 .apmodel」" : ""));
             RefreshAll();
+        }
+
+        // =============================== 自動 ===============================
+        [UIValue("auto-follow")]
+        public bool AutoFollow { get => T.autoFollow; set { T.autoFollow = value; ModelManager.SaveTrainSettings(); } }
+
+        [UIValue("auto-every")]
+        public float AutoEvery { get => T.autoEveryN; set { T.autoEveryN = Clamp(value, 1, 50); ModelManager.SaveTrainSettings(); } }
+
+        [UIValue("auto-status")] public string AutoStatus => AutoTrainer.Status;
+
+        // =============================== 預覽 ===============================
+        int _previewVersion;
+
+        void Changed()
+        {
+            ModelManager.SaveTrainSettings();
+            SchedulePreview();
+        }
+
+        /// <summary>设定变了: 等 0.4 秒没再变, 在背景算每一步筛完剩几份 (星数只看快取, 不连网)</summary>
+        async void SchedulePreview()
+        {
+            int v = ++_previewVersion;
+            await Task.Delay(400);
+            if (v != _previewVersion) return;
             try
             {
-                SetTask("正在確認玩家身份…");
-                string playerId = await GetPlayerIdAsync();
-                if (string.IsNullOrEmpty(playerId)) { SetTask("無法取得玩家 ID, 已取消\n(只能用自己的回放訓練)"); return; }
-
-                string progress = "開始訓練…";
-                var opts = new TrainOptions
-                {
-                    replaysDir = ModelManager.ReplaysDir,
-                    playerId = playerId,
-                    maxReplays = 80,
-                    modelName = "my-" + DateTime.Now.ToString("yyyyMMdd-HHmm"),
-                    author = "",
-                    progress = s => progress = s,
-                };
-                string report = null;
-                var task = Task.Run(() => ModelTrainer.Train(opts, out report));
-                while (!task.IsCompleted)
-                {
-                    SetTask(progress);
-                    await Task.Delay(200);
-                }
-                AutoPlayModel model = await task;   // 失败会在这里抛出
-                string id = ModelManager.SaveUnpacked(model, report);
-                ModelManager.Select(id);
-                SetTask($"訓練完成: Models/{id} ({model.meta.replayCount} 份回放, {model.meta.swingCount} 次揮刀)\n想分享可以按「打包成 .apmodel」");
+                string pid = await TrainingService.GetPlayerIdAsync();
+                if (string.IsNullOrEmpty(pid)) { SetPreview("無法取得玩家 ID"); return; }
+                var opts = TrainingService.Selection(T, pid, false);
+                var stars = T.lookupStars ? ModelManager.Stars : null;
+                SetPreview("計算中…");
+                var r = await Task.Run(() => ReplaySelector.Select(opts, stars, false));
+                if (v != _previewVersion) return;
+                string s = r.Summary();
+                if (T.minStars > 0 && !T.lookupStars) s += "\n(沒有開啟星數查詢, 星數篩選不會生效)";
+                else if (T.minStars > 0) s += "\n(星數預覽只用快取, 實際數量以訓練時查詢為準)";
+                SetPreview(s);
             }
-            catch (Exception ex)
-            {
-                var e = ex is AggregateException ae && ae.InnerException != null ? ae.InnerException : ex;
-                Plugin.Log?.Error($"[AutoPlay] Training failed: {e}");
-                SetTask("訓練失敗: " + e.Message);
-            }
-            finally
-            {
-                _busy = false;
-                RefreshAll();
-            }
+            catch (Exception ex) { SetPreview("預覽失敗: " + ex.Message); }
         }
 
-        // 本人验证: 只用和目前登入平台帐号同一个玩家 ID 的回放
-        static async Task<string> GetPlayerIdAsync()
+        // =============================== 刷新 ===============================
+        static int Clamp(float v, int lo, int hi) => Math.Max(lo, Math.Min(hi, (int)Math.Round(v)));
+
+        void OnTrainingState()
         {
-            try
-            {
-                var platform = ProjectContext.Instance.Container.TryResolve<IPlatformUserModel>();
-                if (platform == null) return null;
-                var info = await platform.GetUserInfo(CancellationToken.None);
-                return info?.platformUserId;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log?.Warn($"[AutoPlay] GetUserInfo failed: {ex.Message}");
-                return null;
-            }
+            if (TrainingService.Busy) SetTask(TrainingService.Progress);
+            Notify(nameof(CanTrain));
+            Notify(nameof(CanPack));
         }
 
-        // ---------- 刷新 ----------
-        void SetTask(string s)
-        {
-            _taskStatus = s ?? "";
-            Notify(nameof(TaskStatus));
-        }
+        void SetPack(string s) { _packStatus = s ?? ""; Notify(nameof(PackStatus)); }
+        void SetTask(string s) { _taskStatus = s ?? ""; Notify(nameof(TaskStatus)); }
+        void SetPreview(string s) { _preview = s ?? ""; Notify(nameof(Preview)); }
 
         void RefreshAll()
         {
@@ -190,6 +242,7 @@ namespace AutoReplay.UI
             }
             catch (Exception ex) { Plugin.Log?.Warn($"[AutoPlay] Dropdown refresh failed: {ex.Message}"); }
             Notify(nameof(ModelStatus));
+            Notify(nameof(ModelInfo));
             Notify(nameof(CanTrain));
             Notify(nameof(CanPack));
         }

@@ -23,7 +23,23 @@ namespace AutoReplay
             public string displayName; // 下拉选单显示
         }
 
-        sealed class Settings { public string selectedModel; }
+        sealed class Settings
+        {
+            public string selectedModel;
+            public TrainSettings train = new TrainSettings();
+        }
+
+        static Settings _settings;
+        static Settings Cfg => _settings ?? (_settings = LoadSettings());
+
+        /// <summary>训练设定 (设定页和自动训练共用), 改完要呼叫 SaveTrainSettings</summary>
+        public static TrainSettings Train => Cfg.train ?? (Cfg.train = new TrainSettings());
+        public static void SaveTrainSettings() => SaveSettings(Cfg);
+
+        public const string AutoModelName = "my-auto";
+        public static string StarCachePath => Path.Combine(RootDir, "star-cache.json");
+        static StarService _stars;
+        public static StarService Stars => _stars ?? (_stars = new StarService(StarCachePath));
 
         public static string RootDir => Path.Combine(Environment.CurrentDirectory, "UserData", "AutoPlay");
         public static string ModelsDir => Path.Combine(RootDir, "Models");
@@ -53,7 +69,7 @@ namespace AutoReplay
             {
                 Directory.CreateDirectory(ModelsDir);
                 Refresh();
-                string want = LoadSettings().selectedModel;
+                string want = Cfg.selectedModel;
                 var pick = Entries.FirstOrDefault(e => e.id == want) ?? Entries.FirstOrDefault();
                 if (pick != null) Select(pick.id);
                 else
@@ -78,6 +94,7 @@ namespace AutoReplay
                     list.Add(new Entry { id = Path.GetFileName(f), path = f, packed = true });
                 foreach (var d in Directory.GetDirectories(ModelsDir).OrderBy(x => x))
                 {
+                    if (d.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)) continue;   // 自动训练的备份
                     string mj = Path.Combine(d, "model.json");
                     if (File.Exists(mj)) list.Add(new Entry { id = Path.GetFileName(d) + "/", path = mj, packed = false });
                 }
@@ -105,7 +122,8 @@ namespace AutoReplay
                 CurrentId = e.id;
                 CurrentFingerprint = ApModelFile.Fingerprint(json);
                 LastError = null;
-                SaveSettings(new Settings { selectedModel = e.id });
+                Cfg.selectedModel = e.id;
+                SaveSettings(Cfg);
                 Plugin.Log?.Info($"[AutoPlay] Model loaded: {e.id} ({trust}, {model.meta.replayCount} replays, {model.templates.groups.Count} templates, fp {CurrentFingerprint})");
                 if (trust == ModelTrust.BadSignature) Plugin.Log?.Warn("[AutoPlay] 這個模型的簽名驗證失敗 (被修改過, 或不是作者簽的)");
                 Changed?.Invoke();
@@ -131,6 +149,25 @@ namespace AutoReplay
             Refresh();
             return Path.GetFileName(dir) + "/";
         }
+
+        /// <summary>自动训练: 覆盖固定的 my-auto/ 资料夹, 旧的留一份 my-auto.bak/</summary>
+        public static string SaveAuto(AutoPlayModel model, string report)
+        {
+            string dir = Path.Combine(ModelsDir, AutoModelName);
+            string bak = Path.Combine(ModelsDir, AutoModelName + ".bak");
+            if (Directory.Exists(dir))
+            {
+                if (Directory.Exists(bak)) Directory.Delete(bak, true);
+                Directory.Move(dir, bak);
+            }
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "model.json"), JsonConvert.SerializeObject(model, Formatting.Indented));
+            if (!string.IsNullOrEmpty(report)) File.WriteAllText(Path.Combine(dir, "train-report.txt"), report);
+            Refresh();
+            return AutoModelName + "/";
+        }
+
+        public static bool AutoModelExists => File.Exists(Path.Combine(ModelsDir, AutoModelName, "model.json"));
 
         /// <summary>把未打包的模型打包成 .apmodel (不签名), 返回新文件 id</summary>
         public static string Pack(string id)

@@ -51,6 +51,44 @@ namespace AutoReplay.Core
         public int replayCount;               // 用了几份 replay
         public int swingCount;                // 统计到的挥刀次数
         public string notes = "";
+        public TrainingInfo training;         // 训练资料的详细信息 (旧模型没有)
+    }
+
+    /// <summary>
+    /// 模型资讯: 训练用的资料从哪来、长什么样. 不存任何玩家 ID.
+    /// 有作者签名的模型, 这些内容在签名范围内; 未签名的只能参考.
+    /// </summary>
+    public sealed class TrainingInfo
+    {
+        public string modVersion = "";        // 训练时的 AutoPlay 版本
+        public string playerName = "";        // 回放里的玩家名称 (排行榜上公开的名字)
+        public string platform = "";          // steam / oculus ...
+        public string hmd = "";               // 最常见的头盔
+        public string gameVersions = "";      // 回放录制时的游戏版本 (可能多个)
+        public string beatLeaderVersions = "";
+        public string mode = "manual";        // manual = 固定范围; auto = 持续追踪最新回放
+
+        // 筛选条件
+        public string rangeFrom = "", rangeTo = "";   // 设定的日期范围 (空 = 不限)
+        public int rollingDays;                        // auto 模式: 最近几天
+        public int perMapCap, maxReplays;
+        public float minStars;
+        public string selection = "";                  // 每一步筛完剩几份
+
+        // 实际采用的资料
+        public string dataFrom = "", dataTo = "";      // 采用的回放最早 / 最晚日期
+        public int uniqueMaps;
+        public float npsMedian, npsP90;
+        public StarStats blStars, blTech, blPass, blAcc;  // BeatLeader 评分 (unranked 也有 AI 估计)
+        public int ssRankedCount;                         // 其中 ScoreSaber ranked 的份数
+        public float ssStarsMedian;
+        public float techShare;                           // 和上一刀转向 <= 90° 的挥刀比例 (tech 程度)
+    }
+
+    public sealed class StarStats
+    {
+        public int count;                     // 有数据的份数
+        public float median, p10, p90;
     }
 
     /// <summary>一只手: 位置模型 手柄 - 头 = b + A·f; 扭转模型 [cos,sin](roll) = C·feats(f); 指向限位</summary>

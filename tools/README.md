@@ -26,7 +26,8 @@
 
 ```bash
 dotnet build tools/ApModelTool -c Release
-ApModelTool train <Replays資料夾> <輸出 model.json> [--player ID] [--max 80] [--name 名稱] [--author 作者]
+ApModelTool train <Replays資料夾> <輸出 model.json> [--player ID] [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--days N]
+                  [--per-map 3] [--max 300] [--min-stars 0] [--stars] [--offline] [--name 名稱] [--author 作者]
 ApModelTool pack <model.json> <輸出.apmodel> [--sign 私鑰.xml]
 ApModelTool inspect <檔案.apmodel>
 ApModelTool keygen <私鑰.xml> <公鑰.xml>

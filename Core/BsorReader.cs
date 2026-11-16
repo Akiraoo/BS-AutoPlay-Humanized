@@ -8,7 +8,8 @@ namespace AutoReplay.Core
     /// <summary>精简版 .bsor 读取器: 只读训练要用的 info / frames / notes. 不依赖 BeatLeader 和 Unity.</summary>
     public sealed class BsorReplay
     {
-        public string playerId, playerName, hash, songName, difficulty, mode, modifiers, hmd;
+        public string playerId, playerName, hash, songName, difficulty, mode, modifiers, hmd, platform, modVersion, gameVersion;
+        public long timestamp;     // unix 秒 (回放录制时间)
         public bool leftHanded;
         public float height;
         public float[] time;      // 帧时间
@@ -91,9 +92,10 @@ namespace AutoReplay.Core
             r.ReadByte();                          // file version
             if (r.ReadByte() != 0) throw new InvalidDataException("info section missing");
             var rep = new BsorReplay();
-            Str(r); Str(r); Str(r);                // version, gameVersion, timestamp
+            rep.modVersion = Str(r); rep.gameVersion = Str(r);
+            long.TryParse(Str(r), out rep.timestamp);
             rep.playerId = Str(r); rep.playerName = Str(r);
-            Str(r); Str(r); rep.hmd = Str(r); Str(r);   // platform, tracking, hmd, controller
+            rep.platform = Str(r); Str(r); rep.hmd = Str(r); Str(r);   // platform, tracking, hmd, controller
             rep.hash = Str(r); rep.songName = Str(r); Str(r); rep.difficulty = Str(r);
             r.ReadInt32();                         // score
             rep.mode = Str(r); Str(r); rep.modifiers = Str(r);

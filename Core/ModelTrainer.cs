@@ -8,12 +8,15 @@ namespace AutoReplay.Core
 {
     public sealed class TrainOptions
     {
-        public string replaysDir;            // UserData/BeatLeader/Replays
-        public string playerId;              // 只用这个玩家的 replay; null = 自动取本机最常见的玩家 ID
-        public int maxReplays = 80;          // 最多用最近几份
+        public SelectionOptions selection = new SelectionOptions();
         public int minReplays = 10;          // 少于这个数就不训练
         public string modelName = "my-model";
         public string author = "";
+        public StarService stars;            // null = 不查星数
+        public bool network = true;          // 允许连网查星数
+        public string modVersion = "";
+        public string mode = "manual";       // manual / auto
+        public int rollingDays;              // auto 模式的滚动天数
         public Action<string> progress;
         public CancellationToken cancel;
     }
@@ -41,13 +44,19 @@ namespace AutoReplay.Core
             var log = new System.Text.StringBuilder();
             void P(string s) { log.AppendLine(s); o.progress?.Invoke(s); }
 
-            var files = SelectReplays(o, P);
+            P("掃描回放…");
+            var sel = ReplaySelector.Select(o.selection, o.stars, o.network, P, o.cancel);
+            P(sel.Summary());
+            var files = sel.picked.Select(e => e.path).ToList();
+            var entryOf = sel.picked.ToDictionary(e => e.path);
             if (files.Count < o.minReplays)
-                throw new InvalidOperationException($"可用的 replay 只有 {files.Count} 份, 至少需要 {o.minReplays} 份 (需要 BeatLeader 在本机保存 replay)");
+                throw new InvalidOperationException($"符合條件的 replay 只有 {files.Count} 份, 至少需要 {o.minReplays} 份 (可以放寬日期範圍)");
 
             // ---------- 第 1 轮: 手部模型 + 挥刀模板 ----------
             var hand = new HandAcc[] { new HandAcc(), new HandAcc() };
             var rows = new List<Row>();
+            var used = new List<string>();
+            var npsList = new List<double>();
             int done = 0;
             foreach (var f in files)
             {
@@ -55,11 +64,18 @@ namespace AutoReplay.Core
                 P($"[1/2] 分析 {++done}/{files.Count}: {Path.GetFileName(f)}");
                 BsorReplay rep;
                 try { rep = BsorReader.Read(f); } catch (Exception ex) { P($"   跳過 (讀取失敗: {ex.Message})"); continue; }
+                double nps = Nps(rep);
+                if (nps < MinNps) { P($"   跳過 (太簡單: {nps:F1} NPS)"); continue; }
                 var fr = Prepare(rep);
                 if (fr == null) continue;
                 AccumulateHands(fr, rep, hand);
                 CollectSwings(fr, rep, rows);
+                used.Add(f);
+                npsList.Add(nps);
             }
+            files = used;
+            if (files.Count < o.minReplays)
+                throw new InvalidOperationException($"可用的 replay 只有 {files.Count} 份, 至少需要 {o.minReplays} 份");
 
             var model = new AutoPlayModel();
             model.left = hand[0].Solve();
@@ -91,6 +107,7 @@ namespace AutoReplay.Core
                 trainer = TrainerVersion,
                 replayCount = files.Count,
                 swingCount = rows.Count,
+                training = BuildInfo(o, sel, files.Select(f => entryOf[f]).ToList(), npsList, rows, P),
             };
             string err = model.Validate();
             if (err != null) throw new InvalidOperationException("訓練結果不完整: " + err);
@@ -99,46 +116,92 @@ namespace AutoReplay.Core
             return model;
         }
 
-        // =====================================================================
-        //  选 replay: 本人 (玩家 ID), 最近的; 先只要 Standard + Hard/Expert/E+ + 非快速, 不够再放宽难度
-        // =====================================================================
-        static List<string> SelectReplays(TrainOptions o, Action<string> P)
+        const double MinNps = 1.5;   // 平均每秒音符数低于这个的回放太简单, 挥刀不像平常
+
+        static double Nps(BsorReplay rep)
         {
-            if (!Directory.Exists(o.replaysDir)) throw new DirectoryNotFoundException("找不到 replay 資料夾: " + o.replaysDir);
-            var all = new DirectoryInfo(o.replaysDir).GetFiles("*.bsor").OrderByDescending(f => f.LastWriteTimeUtc).ToList();
-            var infos = new List<(string path, BsorReplay info)>();
-            foreach (var f in all)
-            {
-                try { infos.Add((f.FullName, BsorReader.ReadInfo(f.FullName))); } catch { }
-                if (infos.Count >= 3000) break;
-            }
+            float t0 = float.MaxValue, t1 = float.MinValue; int n = 0;
+            foreach (var x in rep.notes) if (x.type != 3) { n++; if (x.time < t0) t0 = x.time; if (x.time > t1) t1 = x.time; }
+            return n < 2 || t1 <= t0 ? 0 : n / (t1 - t0);
+        }
 
-            string pid = o.playerId;
-            if (string.IsNullOrEmpty(pid))
+        // =====================================================================
+        //  模型资讯: 训练资料的统计 (不含玩家 ID)
+        // =====================================================================
+        static TrainingInfo BuildInfo(TrainOptions o, SelectionResult sel, List<ReplayEntry> used, List<double> nps, List<Row> rows, Action<string> P)
+        {
+            var so = o.selection;
+            string Most(IEnumerable<string> xs) => xs.Where(x => !string.IsNullOrEmpty(x)).GroupBy(x => x).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault() ?? "";
+            string All(IEnumerable<string> xs) => string.Join(", ", xs.Where(x => !string.IsNullOrEmpty(x)).GroupBy(x => x).OrderByDescending(g => g.Count()).Select(g => g.Key).Take(4));
+            var ti = new TrainingInfo
             {
-                pid = infos.Where(x => !string.IsNullOrEmpty(x.info.playerId) && x.info.playerId != "Auto Play")
-                           .GroupBy(x => x.info.playerId).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
-                P($"沒有指定玩家 ID, 使用本機最常見的: {pid}");
-            }
-            else P($"玩家 ID: {pid}");
+                modVersion = o.modVersion ?? "",
+                playerName = Most(used.Select(e => e.info.playerName)),
+                platform = Most(used.Select(e => e.info.platform)),
+                hmd = CleanHmd(Most(used.Select(e => e.info.hmd))),
+                gameVersions = All(used.Select(e => e.info.gameVersion)),
+                beatLeaderVersions = All(used.Select(e => e.info.modVersion)),
+                mode = o.mode ?? "manual",
+                rollingDays = o.rollingDays,
+                rangeFrom = so.fromUtc?.ToString("yyyy-MM-dd") ?? "",
+                rangeTo = so.toUtc?.ToString("yyyy-MM-dd") ?? "",
+                perMapCap = so.perMapCap,
+                maxReplays = so.maxReplays,
+                minStars = so.minStars,
+                selection = sel.Summary(),
+                dataFrom = used.Count > 0 ? used.Min(e => e.timeUtc).ToString("yyyy-MM-dd") : "",
+                dataTo = used.Count > 0 ? used.Max(e => e.timeUtc).ToString("yyyy-MM-dd") : "",
+                uniqueMaps = used.Select(e => (e.info.hash ?? "").ToUpperInvariant()).Distinct().Count(),
+                npsMedian = (float)Pct(nps, 0.5),
+                npsP90 = (float)Pct(nps, 0.9),
+                techShare = rows.Count > 0 ? rows.Count(r => r.rel <= 2) / (float)rows.Count : 0f,   // 和上一刀转向 <= 90 度
+            };
 
-            bool Basic(BsorReplay i) => i.playerId == pid && !i.leftHanded && i.mode == "Standard" && !i.HasSpeedModifier("FS", "SF");
-            bool Strict(BsorReplay i) => Basic(i) && (i.difficulty == "Hard" || i.difficulty == "Expert" || i.difficulty == "ExpertPlus") && !i.HasSpeedModifier("SS");
-
-            var pick = infos.Where(x => Strict(x.info)).Select(x => x.path).Take(o.maxReplays).ToList();
-            if (pick.Count < o.maxReplays)
+            if (o.stars != null)
             {
-                // 不够就放宽: 任何难度 / 慢速, 仍然按最近排序
-                var set = new HashSet<string>(pick);
-                foreach (var x in infos)
+                int k = 0;
+                foreach (var e in used)
                 {
-                    if (pick.Count >= o.maxReplays) break;
-                    if (!set.Contains(x.path) && Basic(x.info)) { pick.Add(x.path); set.Add(x.path); }
+                    o.cancel.ThrowIfCancellationRequested();
+                    if (e.stars == null || !e.stars.blChecked || !e.stars.ssChecked)
+                        e.stars = o.stars.Get(e.info.hash, e.info.difficulty, o.network, o.cancel);
+                    if (++k % 10 == 0) P($"查詢星數 {k}/{used.Count}" + (o.stars.Offline ? " (離線, 只用快取)" : ""));
                 }
-                P($"符合條件的高難度 replay 不足 {o.maxReplays} 份, 已放寬條件");
+                o.stars.Save();
+                var st = used.Select(e => e.stars).Where(x => x != null).ToList();
+                ti.blStars = Stats(st.Select(x => x.blStars));
+                ti.blTech = Stats(st.Select(x => x.blTech));
+                ti.blPass = Stats(st.Select(x => x.blPass));
+                ti.blAcc = Stats(st.Select(x => x.blAcc));
+                var ss = st.Where(x => x.ssRanked && x.ssStars != null).Select(x => (double)x.ssStars.Value).ToList();
+                ti.ssRankedCount = ss.Count;
+                ti.ssStarsMedian = (float)Pct(ss, 0.5);
             }
-            P($"使用最近的 {pick.Count} 份 replay");
-            return pick;
+            return ti;
+        }
+
+        // BL 的 hmd 字段有时是 ""Oculus""""Oculus Quest2"" 这种拼接, 取最后一段
+        static string CleanHmd(string h)
+        {
+            if (string.IsNullOrEmpty(h)) return "";
+            var parts = h.Split('"');
+            for (int i = parts.Length - 1; i >= 0; i--) if (parts[i].Trim().Length > 0) return parts[i].Trim();
+            return h;
+        }
+
+        static StarStats Stats(IEnumerable<float?> xs)
+        {
+            var v = xs.Where(x => x != null && x > 0).Select(x => (double)x.Value).ToList();
+            if (v.Count == 0) return null;
+            return new StarStats { count = v.Count, median = (float)Pct(v, 0.5), p10 = (float)Pct(v, 0.1), p90 = (float)Pct(v, 0.9) };
+        }
+
+        static double Pct(List<double> v, double q)
+        {
+            if (v.Count == 0) return 0;
+            var s = v.OrderBy(x => x).ToList();
+            double pos = q * (s.Count - 1); int i = (int)Math.Floor(pos);
+            return i + 1 < s.Count ? s[i] + (s[i + 1] - s[i]) * (pos - i) : s[i];
         }
 
         // =====================================================================

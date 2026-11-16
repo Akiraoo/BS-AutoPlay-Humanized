@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/bsmg/BSIPA-ModList/master/PluginInfo.schema.json",
   "name": "AutoReplay",
   "id": "AutoReplay",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "gameVersion": "1.40.8",
   "author": "AutoReplay",
   "description": "Auto Play Replay Generator for BeatLeader",
