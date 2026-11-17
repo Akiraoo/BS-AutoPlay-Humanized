@@ -18,9 +18,9 @@ namespace AutoReplay
                     Directory.CreateDirectory(folder);
                 }
                 string safeHash = Safe(hash);
-                // 文件名带上模型名称: 同一张谱用不同模型生成不会互相覆盖, 方便比较
+                // 只用目前选中的模型生成一份; 文件名带上模型名称和生成时间, 每次生成都是新文件, 不会互相覆盖
                 string model = Safe(Path.GetFileNameWithoutExtension((ModelManager.CurrentId ?? "no-model").TrimEnd('/')));
-                string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}_{model}.bsor");
+                string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}_{model}_{DateTime.Now:yyyyMMdd-HHmmss}.bsor");
 
                 var encoderType = AccessTools.TypeByName("BeatLeader.Models.Replay.ReplayEncoder");
                 var encodeMethod = encoderType?.GetMethod("Encode", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
