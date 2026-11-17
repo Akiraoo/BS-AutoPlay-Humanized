@@ -56,6 +56,7 @@ namespace AutoReplay.Core
         public static List<string> StyleLines(StyleParams st)
         {
             var L = new List<string>();
+            if (st == null) { L.Add("個人習慣: 這個模型沒有 (舊版訓練器), 點塊 / 閃牆 / 蹲牆 / 炸彈用內建預設"); return L; }
             string def = "樣本不夠, 用預設";
             var d = st?.dots;
             L.Add("點塊: " + (d == null ? def : $"{d.count} 個 · 下/中/上排往下揮 {Pct(d.downShare, 0)}/{Pct(d.downShare, 1)}/{Pct(d.downShare, 2)} · 往上平均外斜 {F(d.flowUp[0], "0")}°"));
