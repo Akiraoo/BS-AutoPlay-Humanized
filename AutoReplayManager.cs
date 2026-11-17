@@ -138,10 +138,13 @@ namespace AutoReplay
                 var replay = AutoReplayGenerator.GenerateReplay(beatmapData, beatmapLevel, beatmapKey, hash, modifiers, leftHanded);
                 ReplayFileSaver.SaveReplay(replay, hash, beatmapKey.difficulty.ToString());
 
+                var bot = ModelManager.Bot;
                 var dummyPlayer = new Player
                 {
                     id = "Auto Play",
-                    name = "Auto Play"
+                    name = string.IsNullOrWhiteSpace(bot.name) ? "Auto Play" : bot.name,
+                    avatar = bot.avatar,
+                    country = string.IsNullOrWhiteSpace(bot.country) ? null : bot.country.Trim().ToUpperInvariant()
                 };
 
                 Plugin.Log?.Info($"Starting BeatLeader Replayer with modifiers: {AutoReplayMath.EncodeModifiers(modifiers)}");

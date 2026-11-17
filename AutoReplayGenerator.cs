@@ -193,7 +193,7 @@ namespace AutoReplay
                 gameVersion = "1.40.8",
                 timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
                 playerID = "Auto Play",
-                playerName = "Auto Play",
+                playerName = string.IsNullOrWhiteSpace(ModelManager.Bot.name) ? "Auto Play" : ModelManager.Bot.name,
                 platform = "steam",
                 trackingSytem = "OpenVR",
                 hmd = "Oculus",

@@ -27,6 +27,25 @@ namespace AutoReplay
         {
             public string selectedModel;
             public TrainSettings train = new TrainSettings();
+            public BotProfile bot;
+        }
+
+        /// <summary>回放器裡 bot 顯示的名字 / 頭像 / 地區 (只影響畫面, id 固定 "Auto Play", 不會被當成玩家本人的紀錄)</summary>
+        public sealed class BotProfile
+        {
+            public string name = "Auto Play";
+            public string avatar = "https://stickershop.line-scdn.net/stickershop/v1/product/28887845/LINEStorePC/main.png?v=1";
+            public string country = "TW";      // ISO 3166-1 alpha-2
+        }
+
+        /// <summary>bot 的顯示資料; settings.json 沒有時寫入預設值, 之後可直接改檔</summary>
+        public static BotProfile Bot
+        {
+            get
+            {
+                if (Cfg.bot == null) { Cfg.bot = new BotProfile(); SaveSettings(Cfg); }
+                return Cfg.bot;
+            }
         }
 
         static Settings _settings;
