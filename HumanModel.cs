@@ -27,6 +27,8 @@ namespace AutoReplay
         // 原本在上限前 20° 就开始压, 真人常到的角度也被压掉: 收势最远只到 103° (真人 120°).
         // 游戏外 12 张训练外的谱: 收势 103 -> 111°, 角速度 0.86 -> 0.94 倍真人, 方向误差 32.0 -> 31.9°
         public static bool LimitKneeAtLimit = true;
+        public static float LimitKneeBelow = 0f;   // 软压缩从上限前多少度开始
+        public static float LimitOver = 20f;       // 最多超过上限多少度
 
         // 追踪误差修正: 真人数据里剑偏离正前方的极限 (126~166°) 有一部分是手柄贴近头显时的追踪跳变 ("剑戳脑袋"),
         // 这里把限位上限压到 MaxForwardAngle
@@ -63,16 +65,18 @@ namespace AutoReplay
             return q;
         }
 
-        /// <summary>软限位: 剑偏离正前方的角度超过 (上限 - LimitSoftZone) 后被逐渐压缩, 永远不会超过上限</summary>
+        /// <summary>软限位: 剑偏离正前方的角度超过 knee 后被逐渐压缩, 最多到 top (上限 + LimitOver). 防戳头另外在 MotionGenerator.AvoidHead 按实际距离处理</summary>
         public static Vector3 LimitForward(bool isLeft, Vector3 f)
         {
             float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
             float az = Mathf.Atan2(f.y, f.x) * Mathf.Rad2Deg;
             float lim = Mathf.Min(MaxForwardAngle, LimitAt(P(isLeft), az));
-            float knee = LimitKneeAtLimit ? lim : lim - LimitSoftZone;
+            float knee = LimitKneeAtLimit ? lim - LimitKneeBelow : lim - LimitSoftZone;
+            float top = LimitKneeAtLimit ? lim + LimitOver : lim;      // 最多到这里
             if (ang <= knee) return f;
 
-            float newAng = knee + LimitSoftZone * Tanh((ang - knee) / LimitSoftZone);
+            float zone = Mathf.Max(1f, top - knee);
+            float newAng = knee + zone * Tanh((ang - knee) / zone);
             Vector3 side = new Vector3(f.x, f.y, 0f);
             if (side.sqrMagnitude < 1e-8f) side = Vector3.up;
             side.Normalize();

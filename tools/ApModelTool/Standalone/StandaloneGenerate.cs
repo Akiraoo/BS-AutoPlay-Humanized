@@ -23,6 +23,11 @@ namespace AutoReplay.Tools
             bool noArrows = Array.IndexOf(a, "--na") >= 0;
             Plugin.Log.verbose = Array.IndexOf(a, "--verbose") >= 0;
             if (Array.IndexOf(a, "--limit-knee") >= 0) HumanModel.LimitKneeAtLimit = true;   // debug
+            if (Array.IndexOf(a, "--soft-limit") >= 0) HumanModel.LimitKneeAtLimit = false;   // debug: 限位前就开始软压缩 (旧版)
+            string lkb = opt(a, "--lim-below", null); if (lkb != null) HumanModel.LimitKneeBelow = float.Parse(lkb, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string lov = opt(a, "--lim-over", null); if (lov != null) HumanModel.LimitOver = float.Parse(lov, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string hcl = opt(a, "--head-clear", null); if (hcl != null) MotionGenerator.HeadClear = float.Parse(hcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string hcs = opt(a, "--head-soft", null); if (hcs != null) MotionGenerator.HeadClearSoft = float.Parse(hcs, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string knee = opt(a, "--amp-knee", null);   // debug: 挥动幅度压缩的起点 (度)
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug
