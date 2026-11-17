@@ -67,9 +67,42 @@ namespace AutoReplay
 
         // ================= 规划 =================
         // noArrows = true (NA 无箭头模式): 所有方块一律当点块处理, 完全不看谱面里的切割方向(tech 之类的方向设计都不管),
+        /// <summary>
+        /// 同一时间的方块 (叠块 / 滑块) 排成固定顺序: 点块在前 (后面的方向块会决定它们的方向), 方向块按挥刀方向先后
+        /// (例如往下挥: 上面的先切). 游戏给的同时间方块顺序不固定, 不排的话"一刀的第一块/最后一块"会变, 方向差约 30°.
+        /// </summary>
+        static List<NoteData> SortStacks(List<NoteData> notes)
+        {
+            var res = new List<NoteData>(notes.Count);
+            for (int i = 0; i < notes.Count;)
+            {
+                int e = i;
+                while (e + 1 < notes.Count && Mathf.Abs(notes[e + 1].time - notes[i].time) < 1e-4f) e++;
+                if (e == i) { res.Add(notes[i]); i++; continue; }
+                var group = new List<NoteData>();
+                for (int k = i; k <= e; k++) group.Add(notes[k]);
+                Vector3 d = Vector3.zero;
+                foreach (var g in group) if (HasDirection(g)) { d = CutDir(g); break; }
+                float Key(NoteData x) { var p = AutoReplayMath.GetNotePos(x); return Vector3.Dot(p, d); }
+                group.Sort((a, b) =>
+                {
+                    int c = HasDirection(a).CompareTo(HasDirection(b));                 // 点块在前
+                    if (c != 0) return c;
+                    c = Key(a).CompareTo(Key(b));                                         // 沿挥刀方向先后
+                    if (c != 0) return c;
+                    c = ((int)b.noteLineLayer).CompareTo((int)a.noteLineLayer);           // 其余: 上面的先, 左边的先
+                    return c != 0 ? c : a.lineIndex.CompareTo(b.lineIndex);
+                });
+                res.AddRange(group);
+                i = e + 1;
+            }
+            return res;
+        }
+
         // 第一刀从上往下, 之后上下交替; 能一刀砍的(按普通模式的 ForceChainGap/DotChainGap/ChainGap/ChainAlign 判定)合成一刀
         public static List<NoteSwingData> PlanSwings(List<NoteData> notes, List<NoteData> bombs, Vector3 wristPos, bool isLeft, bool noArrows = false)
         {
+            notes = SortStacks(notes);
             int n = notes.Count;
             var result = new List<NoteSwingData>(n);
             if (n == 0) return result;

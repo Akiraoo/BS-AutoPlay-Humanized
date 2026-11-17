@@ -23,6 +23,7 @@ namespace AutoReplay.Tools
                 switch (args[0])
                 {
                     case "train": return Train(args);
+                    case "generate": return StandaloneGenerate.Run(args, (x, n, d) => Opt(x, n, d));
                     case "pack": return Pack(args);
                     case "unpack": return Unpack(args);
                     case "inspect": return Inspect(args);
@@ -41,6 +42,7 @@ namespace AutoReplay.Tools
         {
             Console.WriteLine("ApModelTool train <Replays> <out model.json> [--player ID] [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--days N]\n" +
                               "                  [--per-map 3] [--max 300] [--min-stars 0] [--ranked] [--prefer-acc] [--stars] [--offline] [--name N] [--author A]");
+            Console.WriteLine("ApModelTool generate <譜面資料夾或hash> <難度> <模型(.apmodel/model.json/資料夾)> <輸出.bsor> [--left] [--na] [--mode Standard] [--game 遊戲路徑] [--verbose]");
             Console.WriteLine("ApModelTool pack <model.json> <out.apmodel> [--sign private.xml]");
             Console.WriteLine("ApModelTool unpack <in.apmodel> <out model.json>");
             Console.WriteLine("ApModelTool inspect <file>");

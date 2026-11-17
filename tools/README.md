@@ -30,7 +30,23 @@ ApModelTool train <Replays資料夾> <輸出 model.json> [--player ID] [--from y
                   [--per-map 3] [--max 300] [--min-stars 0] [--ranked] [--prefer-acc] [--stars] [--offline] [--name 名稱] [--author 作者]
 ApModelTool pack <model.json> <輸出.apmodel> [--sign 私鑰.xml]
 ApModelTool inspect <檔案.apmodel>
+ApModelTool generate <譜面資料夾或hash> <難度> <模型> <輸出.bsor> [--left] [--na] [--mode Standard] [--game 遊戲路徑]
 ApModelTool keygen <私鑰.xml> <公鑰.xml>
 ```
 
 私鑰請放在 repo 以外的地方，**不要提交**。
+
+### 遊戲外生成回放（debug 用）
+
+`generate` 和模組共用同一份生成器原始碼（`MotionGenerator` / `NoteSwingPlanner` / `PoseCalculator` / 人體模型），
+Unity 的數學型別和遊戲的譜面型別換成 `Standalone/` 裡的替代品，譜面自己讀（v2 / v3 / v4、BPM 變化、弧線、鏈條）。
+產生的 `.bsor` 可以直接放進 BeatLeader 的回放資料夾在遊戲裡看。
+
+- 譜面可以給資料夾路徑，或譜面 hash（先查 SongCore 的快取，找不到再逐個資料夾計算，包括 `CustomWIPLevels`）
+- 驗證：33 張已在遊戲內生成過的譜（v2.0–v3.3，含 BPM 變化 / 弧線 / 鏈條 / OneSaber），方塊 ID 和時間全部和遊戲內一致；
+  同一張譜的動作，除了疊塊（同時間同顏色）以外逐幀一致，疊塊的順序現在由揮刀規劃自己決定，兩邊結果相同
+
+```bash
+python eval_replay.py <生成.bsor> <真人.bsor> [更多真人.bsor]
+```
+和真人回放比較：方向誤差、手的高度、依間隔 × 位置拆開的角速度、收勢 / 預備幅度；多份真人回放時順便印出真人彼此的差異當基準。

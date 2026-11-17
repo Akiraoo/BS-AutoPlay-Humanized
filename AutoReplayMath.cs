@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if !AUTOPLAY_STANDALONE
 using BLVector3 = BeatLeader.Models.Replay.Vector3;
 using BLQuaternion = BeatLeader.Models.Replay.Quaternion;
+#endif
 
 namespace AutoReplay
 {
@@ -218,6 +220,7 @@ namespace AutoReplay
             return defaultRest;
         }
 
+#if !AUTOPLAY_STANDALONE  // 游戏外的工具 (tools/ApModelTool) 没有 BeatLeader / 游戏的修饰符类型
         // 修饰符代码必须和 BeatLeader 的解析一致 (MapEnhancer 写入 / ReplayDataUtils.GetModifiersFromReplay 读取):
         //   SS=慢速  FS=快速  SF=超快  SA=严格角度  SC=小方块  CS=剑碰撞失败  NA=无箭头  NB=无炸弹  NO=无墙
         //   DA=消失箭头  GN=幽灵音符  PM=专业模式  NF=0能量不失败  IF=一击即死  BE=电池能量
@@ -252,6 +255,7 @@ namespace AutoReplay
         {
             return new BLQuaternion(q.x, q.y, q.z, q.w);
         }
+#endif
     }
 }
 
