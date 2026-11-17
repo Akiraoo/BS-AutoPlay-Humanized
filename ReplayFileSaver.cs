@@ -17,8 +17,10 @@ namespace AutoReplay
                 {
                     Directory.CreateDirectory(folder);
                 }
-                string safeHash = hash.Replace("/", "_").Replace("\\", "_");
-                string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}.bsor");
+                string safeHash = Safe(hash);
+                // 文件名带上模型名称: 同一张谱用不同模型生成不会互相覆盖, 方便比较
+                string model = Safe(Path.GetFileNameWithoutExtension((ModelManager.CurrentId ?? "no-model").TrimEnd('/')));
+                string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}_{model}.bsor");
 
                 var encoderType = AccessTools.TypeByName("BeatLeader.Models.Replay.ReplayEncoder");
                 var encodeMethod = encoderType?.GetMethod("Encode", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
@@ -37,6 +39,12 @@ namespace AutoReplay
             {
                 Plugin.Log?.Warn($"Failed to save replay to disk: {ex.Message}");
             }
+        }
+
+        static string Safe(string s)
+        {
+            foreach (char c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+            return s;
         }
     }
 }
