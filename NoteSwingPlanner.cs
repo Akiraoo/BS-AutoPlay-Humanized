@@ -531,6 +531,26 @@ namespace AutoReplay
         // 真人兩次都是每一刀往下砍再從上面繞回來 (炸彈重置), 原本的規劃照節奏上下交替, 往上揮時會從炸彈那排穿過去
         public static float DotBombApproach = 0.45f;   // 預揮 / 收勢時劍指向 方塊 ∓ 方向 * 這個距離 (米)
         public static float DotBombCost = 6f;          // 路上會撞到炸彈的代價 (要大過兩次同向重置 ~3.6: 寧可重置也不穿過炸彈)
+        // 點塊的切割角度 (偏離正上 / 正下, 往外為正, 度) = 常數 + 前一塊 -> 這塊 / 這塊 -> 下一塊 的位移 (米) 的線性組合.
+        // 真人 150 份回放 / 7026 個點塊: 只有 63% 在正上下 20° 以內, 23% 斜超過 35°; 最主要是順著從上一塊過來的方向斜
+        // (每橫移 1 m 斜約 25°). 往上的平均還往外 18°. 擬合 R2 0.36~0.39, 殘差中位 11~12°
+        public static bool DotFlow = true;
+        static readonly float[] DotFlowUp = { 17.9f, 25.5f, -2.1f, -10.7f, 4.6f };     // 常數, dx_prev, dx_next, dy_prev, dy_next
+        static readonly float[] DotFlowDown = { -3.7f, 25.0f, -7.4f, -4.7f, 0.8f };
+        public const float DotFlowMax = 50f;
+        public static float DotFlowScale = 0.85f;   // 整體縮放: 生成後實際的角度會被模板 / 平滑放大一點; 0.85 時偏離正上下的分佈最接近真人 (中位 14° vs 13°)
+
+        static float DotFlowAngle(List<NoteData> notes, int i, bool up, bool isLeft)
+        {
+            float m = isLeft ? -1f : 1f;
+            Vector2 P(NoteData n) => new Vector2(m * (n.lineIndex - 1.5f) * 0.6f, (int)n.noteLineLayer * 0.53f);
+            Vector2 p1 = P(notes[i]);
+            Vector2 dp = i > 0 ? p1 - P(notes[i - 1]) : Vector2.zero;
+            Vector2 dn = i + 1 < notes.Count ? P(notes[i + 1]) - p1 : Vector2.zero;
+            var w = up ? DotFlowUp : DotFlowDown;
+            return Mathf.Clamp(DotFlowScale * (w[0] + w[1] * dp.x + w[2] * dn.x + w[3] * dp.y + w[4] * dn.y), -DotFlowMax, DotFlowMax);
+        }
+
         public static float DotLayerPref = 0.6f;       // 點塊方向和所在排不符 (下排往上 / 上排往下) 的代價
         public static bool DebugDots = false;          // debug: 印出點塊各方向的炸彈代價
 
@@ -545,8 +565,19 @@ namespace AutoReplay
             {
                 cand[i] = new List<Vector3>(); prior[i] = new List<float>();
                 if (HasDirection(notes[i])) { cand[i].Add(CutDir(notes[i])); prior[i].Add(0f); continue; }
-                cand[i].Add(new Vector3(Mathf.Sin(downTilt), -Mathf.Cos(downTilt), 0f)); prior[i].Add(0f);
-                cand[i].Add(new Vector3(Mathf.Sin(upTilt), Mathf.Cos(upTilt), 0f)); prior[i].Add(i == 0 ? 0.2f : 0f);
+                if (DotFlow)
+                {
+                    // 點塊不必正上正下: 照真人的習慣順著手的移動斜著切 (DotFlowAngle)
+                    float m = isLeft ? -1f : 1f;
+                    float dUp = DotFlowAngle(notes, i, true, isLeft) * Mathf.Deg2Rad, dDown = DotFlowAngle(notes, i, false, isLeft) * Mathf.Deg2Rad;
+                    cand[i].Add(new Vector3(m * Mathf.Sin(dDown), -Mathf.Cos(dDown), 0f)); prior[i].Add(0f);
+                    cand[i].Add(new Vector3(m * Mathf.Sin(dUp), Mathf.Cos(dUp), 0f)); prior[i].Add(i == 0 ? 0.2f : 0f);
+                }
+                else
+                {
+                    cand[i].Add(new Vector3(Mathf.Sin(downTilt), -Mathf.Cos(downTilt), 0f)); prior[i].Add(0f);
+                    cand[i].Add(new Vector3(Mathf.Sin(upTilt), Mathf.Cos(upTilt), 0f)); prior[i].Add(i == 0 ? 0.2f : 0f);
+                }
                 float dg = 0.7071f;
                 foreach (var v in new[] { Vector3.left, Vector3.right })
                 { cand[i].Add(v); prior[i].Add(0.35f); }

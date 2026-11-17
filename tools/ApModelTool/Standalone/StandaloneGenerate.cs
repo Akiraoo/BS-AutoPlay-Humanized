@@ -32,6 +32,8 @@ namespace AutoReplay.Tools
             string bsw = opt(a, "--bomb-sway", null); if (bsw != null) PoseCalculator.BombSway = float.Parse(bsw, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string bcl = opt(a, "--bomb-clear", null); if (bcl != null) MotionGenerator.BombClear = float.Parse(bcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string dlp = opt(a, "--dot-layer", null); if (dlp != null) NoteSwingPlanner.DotLayerPref = float.Parse(dlp, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            if (Array.IndexOf(a, "--no-dot-flow") >= 0) NoteSwingPlanner.DotFlow = false;   // debug: 點塊只切正上下
+            string dfs = opt(a, "--dot-flow-scale", null); if (dfs != null) NoteSwingPlanner.DotFlowScale = float.Parse(dfs, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string knee = opt(a, "--amp-knee", null);   // debug: 揮動幅度壓縮的起點 (度)
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug
