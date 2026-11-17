@@ -31,6 +31,27 @@ namespace AutoReplay
                  + 0.2f * Mathf.Sin(t * 5.03f + seed * 37.719f);
         }
 
+        /// <summary>
+        /// 手的待机微动: 频率比 Noise 高 (0.5~3.7 Hz). 按真人 replay 长间隔中段校准:
+        /// 真人剑指向角速度中位 40°/s, 偏离平均方向 5°; 手的移动 0.20 m/s, 偏离 3.6 cm.
+        /// 振幅 9° 时角速度中位 41°/s, 偏离 4°; 位置振幅 5 cm 时 0.21 m/s, 3 cm.
+        /// </summary>
+        public static float HandNoise(float t, float seed)
+        {
+            return 0.30f * Mathf.Sin(t * 2.9f + seed * 12.9898f)
+                 + 0.30f * Mathf.Sin(t * 7.1f + seed * 78.233f)
+                 + 0.22f * Mathf.Sin(t * 13.7f + seed * 37.719f)
+                 + 0.18f * Mathf.Sin(t * 23.3f + seed * 93.1f);
+        }
+
+        public static float HandPosNoise(float t, float seed)
+        {
+            return 0.35f * Mathf.Sin(t * 2.6f + seed * 12.9898f)
+                 + 0.30f * Mathf.Sin(t * 5.9f + seed * 78.233f)
+                 + 0.20f * Mathf.Sin(t * 11.1f + seed * 37.719f)
+                 + 0.15f * Mathf.Sin(t * 19.3f + seed * 93.1f);
+        }
+
         // Cardinal resting poses (+10 degrees larger swing)
         public static readonly Quaternion PoseUp = Quaternion.Euler(-90f, 0f, 0f);
         public static readonly Quaternion PoseDown = Quaternion.Euler(90f, 0f, 0f);

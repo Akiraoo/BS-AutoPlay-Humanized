@@ -48,8 +48,9 @@ namespace AutoReplay
     {
         // ================= 待机微动参数 =================
         // 真人 replay: 手几乎从不完全静止 (角速度 <20°/s 的时间约 1%), 头的朝向也有约 2° 的晃动.
-        public const float HandIdleAngle = 4.0f;     // 手的旋转微动幅度(度): 空档停在原地时靠它模拟人手的小幅晃动
-        public const float HandIdlePos = 0.02f;      // 手的位置微动幅度(米)
+        // 原本 4° / 2 cm 而且频率太低: 长间隔里剑几乎静止 (3~5°/s), 真人是 30~50°/s. 现在按真人 replay 校准 (见 AutoReplayMath.HandNoise)
+        public const float HandIdleAngle = 9.0f;     // 手的旋转微动幅度(度)
+        public const float HandIdlePos = 0.05f;      // 手的位置微动幅度(米)
         public const float HitCalmInner = 0.05f;     // 命中前后这么近完全不加旋转微动 (保证剑尖准确穿过方块)
         public const float HitCalmRamp = 0.15f;      // 再往外这么长时间内微动逐渐恢复
         public const float BombCalmBefore = 0.40f;   // 炸弹到达前这么久开始收掉旋转微动 (躲避姿势不被打乱)
@@ -273,9 +274,9 @@ namespace AutoReplay
                 float t = t0 + (i - pad) * sdt;
                 Vector3 dirSlow = fs[i].sqrMagnitude > 1e-6f ? fs[i].normalized : f[i];
                 wrist[i] = HumanModel.WristForDir(isLeft, dirSlow) + ctx.bodyOffset(t) + new Vector3(
-                    HandIdlePos * AutoReplayMath.Noise(t * 0.7f, s + 3f),
-                    HandIdlePos * AutoReplayMath.Noise(t * 0.6f, s + 4f),
-                    HandIdlePos * AutoReplayMath.Noise(t * 0.5f, s + 5f));
+                    HandIdlePos * AutoReplayMath.HandPosNoise(t, s + 3f),
+                    HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.9f, s + 4f),
+                    HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.8f, s + 5f));
             }
         }
 
@@ -324,8 +325,8 @@ namespace AutoReplay
             {
                 float s = ctx.seed;
                 var jitter = Quaternion.Euler(
-                    HandIdleAngle * w * AutoReplayMath.Noise(t, s + 1f),
-                    HandIdleAngle * w * AutoReplayMath.Noise(t * 0.8f, s + 2f),
+                    HandIdleAngle * w * AutoReplayMath.HandNoise(t, s + 1f),
+                    HandIdleAngle * w * AutoReplayMath.HandNoise(t * 0.83f, s + 2f),
                     0f);
                 rot = jitter * rot;
             }

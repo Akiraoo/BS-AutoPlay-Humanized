@@ -20,7 +20,7 @@ M = json.load(open(os.path.join(HERE, 'model.json')))
 ForceChainGap, ChainGap, ChainAlign = 0.02, 0.16, 0.8
 RestGap, RestFade, IdleGap = float(os.environ.get('RESTGAP', 0.9)), 0.35, 2.0
 _unused1, _unused2, _unused3, MinPreLead, Perception = 0.9, 0.35, 2.0, 0.10, 0.20
-KNEE, SLOPE = 90.0, 0.45
+KNEE, SLOPE = float(os.environ.get('KNEE', 110.0)), float(os.environ.get('SLOPE', 0.8))
 
 def unit(v): n = np.linalg.norm(v); return v / n if n > 1e-9 else v
 def slerp(a, b, w):
@@ -169,6 +169,7 @@ def simulate(notes, left, T, mode, rt=0.6):
     return dir_at
 
 DIAG = {}
+SPD = []
 PROF = {}
 def main():
     tpath, mode = sys.argv[1], sys.argv[2]
@@ -187,6 +188,7 @@ def main():
             real = fat(t, F[hand], grid)
             er = np.degrees(np.arccos(np.clip((sim * real).sum(1), -1, 1)))
             errs.append(er)
+            SPD.append((np.degrees(np.arccos(np.clip((sim[1:]*sim[:-1]).sum(1),-1,1)))/0.01, np.degrees(np.arccos(np.clip((real[1:]*real[:-1]).sum(1),-1,1)))/0.01))
             for x, ee in zip(grid, er):
                 r, g, u = D.info(x)
                 if r == 2 and g < 0.6: PROF.setdefault(min(int(u * 5), 4), []).append(ee)
@@ -204,6 +206,8 @@ def main():
         for k in sorted(DIAG, key=lambda k: (str(k[0]), k[1])):
             v = np.array(DIAG[k])
             print(f'  turn={str(k[0]*45 if k[0]!="edge" else "edge"):>4} gap={k[1]:5s}   {len(v)/tot:6.1%}        {np.mean(v>75):6.1%}       {np.sum(v>75)/max(bad,1):6.1%}')
+    sg = np.concatenate([a for a, b in SPD]); sr = np.concatenate([b for a, b in SPD])
+    print(f"speed p50 sim {np.median(sg):.0f} real {np.median(sr):.0f} | p25 {np.percentile(sg,25):.0f}/{np.percentile(sr,25):.0f}")
     print(f"{'ALL':39s} angle err p50 {np.percentile(e,50):5.1f}  p75 {np.percentile(e,75):5.1f}  p90 {np.percentile(e,90):5.1f}  >75deg {np.mean(e>75):5.1%}")
 
 if __name__ == '__main__':
