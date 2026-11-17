@@ -23,6 +23,7 @@
     <Compile Include="..\..\HumanModel.cs" Link="Generator\HumanModel.cs" />
     <Compile Include="..\..\SwingTemplates.cs" Link="Generator\SwingTemplates.cs" />
     <Compile Include="..\..\RollOffsets.cs" Link="Generator\RollOffsets.cs" />
+    <Compile Include="..\..\ArmTemplates.cs" Link="Generator\ArmTemplates.cs" />
     <Compile Include="..\..\AutoReplayMath.cs" Link="Generator\AutoReplayMath.cs" />
   </ItemGroup>
 

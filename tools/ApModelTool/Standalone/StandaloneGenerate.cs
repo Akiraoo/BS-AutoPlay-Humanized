@@ -22,8 +22,16 @@ namespace AutoReplay.Tools
             bool leftHanded = Array.IndexOf(a, "--left") >= 0;
             bool noArrows = Array.IndexOf(a, "--na") >= 0;
             Plugin.Log.verbose = Array.IndexOf(a, "--verbose") >= 0;
+            if (Array.IndexOf(a, "--limit-knee") >= 0) HumanModel.LimitKneeAtLimit = true;   // debug
+            string knee = opt(a, "--amp-knee", null);   // debug: 挥动幅度压缩的起点 (度)
+            if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
+            string bd = opt(a, "--blend-delay", null);   // debug
+            if (bd != null) NoteSwingPlanner.BlendDelay = float.Parse(bd, System.Globalization.CultureInfo.InvariantCulture);
+            string armSmooth = opt(a, "--arm-smooth", null);   // debug: 手臂跟随指向的平滑 (秒)
+            if (armSmooth != null) PoseCalculator.ArmSmoothSigma = float.Parse(armSmooth, System.Globalization.CultureInfo.InvariantCulture);
 
             LoadModel(modelPath);
+            if (Array.IndexOf(a, "--no-arm") >= 0) ModelManager.Current.arm = null;   // debug: 不用手臂模板
             string folder = MapLoader.FindFolder(gameDir, mapArg);
             var map = MapLoader.Load(folder, difficulty, opt(a, "--mode", "Standard"));
             foreach (var w in map.warnings) Console.WriteLine("[warn] " + w);

@@ -24,6 +24,11 @@ namespace AutoReplay
         public readonly int[] hitDirs;          // 和 hitTimes 一一对应: 切割方向 (反手扭转用)
         public readonly float[] bombTimes;
         public readonly float seed;
+        // 手臂模板用: 每一刀 (叠块/几乎同时的合成一刀) 的时间、挥刀坐标系、方向分类、和前后一刀的较短间隔
+        public readonly float[] armTimes;
+        public readonly Vector3[] armD, armN, armF;
+        public readonly int[] armDir;
+        public readonly float[] armGap;
         // 身体平移 (躲墙时整个人往旁边/往下移, 手也跟着走). 由 AutoReplayGenerator 根据头的轨迹提供
         public Func<float, Vector3> bodyOffset = t => Vector3.zero;
 
@@ -35,6 +40,27 @@ namespace AutoReplay
             hitDirs = new int[n];
             for (int i = 0; i < n; i++) { hitTimes[i] = swings[i].time; hitTargets[i] = swings[i].target; hitDirs[i] = swings[i].cutDirection; }
             // swings 本来就按时间排好序
+
+            var at = new List<int>();
+            for (int i = 0; i < n; i++)
+                if (at.Count == 0 || swings[i].time - swings[at[at.Count - 1]].time > 0.06f) at.Add(i);
+            int m = at.Count;
+            armTimes = new float[m]; armD = new Vector3[m]; armN = new Vector3[m]; armF = new Vector3[m]; armDir = new int[m]; armGap = new float[m];
+            for (int k = 0; k < m; k++)
+            {
+                var sw = swings[at[k]];
+                Vector3 fc = (sw.hitPose * Vector3.forward).normalized;
+                Vector3 d = sw.swingDir;
+                if (d.sqrMagnitude < 1e-6f) d = Vector3.Cross(fc, Vector3.right);
+                d = (d - fc * Vector3.Dot(d, fc)).normalized;
+                armTimes[k] = sw.time; armF[k] = fc; armD[k] = d; armN[k] = Vector3.Cross(fc, d);
+                armDir[k] = d.y < -0.5f ? 0 : d.y > 0.5f ? 1 : 2;
+            }
+            for (int k = 0; k < m; k++)
+            {
+                float gp = k > 0 ? armTimes[k] - armTimes[k - 1] : 3f, gn = k + 1 < m ? armTimes[k + 1] - armTimes[k] : 3f;
+                armGap[k] = Mathf.Min(gp, gn);
+            }
 
             bombTimes = new float[bombs?.Count ?? 0];
             for (int i = 0; i < bombTimes.Length; i++) bombTimes[i] = bombs[i].time;
@@ -178,7 +204,7 @@ namespace AutoReplay
         public const float RollTau = 0.035f;        // 扭转角跟随真人模型的时间常数 (弹簧)
         public const float MaxRollSpeed = 1500f;    // 扭转角速度上限 (度/秒): 前臂旋前/旋后转不了更快 -> 不会再"一帧翻半圈"
         public const float RollConfidence = 0.35f;  // 真人模型的扭转向量长度低于这个值 -> 信心不足, 弹簧变软, 保持当前扭转
-        public const float ArmSmoothSigma = 0.050f; // 手臂(位置)跟随剑指向的延迟: 手臂比手腕重, 快速甩剑主要是手腕在动
+        public static float ArmSmoothSigma = 0.050f; // 手臂(位置)跟随剑指向的延迟: 手臂比手腕重, 快速甩剑主要是手腕在动
         public const float HitPinWindow = 0.040f;   // 命中前后这么长时间内把剑拉回精确对准方块
         public const int AimIterations = 3;         // 手臂位置 <-> 命中对准 的迭代次数 (多算几次换更准的轨迹)
 
@@ -273,11 +299,32 @@ namespace AutoReplay
             {
                 float t = t0 + (i - pad) * sdt;
                 Vector3 dirSlow = fs[i].sqrMagnitude > 1e-6f ? fs[i].normalized : f[i];
-                wrist[i] = HumanModel.WristForDir(isLeft, dirSlow) + ctx.bodyOffset(t) + new Vector3(
+                wrist[i] = HumanModel.WristForDir(isLeft, dirSlow) + ctx.bodyOffset(t) + ArmOffset(t, isLeft, ctx) + new Vector3(
                     HandIdlePos * AutoReplayMath.HandPosNoise(t, s + 3f),
                     HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.9f, s + 4f),
                     HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.8f, s + 5f));
             }
+        }
+
+        /// <summary>
+        /// 手臂模板的位移: 上一刀的后半段和下一刀的前半段, 按在间隔里的位置平滑交接 (和指向的模板一样)
+        /// </summary>
+        static Vector3 ArmOffset(float t, bool isLeft, HandMotionContext ctx)
+        {
+            int m = ctx.armTimes.Length;
+            if (m == 0 || !ArmTemplates.Available) return Vector3.zero;
+            float sgn = isLeft ? -1f : 1f;
+            Vector3 At(int k)
+            {
+                Vector3 r = ArmTemplates.Eval(ctx.armDir[k], ctx.armGap[k], t - ctx.armTimes[k]);
+                return ctx.armD[k] * r.x + ctx.armN[k] * (r.y * sgn) + ctx.armF[k] * r.z;
+            }
+            if (t <= ctx.armTimes[0]) return At(0);
+            if (t >= ctx.armTimes[m - 1]) return At(m - 1);
+            int lo = 0, hi = m - 1;
+            while (hi - lo > 1) { int mid = (lo + hi) >> 1; if (ctx.armTimes[mid] <= t) lo = mid; else hi = mid; }
+            float w = AutoReplayMath.SmoothStep((t - ctx.armTimes[lo]) / Mathf.Max(1e-4f, ctx.armTimes[hi] - ctx.armTimes[lo]));
+            return At(lo) * (1f - w) + At(hi) * w;
         }
 
         // 扭转角弹簧: 目标 = 真人模型的扭转; 模型信心低时弹簧变软 (保持当前扭转), 速度有上限

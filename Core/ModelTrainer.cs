@@ -88,6 +88,7 @@ namespace AutoReplay.Core
 
             // ---------- 第 2 轮: 反手扭转偏移 (要用到刚训练好的扭转模型) ----------
             var roll = new RollAcc();
+            var armRows = new List<ArmRow>();
             done = 0;
             foreach (var f in files)
             {
@@ -98,8 +99,11 @@ namespace AutoReplay.Core
                 var fr = Prepare(rep);
                 if (fr == null) continue;
                 roll.Accumulate(fr, rep, model);
+                CollectArm(fr, rep, model, armRows);
             }
             model.rollOffsets = roll.Solve();
+            model.arm = BuildArm(armRows);
+            P($"手臂樣本 {armRows.Count} 次, 模板 {model.arm.groups.Count} 組");
             var hset = files.Select(f => (double)entryOf[f].info.height).Where(h => h > 1 && h < 2.5).ToList();
             if (hset.Count > 0 && headList.Count > 0)
                 model.body = new BodyParams
@@ -380,7 +384,7 @@ namespace AutoReplay.Core
 
         static TemplateSet BuildTemplates(List<Row> rows, int minCount)
         {
-            var set = new TemplateSet { tauStart = (float)TauStart, tauStep = (float)(TauStepFine * 2) };
+            var set = new TemplateSet { tauStart = (float)TauStart, tauStep = (float)(TauStepFine * 2), peakAligned = true };
             for (int rel = 0; rel < 5; rel++)
                 for (int dir = 0; dir < 4; dir++)
                     for (int gi = 0; gi + 1 < GapBins.Length; gi++)
@@ -389,17 +393,156 @@ namespace AutoReplay.Core
                         var sel = rows.Where(r => r.rel == rel && r.gap >= g0 && r.gap < g1 && (dir == 3 || r.dir == dir)).ToList();
                         if (sel.Count < minCount) continue;
                         int len = sel[0].alpha.Length;
+                        var aligned = AlignPeaks(sel, len);
                         var t = new SwingTemplateData { rel = rel, dir = dir, gap0 = (float)g0, gap1 = (float)g1, n = sel.Count, alpha = new float[len], beta = new float[len] };
                         var buf = new float[sel.Count];
                         for (int k = 0; k < len; k++)
                         {
-                            for (int j = 0; j < sel.Count; j++) buf[j] = sel[j].alpha[k];
+                            for (int j = 0; j < sel.Count; j++) buf[j] = aligned[j].alpha[k];
                             t.alpha[k] = (float)Math.Round(Median(buf), 1);
-                            for (int j = 0; j < sel.Count; j++) buf[j] = sel[j].beta[k];
+                            for (int j = 0; j < sel.Count; j++) buf[j] = aligned[j].beta[k];
                             t.beta[k] = (float)Math.Round(Median(buf), 1);
                         }
                         set.groups.Add(t);
                     }
+            return set;
+        }
+
+        /// <summary>
+        /// 每次挥刀到达最远点的时间不同, 直接在同一时间点取中位数会把高峰抹平
+        /// (真人收势各自最远约 123°, 同时间点中位数只剩约 97°).
+        /// 先把每条曲线的时间轴分段伸缩, 让预挥最远点 / 命中 / 后挥最远点对齐到这组的中位时间, 再取中位数.
+        /// </summary>
+        static List<Row> AlignPeaks(List<Row> sel, int len)
+        {
+            double step = TauStepFine * 2;
+            int i0 = (int)Math.Round(-TauStart / step);              // τ=0 的格子
+            var ipre = new double[sel.Count]; var ipost = new double[sel.Count];
+            for (int j = 0; j < sel.Count; j++)
+            {
+                var a = sel[j].alpha;
+                int kMin = 0, kMax = i0 + 1;
+                for (int k = 0; k < i0; k++) if (a[k] < a[kMin]) kMin = k;
+                for (int k = i0 + 1; k < len; k++) if (a[k] > a[kMax]) kMax = k;
+                ipre[j] = kMin; ipost[j] = kMax;
+            }
+            double Tpre = MedianD(ipre), Tpost = MedianD(ipost);
+            // 太靠边 (模板窗口里没有真正的最远点) 就不伸缩那一段
+            bool preOk = Tpre > 1 && Tpre < i0 - 1, postOk = Tpost > i0 + 1 && Tpost < len - 2;
+            var res = new List<Row>(sel.Count);
+            for (int j = 0; j < sel.Count; j++)
+            {
+                var r = sel[j];
+                var na = new float[len]; var nb = new float[len];
+                for (int k = 0; k < len; k++)
+                {
+                    double src = k;
+                    if (k < i0 && preOk && ipre[j] > 0 && ipre[j] < i0)
+                        src = k <= Tpre ? k * ipre[j] / Tpre : ipre[j] + (k - Tpre) * (i0 - ipre[j]) / (i0 - Tpre);
+                    else if (k > i0 && postOk && ipost[j] > i0 && ipost[j] < len - 1)
+                        src = k <= Tpost ? i0 + (k - i0) * (ipost[j] - i0) / (Tpost - i0) : ipost[j] + (k - Tpost) * (len - 1 - ipost[j]) / (len - 1 - Tpost);
+                    na[k] = (float)Lerp(r.alpha, src); nb[k] = (float)Lerp(r.beta, src);
+                }
+                res.Add(new Row { rel = r.rel, dir = r.dir, gap = r.gap, alpha = na, beta = nb });
+            }
+            return res;
+        }
+
+        static double Lerp(float[] v, double x)
+        {
+            if (x <= 0) return v[0];
+            if (x >= v.Length - 1) return v[v.Length - 1];
+            int i = (int)Math.Floor(x); double w = x - i;
+            return v[i] * (1 - w) + v[i + 1] * w;
+        }
+
+        static double MedianD(double[] v)
+        {
+            var c = (double[])v.Clone(); Array.Sort(c);
+            int n = c.Length;
+            return n % 2 == 1 ? c[n / 2] : 0.5 * (c[n / 2 - 1] + c[n / 2]);
+        }
+
+        // =====================================================================
+        //  手臂位置模板: 真人手的位置 - 模型按指向推算的位置, 以切块瞬间对齐, 换到挥刀坐标系
+        // =====================================================================
+        const double ArmTauStart = -0.5, ArmTauStep = 0.02; const int ArmTau = 51;
+        static readonly double[] ArmGapBins = { 0.0, 0.3, 0.6, 3.0 };
+        sealed class ArmRow { public int dir; public double gap; public float[] along, side, fwd; }
+
+        static V3 InterpV(double[] t, V3[] v, double tt)
+        {
+            if (tt <= t[0]) return v[0];
+            if (tt >= t[t.Length - 1]) return v[t.Length - 1];
+            int i = Array.BinarySearch(t, tt);
+            if (i >= 0) return v[i];
+            i = ~i;
+            double w = (tt - t[i - 1]) / (t[i] - t[i - 1]);
+            return v[i - 1] * (1 - w) + v[i] * w;
+        }
+
+        static void CollectArm(Frames fr, BsorReplay rep, AutoPlayModel model, List<ArmRow> rows)
+        {
+            double t0 = fr.t[0], t1 = fr.t[fr.t.Length - 1];
+            for (int h = 0; h < 2; h++)
+            {
+                var hp = model.Hand(h == 0);
+                var cuts = rep.notes.Where(n => n.type == 0 && n.saberType == h).Select(n => (double)n.time).OrderBy(x => x).ToList();
+                if (cuts.Count < 20) continue;
+                var sw = new List<double> { cuts[0] };
+                foreach (var x in cuts.Skip(1)) if (x - sw[sw.Count - 1] > MergeGap) sw.Add(x);
+                double sgn = h == 1 ? 1 : -1;
+                for (int i = 1; i < sw.Count - 1; i++)
+                {
+                    double gp = sw[i] - sw[i - 1], gn = sw[i + 1] - sw[i];
+                    if (gp > 3.0 || gn > 3.0) continue;
+                    if (sw[i] + ArmTauStart < t0 || sw[i] + ArmTauStart + (ArmTau - 1) * ArmTauStep > t1) continue;
+                    V3 fc = Interp(fr, h, sw[i]);
+                    V3 d = (Interp(fr, h, sw[i] + 0.008) - Interp(fr, h, sw[i] - 0.008)).Normalized();
+                    d = (d - fc * V3.Dot(d, fc)).Normalized();
+                    V3 n = V3.Cross(fc, d);
+                    var row = new ArmRow { dir = d.y < -0.5 ? 0 : d.y > 0.5 ? 1 : 2, gap = Math.Min(gp, gn), along = new float[ArmTau], side = new float[ArmTau], fwd = new float[ArmTau] };
+                    for (int k = 0; k < ArmTau; k++)
+                    {
+                        double tt = sw[i] + ArmTauStart + k * ArmTauStep;
+                        V3 f = Interp(fr, h, tt);
+                        V3 rel = InterpV(fr.t, fr.pos[h], tt) - InterpV(fr.t, fr.headPos, tt);
+                        V3 pred = new V3(
+                            hp.b[0] + hp.A[0] * f.x + hp.A[1] * f.y + hp.A[2] * f.z,
+                            hp.b[1] + hp.A[3] * f.x + hp.A[4] * f.y + hp.A[5] * f.z,
+                            hp.b[2] + hp.A[6] * f.x + hp.A[7] * f.y + hp.A[8] * f.z);
+                        V3 r = rel - pred;
+                        row.along[k] = (float)V3.Dot(r, d);
+                        row.side[k] = (float)(V3.Dot(r, n) * sgn);
+                        row.fwd[k] = (float)V3.Dot(r, fc);
+                    }
+                    rows.Add(row);
+                }
+            }
+        }
+
+        static ArmTemplateSet BuildArm(List<ArmRow> rows)
+        {
+            var set = new ArmTemplateSet { tauStart = (float)ArmTauStart, tauStep = (float)ArmTauStep };
+            for (int dir = 0; dir < 3; dir++)
+                for (int gi = 0; gi + 1 < ArmGapBins.Length; gi++)
+                {
+                    var sel = rows.Where(r => r.dir == dir && r.gap >= ArmGapBins[gi] && r.gap < ArmGapBins[gi + 1]).ToList();
+                    if (sel.Count < 50) continue;
+                    var g = new ArmTemplateData { dir = dir, gap0 = (float)ArmGapBins[gi], gap1 = (float)ArmGapBins[gi + 1], n = sel.Count,
+                                                  along = new float[ArmTau], side = new float[ArmTau], fwd = new float[ArmTau] };
+                    var buf = new float[sel.Count];
+                    for (int k = 0; k < ArmTau; k++)
+                    {
+                        for (int j = 0; j < sel.Count; j++) buf[j] = sel[j].along[k];
+                        g.along[k] = (float)Math.Round(Median(buf), 4);
+                        for (int j = 0; j < sel.Count; j++) buf[j] = sel[j].side[k];
+                        g.side[k] = (float)Math.Round(Median(buf), 4);
+                        for (int j = 0; j < sel.Count; j++) buf[j] = sel[j].fwd[k];
+                        g.fwd[k] = (float)Math.Round(Median(buf), 4);
+                    }
+                    set.groups.Add(g);
+                }
             return set;
         }
 

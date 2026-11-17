@@ -116,7 +116,7 @@ namespace AutoReplay
         // 超过 AmplitudeKnee 的挥动幅度按 AmplitudeSlope 压缩, 只防极端角度 (追踪跳变); 指向软限位 (<=125°) 另外防戳到头.
         // 原本 90° / 0.45 压太多: 真人收势会挥到离命中方向 115-122°, 生成只到 92°, 两刀之间的速度只有真人一半.
         // 离线对比真人 replay: 110° / 0.8 的误差和完全不压缩一样 (23.8° vs 原本 25.3°), 速度中位 213 -> 269°/s (真人 339)
-        public const float AmplitudeKnee = 110f;
+        public static float AmplitudeKnee = 110f;
         public const float AmplitudeSlope = 0.8f;
         static float Compress(float a)
         {

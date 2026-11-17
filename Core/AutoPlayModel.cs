@@ -20,6 +20,7 @@ namespace AutoReplay.Core
         public TemplateSet templates = new TemplateSet();
         public RollOffsetSet rollOffsets = new RollOffsetSet();
         public BodyParams body;      // 身高 (旧模型没有 -> 用 1.50 m)
+        public ArmTemplateSet arm;   // 手臂位置模板 (旧模型没有 -> 手的位置只由剑的指向推算)
 
         public HandParams Hand(bool isLeft) => isLeft ? left : right;
 
@@ -116,8 +117,29 @@ namespace AutoReplay.Core
         public float headHeight;    // 打歌时头的高度中位数
     }
 
+    /// <summary>
+    /// 手臂位置模板: 以切块瞬间对齐, 真人手的位置 - (b + A·指向) 的残差, 也就是"手臂在手腕之外多挥的部分".
+    /// 坐标系: along = 沿挥动方向, side = 侧向 (右手为准), fwd = 沿命中时剑的指向 (往方块伸).
+    /// 按 (挥动方向 0=下 1=上 2=横, 和前后一刀的较短间隔) 分组. 单位: 米
+    /// </summary>
+    public sealed class ArmTemplateSet
+    {
+        public float tauStart = -0.5f;
+        public float tauStep = 0.02f;
+        public List<ArmTemplateData> groups = new List<ArmTemplateData>();
+    }
+
+    public sealed class ArmTemplateData
+    {
+        public int dir;
+        public float gap0, gap1;
+        public int n;
+        public float[] along, side, fwd;
+    }
+
     public sealed class TemplateSet
     {
+        public bool peakAligned;    // 模板是否先对齐每次挥刀各自的最远点再取中位数 (保留真实幅度)
         public float tauStart = -0.70f;
         public float tauStep = 0.02f;
         public List<SwingTemplateData> groups = new List<SwingTemplateData>();

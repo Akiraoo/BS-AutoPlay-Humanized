@@ -50,3 +50,13 @@ Unity 的數學型別和遊戲的譜面型別換成 `Standalone/` 裡的替代�
 python eval_replay.py <生成.bsor> <真人.bsor> [更多真人.bsor]
 ```
 和真人回放比較：方向誤差、手的高度、依間隔 × 位置拆開的角速度、收勢 / 預備幅度；多份真人回放時順便印出真人彼此的差異當基準。
+
+```bash
+python eval_batch.py variants.json --maps 12 --before 2026-10-18
+```
+批次評估：從玩家在 `--before` 之前（訓練範圍外）的回放挑譜，每個變體用遊戲外生成器生成一次並和真人比較，
+輸出方向誤差 / >75° 比例 / 手的位置誤差 / 角速度與手速相對真人的倍數 / 收勢與預備最遠角度。
+`variants.json` 例：`[{"name": "old", "model": "舊模型"}, {"name": "new", "model": "新模型", "args": ["--no-arm"]}]`
+
+`generate` 的除錯選項：`--no-arm`（不用手臂模板）、`--arm-smooth 秒`、`--amp-knee 度`、`--blend-delay 比例`、
+`--order-from 回放`（照另一份回放的方塊順序）、`--jitter 種子`（方塊時間加極小擾動）

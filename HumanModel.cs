@@ -22,7 +22,11 @@ namespace AutoReplay
         // 手腕 z 方向最多往前伸多少 (A 的 z 行 - PommelOffset, 取上界), 炸弹检测的"够得着"范围要用
         public const float MaxWristForwardZ = 0.15f;
 
-        const float LimitSoftZone = 20f;   // 离上限还有这么多度时开始软压缩
+        const float LimitSoftZone = 20f;   // 软压缩的宽度
+        // 从上限 (真人 p99) 本身才开始软压缩, 超出部分最多再多 LimitSoftZone.
+        // 原本在上限前 20° 就开始压, 真人常到的角度也被压掉: 收势最远只到 103° (真人 120°).
+        // 游戏外 12 张训练外的谱: 收势 103 -> 111°, 角速度 0.86 -> 0.94 倍真人, 方向误差 32.0 -> 31.9°
+        public static bool LimitKneeAtLimit = true;
 
         // 追踪误差修正: 真人数据里剑偏离正前方的极限 (126~166°) 有一部分是手柄贴近头显时的追踪跳变 ("剑戳脑袋"),
         // 这里把限位上限压到 MaxForwardAngle
@@ -65,7 +69,7 @@ namespace AutoReplay
             float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
             float az = Mathf.Atan2(f.y, f.x) * Mathf.Rad2Deg;
             float lim = Mathf.Min(MaxForwardAngle, LimitAt(P(isLeft), az));
-            float knee = lim - LimitSoftZone;
+            float knee = LimitKneeAtLimit ? lim : lim - LimitSoftZone;
             if (ang <= knee) return f;
 
             float newAng = knee + LimitSoftZone * Tanh((ang - knee) / LimitSoftZone);

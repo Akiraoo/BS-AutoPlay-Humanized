@@ -23,6 +23,7 @@ namespace AutoReplay
         public bool isChainedWithPrev;
         public Vector3 target;         // 方块中心 (命中时剑要穿过这里)
         public int cutDirection;       // 谱面上的切割方向 (0..7 箭头, 8 点块), 用于反手扭转
+        public Vector3 swingDir;       // 命中时剑的挥动方向 (3D, 垂直于命中指向; 点块是规划出来的方向), 手臂模板用
 
         // 关键帧: 时间落在 (上一个音符命中时刻, 本音符命中时刻] 内, 最后一个就是命中帧(时间≈note.time)
         public PoseKey[] keys;
@@ -63,6 +64,7 @@ namespace AutoReplay
         public const float StackGap = 0.06f;         // 间隔 <= 此值的两块, 真人当成同一刀 (统计模板时也是这样合并的)
         // 长间隔: 超过这么久, 后挥完就停在原地, 到预挥窗口才开始下一刀 (不再按来回挥的模板硬插值)
         public const float RestGap = 1.2f;
+        public static float BlendDelay = 0f;     // 收势 -> 下一刀预挥 的交接从间隔的这个比例才开始 (试过 0.15/0.3: 收势多 2~4° 但误差变大, 所以维持 0)
         public const float RestFade = 0.35f;    // 方块从出现到被切的时间(RT), 由 AutoReplayGenerator 按 NJS/JD 设定
 
         // ================= 规划 =================
@@ -271,7 +273,8 @@ namespace AutoReplay
                 // 上一笔的后挥模板 和 下一笔的预挥模板 描述的是同一段真人动作, 直接在指向上球面插值.
                 // (离线对比真人 replay: 原本在下一笔坐标系里对角度插值, tech 常见的 90° 转向在中段会偏 89°;
                 //  直接球面插值后中段误差降到约 30°, 和真人自己两次游玩之间的差异相当)
-                float w = AutoReplayMath.SmoothStep((t - sEnd[k]) / Mathf.Max(1e-4f, sStart[k + 1] - sEnd[k]));
+                float u = (t - sEnd[k]) / Mathf.Max(1e-4f, sStart[k + 1] - sEnd[k]);
+                float w = AutoReplayMath.SmoothStep((u - BlendDelay) / (1f - BlendDelay));
                 return Vector3.Slerp(fPost, FrameDir(nextS, qa, qb), w).normalized;
             }
 
@@ -359,6 +362,7 @@ namespace AutoReplay
                     isChainedWithPrev = chained[i],
                     target = AutoReplayMath.GetNotePos(notes[i]),
                     cutDirection = noArrows ? (int)NoteCutDirection.Any : (int)notes[i].cutDirection,
+                    swingDir = (dir[i] - v[i] * Vector3.Dot(dir[i], v[i])).normalized,
                     keys = keys,
                     tail = null
                 };
