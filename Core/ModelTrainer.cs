@@ -57,6 +57,7 @@ namespace AutoReplay.Core
             var rows = new List<Row>();
             var used = new List<string>();
             var npsList = new List<double>();
+            var headList = new List<double>();
             int done = 0;
             foreach (var f in files)
             {
@@ -72,6 +73,7 @@ namespace AutoReplay.Core
                 CollectSwings(fr, rep, rows);
                 used.Add(f);
                 npsList.Add(nps);
+                headList.Add(MedianHeadY(fr));
             }
             files = used;
             if (files.Count < o.minReplays)
@@ -98,6 +100,13 @@ namespace AutoReplay.Core
                 roll.Accumulate(fr, rep, model);
             }
             model.rollOffsets = roll.Solve();
+            var hset = files.Select(f => (double)entryOf[f].info.height).Where(h => h > 1 && h < 2.5).ToList();
+            if (hset.Count > 0 && headList.Count > 0)
+                model.body = new BodyParams
+                {
+                    height = (float)Pct(hset, 0.5), heightMin = (float)hset.Min(), heightMax = (float)hset.Max(),
+                    headHeight = (float)Pct(headList, 0.5),
+                };
 
             model.meta = new ModelMeta
             {
@@ -117,6 +126,13 @@ namespace AutoReplay.Core
         }
 
         const double MinNps = 1.5;   // 平均每秒音符数低于这个的回放太简单, 挥刀不像平常
+
+        static double MedianHeadY(Frames fr)
+        {
+            var ys = new List<double>(fr.headPos.Length / 4 + 1);
+            for (int k = 0; k < fr.headPos.Length; k += 4) ys.Add(fr.headPos[k].y);
+            return Pct(ys, 0.5);
+        }
 
         static double Nps(BsorReplay rep)
         {
@@ -148,6 +164,8 @@ namespace AutoReplay.Core
                 perMapCap = so.perMapCap,
                 maxReplays = so.maxReplays,
                 minStars = so.minStars,
+                rankedOnly = so.rankedOnly,
+                preferAcc = so.preferAcc,
                 selection = sel.Summary(),
                 dataFrom = used.Count > 0 ? used.Min(e => e.timeUtc).ToString("yyyy-MM-dd") : "",
                 dataTo = used.Count > 0 ? used.Max(e => e.timeUtc).ToString("yyyy-MM-dd") : "",

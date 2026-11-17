@@ -32,10 +32,13 @@ namespace AutoReplay.Core
             string range = t.mode == "auto"
                 ? $"持續追蹤 (最近 {t.rollingDays} 天)"
                 : (t.rangeFrom == "" && t.rangeTo == "" ? "不限日期" : $"{(t.rangeFrom == "" ? "最早" : t.rangeFrom)} ~ {(t.rangeTo == "" ? "現在" : t.rangeTo)}");
-            L.Add($"範圍 {range} · 同譜最多 {t.perMapCap} 份 · 上限 {t.maxReplays} 份" + (t.minStars > 0 ? $" · 最低 {F(t.minStars)}★" : ""));
+            L.Add($"範圍 {range} · 同譜最多 {t.perMapCap} 份 · 上限 {t.maxReplays} 份" + (t.minStars > 0 ? $" · 最低 {F(t.minStars)}★" : "")
+                  + (t.rankedOnly ? " · 只用 ranked" : "") + (t.preferAcc ? " · acc 優先" : ""));
             if (!string.IsNullOrEmpty(t.selection)) L.Add(t.selection);
             L.Add($"採用 {meta.replayCount} 份 ({t.dataFrom} ~ {t.dataTo}) · {t.uniqueMaps} 張譜 · {meta.swingCount} 次揮刀 · 轉向≤90° {F(t.techShare * 100, "0")}%");
-            L.Add($"NPS 中位 {F(t.npsMedian)} · P90 {F(t.npsP90)}");
+            L.Add($"NPS 中位 {F(t.npsMedian)} · P90 {F(t.npsP90)}" + (m.body != null
+                ? $" · 身高設定 {F(m.body.height, "0.00")} m ({F(m.body.heightMin, "0.00")}–{F(m.body.heightMax, "0.00")}) · 實際頭高 {F(m.body.headHeight, "0.00")} m"
+                : ""));
 
             string bl = Star(t.blStars, "BL ★");
             if (bl != null) L.Add(bl + $" · 有星數 {t.blStars.count}/{meta.replayCount}");

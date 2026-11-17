@@ -33,6 +33,10 @@
                       formatter='fmt-stars' hover-hint='BeatLeader 星數 (unranked 也有 AI 估計). 查不到星數的譜不受影響'/>
       <bool-setting text='查詢 BL / SS 星數 (需要連網)' value='lookup-stars' apply-on-change='true'
                     hover-hint='用公開 API 查詢, 結果快取在 UserData/AutoPlay/star-cache.json'/>
+      <bool-setting text='只用 ranked 譜' value='ranked-only' apply-on-change='true'
+                    hover-hint='只用 BeatLeader 或 ScoreSaber 上 ranked 的譜 (需要開啟星數查詢)'/>
+      <bool-setting text='acc 優先' value='prefer-acc' apply-on-change='true'
+                    hover-hint='同一張譜取分數最高的; 超過總數上限時取 acc 最高的, 而不是平均抽樣 (需要開啟星數查詢)'/>
       <text text='~preview' font-size='2.8' color='#CCCCCC'/>
       <horizontal pref-height='9'>
         <button text='開始訓練' on-click='train-click' interactable='~can-train' pref-height='8'

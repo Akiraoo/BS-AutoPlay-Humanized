@@ -7,8 +7,14 @@ namespace AutoReplay
 {
     public static class AutoReplayMath
     {
-        public const float BaseHeadHeight = 1.50f;
+        public const float BaseHeadHeight = 1.50f;   // 旧模型 (没有身高资料) 的默认值, 也是下面方块高度的基准身高
         public const float DuckHeadHeight = 1.00f;
+
+        // 身高 (来自模型): 设定身高决定方块和墙的上下位置 (每高 1 m 上移 0.5 m, 真人回放实测), 头高是真人身体的高度
+        public static float PlayerHeight { get { var b = ModelManager.Current?.body; return b != null && b.height > 1f ? b.height : BaseHeadHeight; } }
+        public static float HeadHeight { get { var b = ModelManager.Current?.body; return b != null && b.headHeight > 1f ? b.headHeight : BaseHeadHeight; } }
+        public static float NoteYOffset => 0.5f * (PlayerHeight - BaseHeadHeight);
+        public static float DuckHeight => DuckHeadHeight + NoteYOffset;
         public const float CutDistanceZ = 1.50f;
 
         // 手的基准位置 (剑指向正前方附近时手柄所在处), 来自 HumanModel 的真人统计.
@@ -68,7 +74,7 @@ namespace AutoReplay
         public static Vector3 GetNotePos(NoteData note)
         {
             float noteX = (note.lineIndex - 1.5f) * 0.60f;
-            float noteY = 0.72f + ((int)note.noteLineLayer) * 0.53f; // Layer 0: 0.72, Layer 1: 1.25, Layer 2: 1.78
+            float noteY = 0.72f + ((int)note.noteLineLayer) * 0.53f + NoteYOffset; // 身高 1.50 时 Layer 0: 0.72, 1: 1.25, 2: 1.78
             return new Vector3(noteX, noteY, CutDistanceZ);
         }
 

@@ -19,6 +19,7 @@ namespace AutoReplay.Core
         public HandParams right = new HandParams();
         public TemplateSet templates = new TemplateSet();
         public RollOffsetSet rollOffsets = new RollOffsetSet();
+        public BodyParams body;      // 身高 (旧模型没有 -> 用 1.50 m)
 
         public HandParams Hand(bool isLeft) => isLeft ? left : right;
 
@@ -73,6 +74,7 @@ namespace AutoReplay.Core
         public int rollingDays;                        // auto 模式: 最近几天
         public int perMapCap, maxReplays;
         public float minStars;
+        public bool rankedOnly, preferAcc;
         public string selection = "";                  // 每一步筛完剩几份
 
         // 实际采用的资料
@@ -101,6 +103,17 @@ namespace AutoReplay.Core
         public float limitFirstCenter = -165f;  // 方位角 (0=右 90=上 180=左 -90=下), 第一格中心
         public float limitStep = 30f;
         public float[] limitDeg = new float[12];
+    }
+
+    /// <summary>
+    /// 身高: height = BeatLeader 记录的游戏内身高设定 (决定方块的上下位置: 每高 1 m 方块上移 0.5 m);
+    /// headHeight = 实际头高 (真人的身体高度, 和设定无关). 生成时两个都照用, 才能还原录制时的轨迹.
+    /// </summary>
+    public sealed class BodyParams
+    {
+        public float height;        // 设定身高中位数
+        public float heightMin, heightMax;
+        public float headHeight;    // 打歌时头的高度中位数
     }
 
     public sealed class TemplateSet

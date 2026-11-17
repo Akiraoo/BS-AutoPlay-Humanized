@@ -77,7 +77,7 @@ namespace AutoReplay
         public static HeadTarget CalculateHeadTarget(float t, List<ObstacleData> obstacles, bool mirror = false)
         {
             float targetX = 0f;
-            float targetY = AutoReplayMath.BaseHeadHeight;
+            float targetY = AutoReplayMath.HeadHeight;
             float targetRoll = 0f;
             float targetPitch = 0f;
 
@@ -139,7 +139,7 @@ namespace AutoReplay
             if (ceilingLane2 && ceilingLane3)
             {
                 // 第2、3轨同时有顶部掩体 -> 蹲下
-                targetY = Mathf.Min(targetY, AutoReplayMath.DuckHeadHeight);
+                targetY = Mathf.Min(targetY, AutoReplayMath.DuckHeight);
                 targetPitch = Mathf.Max(targetPitch, DuckPitch);
             }
             else if (ceilingTiltX > 0f)

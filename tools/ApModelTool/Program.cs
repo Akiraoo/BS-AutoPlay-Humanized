@@ -40,7 +40,7 @@ namespace AutoReplay.Tools
         static void Usage()
         {
             Console.WriteLine("ApModelTool train <Replays> <out model.json> [--player ID] [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--days N]\n" +
-                              "                  [--per-map 3] [--max 300] [--min-stars 0] [--stars] [--offline] [--name N] [--author A]");
+                              "                  [--per-map 3] [--max 300] [--min-stars 0] [--ranked] [--prefer-acc] [--stars] [--offline] [--name N] [--author A]");
             Console.WriteLine("ApModelTool pack <model.json> <out.apmodel> [--sign private.xml]");
             Console.WriteLine("ApModelTool unpack <in.apmodel> <out model.json>");
             Console.WriteLine("ApModelTool inspect <file>");
@@ -71,10 +71,12 @@ namespace AutoReplay.Tools
                 perMapCap = int.Parse(Opt(a, "--per-map", "3")),
                 maxReplays = int.Parse(Opt(a, "--max", "300")),
                 minStars = float.Parse(Opt(a, "--min-stars", "0"), System.Globalization.CultureInfo.InvariantCulture),
+                rankedOnly = Array.IndexOf(a, "--ranked") >= 0,
+                preferAcc = Array.IndexOf(a, "--prefer-acc") >= 0,
             };
             string days = Opt(a, "--days");
             if (days != null) sel.fromUtc = DateTime.UtcNow.Date.AddDays(-int.Parse(days));
-            bool useStars = Array.IndexOf(a, "--stars") >= 0 || sel.minStars > 0;
+            bool useStars = Array.IndexOf(a, "--stars") >= 0 || sel.minStars > 0 || sel.rankedOnly || sel.preferAcc;
             var o = new TrainOptions
             {
                 selection = sel,

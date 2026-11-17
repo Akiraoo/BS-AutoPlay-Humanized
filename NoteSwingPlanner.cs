@@ -606,7 +606,7 @@ namespace AutoReplay
         public const float EvalDt = 1f / 120f;   // 检测采样间隔
         public const float BombLayerGap = 0.02f; // 炸弹时间间隔 <= 此值算同一"层"(风格同 DotChainGap/ForceChainGap)
         public const float GridCenterX = 0f;      // 12 格(4列x3行)的中心: 6和7之间
-        public const float GridCenterY = 1.25f;   // 中间一行的高度
+        public static float GridCenterY => 1.25f + AutoReplayMath.NoteYOffset;   // 中间一行的高度
         public const float ClusterGap = 0.5f;    // 相邻炸弹间隔 <= 此值(且中间没命中帧)算同一串, 整串期间剑保持躲避姿势
         public const float MaxClusterSpan = 1.5f;// 一串炸弹最长跨度, 超过就拆开
         public const float FadeOut = 0.12f;      // 炸弹过去后, 剑从躲避姿势淡回原轨迹的时长
@@ -812,7 +812,7 @@ namespace AutoReplay
         {
             // 格子编号 1..12 (左上=1, 右下=12)
             int col = Mathf.Clamp(Mathf.RoundToInt(B[i].p.x / 0.6f + 1.5f), 0, 3);
-            int row = Mathf.Clamp(Mathf.RoundToInt((B[i].p.y - 0.72f) / 0.53f), 0, 2);
+            int row = Mathf.Clamp(Mathf.RoundToInt((B[i].p.y - 0.72f - AutoReplayMath.NoteYOffset) / 0.53f), 0, 2);
             int cell = (2 - row) * 4 + col + 1;
 
             // 这颗炸弹自己的窗口里, 最近的时刻 / 距离最近命中帧(tag==1)多远 / 是否在轨道范围外
@@ -835,7 +835,7 @@ namespace AutoReplay
             {
                 if (Mathf.Abs(B[j].t - B[i].t) > 0.1f) continue;
                 int cc = Mathf.Clamp(Mathf.RoundToInt(B[j].p.x / 0.6f + 1.5f), 0, 3);
-                int rr = Mathf.Clamp(Mathf.RoundToInt((B[j].p.y - 0.72f) / 0.53f), 0, 2);
+                int rr = Mathf.Clamp(Mathf.RoundToInt((B[j].p.y - 0.72f - AutoReplayMath.NoteYOffset) / 0.53f), 0, 2);
                 near.Append((2 - rr) * 4 + cc + 1).Append(' ');
             }
             Plugin.Log?.Info(string.Format(

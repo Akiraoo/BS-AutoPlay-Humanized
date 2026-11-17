@@ -14,7 +14,7 @@ namespace AutoReplay
     public static class HumanModel
     {
         // ---- 头的基准位置 (AutoPlay 的头基本固定在这里, 手的模型以它为原点) ----
-        public static readonly Vector3 HeadBase = new Vector3(0f, AutoReplayMath.BaseHeadHeight, 0f);
+        public static Vector3 HeadBase => new Vector3(0f, AutoReplayMath.HeadHeight, 0f);
 
         // 回放记录的是手柄位置; AutoPlay 的旋转中心(手腕)在它后面 PommelOffset 处 (和 AutoReplayGenerator 的 pommelOffset 一致)
         public const float PommelOffset = 0.20f;

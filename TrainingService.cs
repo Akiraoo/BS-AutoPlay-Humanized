@@ -21,6 +21,8 @@ namespace AutoReplay
         public int maxReplays = 300;
         public float minStars = 0f;
         public bool lookupStars = true;
+        public bool rankedOnly = false;      // 只用 BL 或 SS ranked 的谱
+        public bool preferAcc = false;       // 同谱取分数最高的, 超过上限时取 acc 最高的
         public bool autoFollow = false;      // 持续追踪最新回放, 在背景自动重训
         public int autoEveryN = 10;          // 每多几份新回放重训一次
         public long lastAutoTrainUnix;
@@ -68,6 +70,8 @@ namespace AutoReplay
             perMapCap = t.perMapCap,
             maxReplays = t.maxReplays,
             minStars = t.minStars,
+            rankedOnly = t.rankedOnly,
+            preferAcc = t.preferAcc,
         };
 
         /// <summary>训练并保存. auto=true 写到 my-auto/, 否则写新的 my-日期/ 资料夹. 返回模型 id.</summary>

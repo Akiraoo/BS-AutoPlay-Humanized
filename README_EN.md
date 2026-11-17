@@ -67,17 +67,21 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 | Max per map | Only the newest N replays of the same map + difficulty (default 3), so grinding one map doesn't dominate the model |
 | Total limit | Above this, replays are **sampled evenly** across the range (default 300). Affects training time, not model size |
 | Min BL stars | Filter by BeatLeader stars (maps without stars are kept) |
-| Look up BL / SS stars | Public APIs, no account needed; cached in `UserData/AutoPlay/star-cache.json` |
+| Look up BL / SS stars | Public APIs, no account needed; cached in `UserData/AutoPlay/star-cache.json`; only queried while training |
+| Ranked maps only | Only maps ranked on BeatLeader or ScoreSaber |
+| Prefer acc | Take the highest-scoring plays of each map, and the highest-acc replays when over the total limit (acc = score / BL max score) |
 
 - A live preview shows `in range → own → eligible → deduplicated → star filter → used`
 - **Only your own replays**: the logged-in player ID is fetched from the platform and every replay must match
-- Always excluded: non-Standard, left-handed, FS / SF / SS, and replays averaging below 1.5 NPS
+- Always excluded: non-Standard, left-handed, FS / SF / SS, below 1.5 average NPS, and replays whose **height setting** is more than 10 cm from the median
 - Output is an unpacked, readable `Models/my-<date>/model.json` plus a training report
 
 **Auto-training tab**
 - With "Keep following new replays" on, `Models/my-auto/` is retrained in the background **while idle in the menu** after every N new replays (default 10)
 - The rolling window uses the Training tab's "From" (e.g. last 30 days) and the same filters; it pauses when you start a song
 - It only switches to the new version if you're already using `my-auto`; the previous one is kept in `my-auto.bak/`
+
+**Height**: the model stores the training replays' **in-game height setting** (median) and the **actual head height**. The height setting decides where notes and walls sit (about 0.5 m higher per 1 m of height, measured from real replays), so generated replays use that setting to keep note positions identical to the recordings, while the head uses the actual head height. Older models without height data keep 1.50 m.
 
 > More data isn't always better: in testing, 80 → 300 → 900 replays drifted further from real play (style changes over time), so prefer a recent window.
 

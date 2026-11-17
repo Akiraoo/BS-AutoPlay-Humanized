@@ -290,7 +290,7 @@ namespace AutoReplay
                 modifiers = AutoReplayMath.EncodeModifiers(modifiers),
                 jumpDistance = 0f,
                 leftHanded = leftHanded,
-                height = AutoReplayMath.BaseHeadHeight,
+                height = AutoReplayMath.PlayerHeight,
                 startTime = 0f,
                 failTime = 0f,
                 // BeatLeader 里 speed != 0 会被当成"练习模式"设置(PracticeSettings), 回放就会以练习模式启动.
@@ -301,7 +301,7 @@ namespace AutoReplay
             replay.frames = frames;
             replay.notes = noteEvents;
             replay.walls = new List<WallEvent>();
-            replay.heights = new List<AutomaticHeight> { new AutomaticHeight { height = AutoReplayMath.BaseHeadHeight, time = 0f } };
+            replay.heights = new List<AutomaticHeight> { new AutomaticHeight { height = AutoReplayMath.PlayerHeight, time = 0f } };
             replay.pauses = new List<Pause>();
             replay.saberOffsets = new SaberOffsets();
             // 浮水印: 标明这是 AutoPlay 生成的回放, 以及用的是哪个模型 (BeatLeader 会原样保存 customData)

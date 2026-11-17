@@ -143,6 +143,12 @@ namespace AutoReplay.UI
         [UIValue("lookup-stars")]
         public bool LookupStars { get => T.lookupStars; set { T.lookupStars = value; Changed(); } }
 
+        [UIValue("ranked-only")]
+        public bool RankedOnly { get => T.rankedOnly; set { T.rankedOnly = value; Changed(); } }
+
+        [UIValue("prefer-acc")]
+        public bool PreferAcc { get => T.preferAcc; set { T.preferAcc = value; Changed(); } }
+
         [UIAction("fmt-from")]
         private string FmtFrom(float v)
         {
@@ -208,8 +214,9 @@ namespace AutoReplay.UI
                 var r = await Task.Run(() => ReplaySelector.Select(opts, stars, false));
                 if (v != _previewVersion) return;
                 string s = r.Summary();
-                if (T.minStars > 0 && !T.lookupStars) s += "\n(沒有開啟星數查詢, 星數篩選不會生效)";
-                else if (T.minStars > 0) s += "\n(星數預覽只用快取, 實際數量以訓練時查詢為準)";
+                bool needStars = T.minStars > 0 || T.rankedOnly || T.preferAcc;
+                if (needStars && !T.lookupStars) s += "\n(沒有開啟星數查詢, 星數 / ranked / acc 篩選不會生效)";
+                else if (needStars) s += "\n(預覽只用快取, 實際數量以訓練時查詢為準)";
                 SetPreview(s);
             }
             catch (Exception ex) { SetPreview("預覽失敗: " + ex.Message); }

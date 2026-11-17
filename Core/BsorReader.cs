@@ -10,6 +10,7 @@ namespace AutoReplay.Core
     {
         public string playerId, playerName, hash, songName, difficulty, mode, modifiers, hmd, platform, modVersion, gameVersion;
         public long timestamp;     // unix 秒 (回放录制时间)
+        public int score;
         public bool leftHanded;
         public float height;
         public float[] time;      // 帧时间
@@ -97,7 +98,7 @@ namespace AutoReplay.Core
             rep.playerId = Str(r); rep.playerName = Str(r);
             rep.platform = Str(r); Str(r); rep.hmd = Str(r); Str(r);   // platform, tracking, hmd, controller
             rep.hash = Str(r); rep.songName = Str(r); Str(r); rep.difficulty = Str(r);
-            r.ReadInt32();                         // score
+            rep.score = r.ReadInt32();
             rep.mode = Str(r); Str(r); rep.modifiers = Str(r);
             r.ReadSingle();                        // jump distance
             rep.leftHanded = r.ReadBoolean();

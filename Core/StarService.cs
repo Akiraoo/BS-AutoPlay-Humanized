@@ -12,6 +12,7 @@ namespace AutoReplay.Core
     public sealed class StarInfo
     {
         public float? blStars, blPass, blAcc, blTech;
+        public int? blMaxScore;            // 谱面满分 (算 acc 用)
         public int blStatus = -1;          // BL: 0 unranked, 1 nominated, 2 qualified, 3 ranked ...
         public float? ssStars;             // SS ranked 才有 (>0)
         public bool ssRanked;
@@ -73,10 +74,10 @@ namespace AutoReplay.Core
             StarInfo s = Cached(hash, diff);
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             bool fresh = s != null && now - s.fetchedUnix < CacheDays * 86400L;
-            if (!network || Offline || (fresh && s.blChecked && s.ssChecked)) return s;
+            if (!network || Offline || (fresh && s.blChecked && s.ssChecked && (s.blStars == null || s.blMaxScore != null))) return s;
 
             s = s ?? new StarInfo();
-            if (!fresh || !s.blChecked)
+            if (!fresh || !s.blChecked || (s.blStars != null && s.blMaxScore == null))   // 旧缓存没有满分, 补查
             {
                 bool ok = FetchBl(hash, cancel);
                 s = Cached(hash, diff) ?? s;
@@ -109,6 +110,7 @@ namespace AutoReplay.Core
                     s.blChecked = true;
                     s.blStatus = (int?)d["status"] ?? -1;
                     s.blStars = Num(d["stars"]); s.blPass = Num(d["passRating"]); s.blAcc = Num(d["accRating"]); s.blTech = Num(d["techRating"]);
+                    s.blMaxScore = (int?)d["maxScore"];
                     if (s.fetchedUnix == 0) s.fetchedUnix = now;
                 }
                 lock (_lock) _dirty = true;
