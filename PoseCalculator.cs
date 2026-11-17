@@ -128,7 +128,8 @@ namespace AutoReplay
 
                 bool coversLane2 = c0 <= 1 && c1 >= 1;
                 bool coversLane3 = c0 <= 2 && c1 >= 2;
-                bool isCeilingWall = obs.lineLayer != NoteLineLayer.Base || obs.height <= 3;
+                if (WallBelowHead(obs)) continue;          // 矮墙 (墙顶比头低): 不用躲
+                bool isCeilingWall = IsCeilingWall(obs);
 
                 // 这面墙单独需要的歪头动作
                 float tiltX, tiltRoll;
@@ -188,6 +189,18 @@ namespace AutoReplay
             return new HeadTarget { position = new Vector3(targetX, targetY, 0f), pitch = targetPitch, roll = targetRoll };
         }
 
+        // ================= 墙的高度 =================
+        // 原本把 "不在最底层 或 高度 <= 3" 都当成顶墙要蹲: 从地板往上只到约 1.3 m 的矮墙 (y=0, h=2) 也蹲,
+        // 结果头反而蹲进墙里 (WIP 谱 M.C.ドナルド 36.8 s: 头 1.09 m, 墙顶约 1.3 m). 现在照墙实际占的高度判断:
+        //   墙顶比站着的头低 -> 不用躲;  墙底比蹲下的头还高 -> 顶墙, 蹲;  其余 (从低处一路盖过头) -> 只能往旁边闪
+        // 高度规则: 底边 = 层高 (0.25 + 0.6*层) - 0.15 + 身高偏移, 高 = h * 0.6 (tools/wall_eval.py 用同一套, 和真人回放对得上)
+        public const float HeadClear = 0.15f;   // 头 (连同头显) 和墙之间要留的距离
+
+        public static float WallBottom(ObstacleData o) => 0.25f + 0.6f * (int)o.lineLayer - 0.15f + AutoReplayMath.NoteYOffset;
+        public static float WallTop(ObstacleData o) => WallBottom(o) + 0.6f * o.height;
+        public static bool WallBelowHead(ObstacleData o) => WallTop(o) <= AutoReplayMath.HeadHeight - HeadClear;
+        public static bool IsCeilingWall(ObstacleData o) => WallBottom(o) >= AutoReplayMath.DuckHeight + HeadClear * 0.8f;
+
         // ================= 蹲墙曲线 =================
         // 真人 17 份回放 / 146 次独立蹲墙 (盖住中间两轨的顶墙), 以墙到达为 0:
         //   头 Δy  -0.3s -0.04 | -0.2 -0.15 | -0.1 -0.32 | 0 -0.46 | +0.1 -0.54 | +0.2 -0.56 (最低) | +0.4 -0.45 | +0.6 -0.20 | +0.8 -0.06 m
@@ -201,6 +214,8 @@ namespace AutoReplay
         static List<ObstacleData> _duckSrc;
         static bool _duckMirror;
         static List<(float s, float e)> _duckIntervals;
+        static List<(float s, float e, float cap)> _lowWalls;   // 矮墙经过时最多能蹲多少 (0 = 不能蹲)
+        public const float LowWallRise = 0.25f;     // 矮墙到前多久要站到够高 (真人先蹲后站时会很快站起来)
 
         /// <summary>0 = 站着, 1 = 蹲到底</summary>
         public static float DuckAmount(float t, List<ObstacleData> obstacles, bool mirror)
@@ -209,6 +224,7 @@ namespace AutoReplay
             {
                 _duckSrc = obstacles; _duckMirror = mirror;
                 _duckIntervals = BuildDuckIntervals(obstacles, mirror);
+                _lowWalls = BuildLowWalls(obstacles, mirror);
             }
             float best = 0f;
             foreach (var (s0, e0) in _duckIntervals)
@@ -218,7 +234,37 @@ namespace AutoReplay
                 float up = 1f - AutoReplayMath.SmoothStep((t - (e0 + DuckHoldAfter)) / DuckUpTime);
                 best = Mathf.Max(best, Mathf.Min(down, up));
             }
-            return best;
+            // 矮墙 (先蹲后站的组合): 矮墙经过时头要高过墙顶, 来不及就站快一点
+            if (best > 0f)
+                foreach (var (s0, e0, cap) in _lowWalls)
+                {
+                    if (t < s0 - LowWallRise || t > e0 + 0.15f) continue;
+                    float rise = AutoReplayMath.SmoothStep((t - (s0 - LowWallRise)) / (LowWallRise - 0.03f));
+                    float release = 1f - AutoReplayMath.SmoothStep((t - (e0 + 0.03f)) / 0.12f);
+                    float w = Mathf.Min(rise, release);
+                    best = Mathf.Min(best, Mathf.Lerp(1f, cap, w));
+                }
+            return Mathf.Max(0f, best);
+        }
+
+        // 盖住中间轨道 (第 2 或 3 轨) 的矮墙: 头要高过墙顶 + HeadClear
+        static List<(float, float, float)> BuildLowWalls(List<ObstacleData> obstacles, bool mirror)
+        {
+            var res = new List<(float, float, float)>();
+            if (obstacles == null) return res;
+            float range = AutoReplayMath.HeadHeight - AutoReplayMath.DuckHeight;
+            foreach (var obs in obstacles)
+            {
+                if (!WallBelowHead(obs)) continue;
+                int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
+                int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
+                if (c0 > c1) continue;
+                float need = WallTop(obs) + HeadClear;                         // 头至少要这么高
+                if (need <= AutoReplayMath.DuckHeight) continue;               // 蹲到底也碰不到
+                float cap = range > 1e-3f ? Mathf.Clamp01((AutoReplayMath.HeadHeight - need) / range) : 0f;
+                res.Add((obs.time, obs.time + obs.duration, cap));
+            }
+            return res;
         }
 
         // 需要蹲的时间段: 顶部的墙 (或几面顶墙合起来) 同时盖住第 2、3 轨
@@ -228,8 +274,7 @@ namespace AutoReplay
             if (obstacles != null)
                 foreach (var obs in obstacles)
                 {
-                    bool isCeilingWall = obs.lineLayer != NoteLineLayer.Base || obs.height <= 3;
-                    if (!isCeilingWall) continue;
+                    if (WallBelowHead(obs) || !IsCeilingWall(obs)) continue;
                     int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
                     int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
                     if (c0 > c1) continue;
