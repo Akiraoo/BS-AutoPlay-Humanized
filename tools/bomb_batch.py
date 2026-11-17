@@ -5,6 +5,9 @@ import sys, os, json, glob, re, random, subprocess
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bomb_eval as be, eval_batch as eb
+
+# 惡搞譜不拿來評估 (和 Core/ReplaySelector.JokeMaps 一致)
+JOKE = {'6C9D463C1CF556246CF60BFAEF75FC4F8EA3053F', '875F9F57103004ACA7C4BFAC57601D21402CDB10'}
 from bsor_stats import load, qrot
 
 
@@ -15,7 +18,7 @@ def bomb_maps(n):
     seen = {}
     for f in glob.glob(os.path.join(G, 'UserData', 'BeatLeader', 'Replays', '*.bsor')):
         m = re.match(r'\d+-(?:exit-)?(.*)-(Expert|ExpertPlus)-Standard-([0-9A-F]{40})-\d+\.bsor$', os.path.basename(f))
-        if not m or m.group(3) not in by or (m.group(3), m.group(2)) in seen: continue
+        if not m or m.group(3) not in by or m.group(3) in JOKE or (m.group(3), m.group(2)) in seen: continue
         try:
             bombs, njs = be.load_bombs(by[m.group(3)], m.group(2))
         except Exception:

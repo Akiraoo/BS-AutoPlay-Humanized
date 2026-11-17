@@ -18,6 +18,7 @@ namespace AutoReplay.Core
         public float heightTolerance = 0.10f; // 身高設定和中位數差太多的回放不用 (方塊位置不同)
         public bool rankedOnly;               // 只用 BL 或 SS ranked 的譜 (需要星數查詢)
         public bool preferAcc;                // 超過上限時優先取 acc 高的 (而不是平均抽樣)
+        public IEnumerable<string> excludeMaps;  // 另外不用的譜面 hash (使用者自訂; 內建的惡搞譜清單一律排除)
     }
 
     public sealed class ReplayEntry
@@ -49,6 +50,13 @@ namespace AutoReplay.Core
 
     public static class ReplaySelector
     {
+        /// <summary>純惡搞譜, 動作不代表平常打法, 一律不拿來訓練</summary>
+        public static readonly HashSet<string> JokeMaps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "6C9D463C1CF556246CF60BFAEF75FC4F8EA3053F",   // Mope Mope (4000+ 顆炸彈)
+            "875F9F57103004ACA7C4BFAC57601D21402CDB10",   // DADADADA
+        };
+
         // 只讀 info 的快取 (路徑 + 修改時間), 遊戲內反覆預覽時不用重讀 1000+ 個檔案
         static readonly Dictionary<string, (DateTime mtime, BsorReplay info)> _headers = new Dictionary<string, (DateTime, BsorReplay)>();
         static readonly object _lock = new object();
@@ -95,7 +103,11 @@ namespace AutoReplay.Core
             r.own = own.Count;
 
             // Standard, 右手模式, 沒有改變速度的修飾符 (FS/SF/SS 會讓揮刀節奏不像平常)
-            var eligible = own.Where(e => !e.info.leftHanded && e.info.mode == "Standard" && !e.info.HasSpeedModifier("FS", "SF", "SS")).ToList();
+            // 以及排除惡搞譜 / 使用者指定不用的譜
+            var exclude = new HashSet<string>(JokeMaps, StringComparer.OrdinalIgnoreCase);
+            if (o.excludeMaps != null) foreach (var h in o.excludeMaps) if (!string.IsNullOrWhiteSpace(h)) exclude.Add(h.Trim());
+            var eligible = own.Where(e => !e.info.leftHanded && e.info.mode == "Standard" && !e.info.HasSpeedModifier("FS", "SF", "SS")
+                                          && !exclude.Contains(e.info.hash ?? "")).ToList();
             r.eligible = eligible.Count;
 
             // 身高設定: 取中位數, 差太多的不用 (身高設定決定方塊的上下位置, 混在一起會學到兩套軌跡)

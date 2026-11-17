@@ -26,6 +26,7 @@ namespace AutoReplay
         public bool autoFollow = false;      // 持續追蹤最新回放, 在背景自動重訓
         public int autoEveryN = 10;          // 每多幾份新回放重訓一次
         public long lastAutoTrainUnix;
+        public string[] excludeMaps = new string[0];   // 另外不拿來訓練的譜面 hash (惡搞譜 Mope Mope / DADADADA 已內建排除)
 
         public DateTime? FromUtc => fromDaysAgo >= AllDays ? (DateTime?)null : DateTime.Now.Date.AddDays(-fromDaysAgo).ToUniversalTime();
         public DateTime? ToUtc => toDaysAgo <= 0 ? (DateTime?)null : DateTime.Now.Date.AddDays(1 - toDaysAgo).ToUniversalTime().AddSeconds(-1);
@@ -72,6 +73,7 @@ namespace AutoReplay
             minStars = t.minStars,
             rankedOnly = t.rankedOnly,
             preferAcc = t.preferAcc,
+            excludeMaps = t.excludeMaps,
         };
 
         /// <summary>訓練並儲存. auto=true 寫到 my-auto/, 否則寫新的 my-日期/ 資料夾. 返回模型 id.</summary>
