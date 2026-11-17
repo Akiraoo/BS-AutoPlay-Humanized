@@ -29,6 +29,8 @@ namespace AutoReplay.Tools
             string hcl = opt(a, "--head-clear", null); if (hcl != null) MotionGenerator.HeadClear = float.Parse(hcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string hcs = opt(a, "--head-soft", null); if (hcs != null) MotionGenerator.HeadClearSoft = float.Parse(hcs, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string ec = opt(a, "--eye-clear", null); if (ec != null) MotionGenerator.EyeClear = float.Parse(ec, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string bsw = opt(a, "--bomb-sway", null); if (bsw != null) PoseCalculator.BombSway = float.Parse(bsw, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string bcl = opt(a, "--bomb-clear", null); if (bcl != null) MotionGenerator.BombClear = float.Parse(bcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string knee = opt(a, "--amp-knee", null);   // debug: 揮動幅度壓縮的起點 (度)
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug

@@ -80,6 +80,7 @@ namespace AutoReplay
         public const float HitCalmInner = 0.05f;     // 命中前後這麼近完全不加旋轉微動 (保證劍尖準確穿過方塊)
         public const float HitCalmRamp = 0.15f;      // 再往外這麼長時間內微動逐漸恢復
         public const float BombCalmBefore = 0.40f;   // 炸彈到達前這麼久開始收掉旋轉微動 (躲避姿勢不被打亂)
+        public static float BombSway = 18f;          // 炸彈經過時劍在躲避姿勢附近慢慢晃的幅度 (度)
         public const float BombCalmAfter = 0.25f;    // 炸彈過去後這麼久才恢復
 
         public const float HeadIdleX = 0.020f, HeadIdleY = 0.006f, HeadIdleZ = 0.015f;   // 頭的位置微動(米)
@@ -171,7 +172,10 @@ namespace AutoReplay
                 // 牆邊離中線多遠: 只蓋第 2 軌 -> 牆的右邊在 x=0; 兩軌都蓋 -> 牆的右邊在 x=0.6
                 float edge = lane2 && lane3 ? 0.6f : 0f;
                 float dir = lane2 ? 1f : -1f;                                // 牆在左中 -> 往右閃
-                float h = Mathf.Abs(Mathf.Sin(obs.time * 12.9898f + obs.lineIndex * 78.233f) * 43758.5453f) % 1f;
+                // 整數雜湊 (牆的時間取到 1/100 秒): 原本 sin(大數) 對浮點誤差太敏感, 遊戲內和遊戲外算出的牆時間差一點點就變成完全不同的幅度
+                uint hk = (uint)Mathf.RoundToInt(obs.time * 100f) * 2654435761u ^ (uint)(obs.lineIndex + 7) * 40503u;
+                hk ^= hk >> 15; hk *= 2246822519u; hk ^= hk >> 13;
+                float h = (hk & 0xFFFFu) / 65535f;
                 float amp = Mathf.Max(edge + LeanClear, LeanBase * (1f + LeanVariation * (2f * h - 1f)));
                 res.Add((obs.time, obs.time + obs.duration, dir * amp));
             }
@@ -466,7 +470,7 @@ namespace AutoReplay
         static Vector3 RawForward(float t, List<NoteSwingData> swings, List<NoteData> bombs, bool isLeft, HandMotionContext ctx)
         {
             Quaternion rot = NoteSwingPlanner.SampleHandRotation(t, swings, bombs, isLeft);
-            float w = IdleWeight(t, ctx);
+            float w = IdleWeight(t, ctx, out float bombNear);
             if (w > 0f)
             {
                 float s = ctx.seed;
@@ -475,6 +479,18 @@ namespace AutoReplay
                     HandIdleAngle * w * AutoReplayMath.HandNoise(t * 0.83f, s + 2f),
                     0f);
                 rot = jitter * rot;
+            }
+            if (bombNear > 0f && BombSway > 0f)
+            {
+                // 炸彈經過時劍不要僵住: 慢慢在躲避姿勢附近晃 (真人炸彈經過時劍角速度中位約 54°/s; 原本是 0).
+                // 晃到太靠近炸彈的部分, 最後由 MotionGenerator.AvoidBombs 推開
+                float s = ctx.seed;
+                float wb = bombNear * AutoReplayMath.SmoothStep((NearestDistance(ctx.hitTimes, t) - HitCalmInner) / HitCalmRamp);
+                var sway = Quaternion.Euler(
+                    BombSway * wb * AutoReplayMath.HandNoise(t * 1.7f, s + 21f),
+                    BombSway * wb * AutoReplayMath.HandNoise(t * 1.5f, s + 22f),
+                    0f);
+                rot = sway * rot;
             }
             return HumanModel.LimitForward(isLeft, rot * Vector3.forward);
         }
@@ -524,9 +540,10 @@ namespace AutoReplay
             return o;
         }
 
-        static float IdleWeight(float t, HandMotionContext ctx)
+        static float IdleWeight(float t, HandMotionContext ctx, out float bombNear)
         {
             float w = 1f;
+            bombNear = 0f;
 
             float dHit = NearestDistance(ctx.hitTimes, t);
             w *= AutoReplayMath.SmoothStep((dHit - HitCalmInner) / HitCalmRamp);
@@ -541,9 +558,9 @@ namespace AutoReplay
                     float d = t < b - BombCalmBefore ? (b - BombCalmBefore) - t
                             : t > b + BombCalmAfter ? t - (b + BombCalmAfter)
                             : 0f;
-                    w *= AutoReplayMath.SmoothStep(d / 0.15f);
-                    if (w <= 0f) break;
+                    bombNear = Mathf.Max(bombNear, 1f - AutoReplayMath.SmoothStep(d / 0.15f));
                 }
+                w *= 1f - bombNear;
             }
             return w;
         }

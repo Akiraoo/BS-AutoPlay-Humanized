@@ -114,6 +114,19 @@ namespace AutoReplay
             PoseCalculator.BuildHandTrack(startTime, dt, totalFrames, leftSwings, bombs, true, leftCtx, m.leftPos, m.leftRot);
             PoseCalculator.BuildHandTrack(startTime, dt, totalFrames, rightSwings, bombs, false, rightCtx, m.rightPos, m.rightRot);
 
+            // 炸彈: 劍身離炸彈太近時以手腕為軸推開 (規劃時已經躲過, 這裡處理最後的手臂動作 / 晃動造成的誤差)
+            if (bombs != null && bombs.Count > 0)
+            {
+                var bl = bombs.Select(b => (t: b.time, p: AutoReplayMath.GetNotePos(b))).OrderBy(b => b.t).ToArray();
+                var bt = bl.Select(b => b.t).ToArray();
+                for (int i = 0; i < totalFrames; i++)
+                {
+                    float t = startTime + i * dt;
+                    m.leftRot[i] = AvoidBombs(t, m.leftPos[i], m.leftRot[i], bl, bt, leftCtx.hitTimes);
+                    m.rightRot[i] = AvoidBombs(t, m.rightPos[i], m.rightRot[i], bl, bt, rightCtx.hitTimes);
+                }
+            }
+
             // 劍別穿過頭: 劍身離頭心太近時, 以手腕為軸把劍往外推 (只動指向頭的那些幀, 其他方向的收勢幅度不受影響)
             for (int i = 0; i < totalFrames; i++)
             {
@@ -133,6 +146,49 @@ namespace AutoReplay
                 m.rightPos[i] = m.rightPos[i] + (m.rightRot[i] * pommelOffset);
             }
             return m;
+        }
+
+        public static float BombClear = 0.26f;       // 劍身離炸彈中心至少這麼遠 (炸彈 0.18 + 劍 0.02 = 0.20 算撞到)
+        public static float BombClearSoft = 0.08f;
+
+        static Quaternion AvoidBombs(float t, Vector3 wrist, Quaternion rot, (float t, Vector3 p)[] bl, float[] bt, float[] hits)
+        {
+            // 命中前後不動 (要切到方塊)
+            int h = Array.BinarySearch(hits, t); if (h < 0) h = ~h;
+            if ((h < hits.Length && hits[h] - t < 0.04f) || (h > 0 && t - hits[h - 1] < 0.04f)) return rot;
+            float reach = BombAvoider.SaberLen + BombClear + BombClearSoft;
+            float tMin = t - (BombAvoider.BombHitZ - wrist.z + reach) / BombAvoider.BombSpeed;   // 炸彈 z = HitZ + v (tb - t)
+            float tMax = t + (wrist.z + reach - BombAvoider.BombHitZ) / BombAvoider.BombSpeed;
+            int i0 = Array.BinarySearch(bt, tMin); if (i0 < 0) i0 = ~i0;
+            for (int pass = 0; pass < 2; pass++)
+                for (int i = i0; i < bl.Length && bl[i].t <= tMax; i++)
+                {
+                    Vector3 c = bl[i].p; c.z = BombAvoider.BombHitZ + BombAvoider.BombSpeed * (bl[i].t - t);
+                    rot = PushAway(wrist, rot, c, BombAvoider.SaberStart, BombAvoider.SaberLen, BombClear, BombClearSoft);
+                }
+            return rot;
+        }
+
+        // 以手腕為軸轉動劍, 讓劍身 (手腕往前 s0..s1) 離 c 至少 clear (從 clear+soft 開始平滑地推)
+        static Quaternion PushAway(Vector3 wrist, Quaternion rot, Vector3 c, float s0, float s1, float clear, float soft)
+        {
+            Vector3 f = rot * Vector3.forward;
+            Vector3 v = c - wrist;
+            float along = Vector3.Dot(v, f);
+            if (along <= s0 || along >= s1 + clear + soft) return rot;
+            Vector3 perp = v - f * along;
+            float d = perp.magnitude, dist = v.magnitude;
+            float past = Mathf.Max(0f, along - s1);                       // 在劍尖外面: 最近點是劍尖
+            float dSeg = Mathf.Sqrt(d * d + past * past);
+            if (dSeg >= clear + soft || dist < 1e-3f) return rot;
+            float wantSeg = clear + soft * Mathf.Exp((dSeg - clear) / soft - 1f);
+            float want = Mathf.Sqrt(Mathf.Max(0f, wantSeg * wantSeg - past * past));   // 需要的垂直距離
+            if (want <= d) return rot;
+            Vector3 away = d > 1e-5f ? -perp / d : Vector3.Cross(f, Vector3.up).normalized;
+            float delta = Mathf.Asin(Mathf.Clamp01(want / dist)) - Mathf.Asin(Mathf.Clamp01(d / dist));
+            Vector3 axis = Vector3.Cross(f, away);
+            if (axis.sqrMagnitude < 1e-10f) return rot;
+            return Quaternion.AngleAxis(delta * Mathf.Rad2Deg, axis.normalized) * rot;
         }
 
         public const float HeadCenterBack = 0.08f;   // 頭心在頭顯 (眼睛) 後方多遠

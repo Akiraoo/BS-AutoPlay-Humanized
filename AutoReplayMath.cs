@@ -40,18 +40,22 @@ namespace AutoReplay
         /// </summary>
         public static float HandNoise(float t, float seed)
         {
-            return 0.30f * Mathf.Sin(t * 2.9f + seed * 12.9898f)
-                 + 0.30f * Mathf.Sin(t * 7.1f + seed * 78.233f)
-                 + 0.22f * Mathf.Sin(t * 13.7f + seed * 37.719f)
-                 + 0.18f * Mathf.Sin(t * 23.3f + seed * 93.1f);
+            // 真人閒置的微動以慢漂移為主, 頻率越高越小 (0-1 / 1-2 / 2-4 Hz 約 16 : 7 : 4.4);
+            // 原本四個頻率 (0.5~3.7 Hz) 幅度差不多, 等幅的快速晃動看起來像手抖
+            return 0.50f * Mathf.Sin(t * 1.3f + seed * 12.9898f)
+                 + 0.30f * Mathf.Sin(t * 2.9f + seed * 78.233f)
+                 + 0.14f * Mathf.Sin(t * 6.1f + seed * 37.719f)
+                 + 0.06f * Mathf.Sin(t * 11.3f + seed * 93.1f);
         }
 
         public static float HandPosNoise(float t, float seed)
         {
-            return 0.35f * Mathf.Sin(t * 2.6f + seed * 12.9898f)
-                 + 0.30f * Mathf.Sin(t * 5.9f + seed * 78.233f)
-                 + 0.20f * Mathf.Sin(t * 11.1f + seed * 37.719f)
-                 + 0.15f * Mathf.Sin(t * 19.3f + seed * 93.1f);
+            // 真人閒置的微動以慢漂移為主, 頻率越高越小 (0-1 / 1-2 / 2-4 Hz 約 16 : 7 : 4.4);
+            // 原本四個頻率 (0.5~3.7 Hz) 幅度差不多, 等幅的快速晃動看起來像手抖
+            return 0.50f * Mathf.Sin(t * 1.1f + seed * 12.9898f)
+                 + 0.30f * Mathf.Sin(t * 2.5f + seed * 78.233f)
+                 + 0.14f * Mathf.Sin(t * 5.3f + seed * 37.719f)
+                 + 0.06f * Mathf.Sin(t * 11.1f + seed * 93.1f);
         }
 
         // Cardinal resting poses (+10 degrees larger swing)
