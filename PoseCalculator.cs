@@ -85,14 +85,10 @@ namespace AutoReplay
         public const float HeadIdleX = 0.020f, HeadIdleY = 0.006f, HeadIdleZ = 0.015f;   // 头的位置微动(米)
         public const float HeadIdleYaw = 2.0f, HeadIdlePitch = 1.5f, HeadIdleRoll = 1.0f; // 头的旋转微动(度)
 
-        // 墙提前多久开始躲 (之后由 AutoReplayGenerator 里的弹簧平滑过去, 不再瞬移)
-        public const float WallLead = 0.30f;
-        public const float WallTrail = 0.10f;
-        // 躲墙时身体平移对手的影响: 头往旁边移 x, 手跟着移 x*BodyFollowX; 蹲下时手下降得少一点
+        // 躲墙时身体平移对手的影响: 头往旁边移 x, 手跟着移 x*BodyFollowX
         public const float BodyFollowX = 0.85f;
         public const float BodyFollowY = 0.85f;   // 真人蹲墙时手的下降约是头的 0.81~0.86 倍
-        // 躲墙时头的歪斜角度: 原本 40°, 看回放会晕. 现在主要靠身体平移, 头只稍微歪一点
-        public const float HeadTiltRoll = 12f;
+        // 躲墙的时机和幅度见下面的 DuckAmount (蹲) / LeanOffset (左右闪), 都照真人回放的曲线
         public const float DuckPitch = 1.5f;      // 真人蹲墙几乎不低头 (1~2°), 原本 5°
 
         // 轨道编号(从左到右): 第1轨 = lineIndex 0, 第2轨 = 1, 第3轨 = 2, 第4轨 = 3
@@ -103,90 +99,84 @@ namespace AutoReplay
         // 返回的是目标姿态, 平滑由调用方负责
         public static HeadTarget CalculateHeadTarget(float t, List<ObstacleData> obstacles, bool mirror = false)
         {
-            float targetX = 0f;
             float targetY = AutoReplayMath.HeadHeight;
-            float targetRoll = 0f;
             float targetPitch = 0f;
 
-            // 顶部掩体对第2轨/第3轨的覆盖情况 (多面墙同时存在时取并集)
-            bool ceilingLane2 = false;
-            bool ceilingLane3 = false;
-            // 顶部掩体只盖住一条中间轨道时的歪头结果, 如果最后判定要蹲下就丢弃
-            float ceilingTiltX = 0f;
-            float ceilingTiltRoll = 0f;
-
-            foreach (var obs in obstacles)
-            {
-                if (t < obs.time - WallLead || t > obs.time + obs.duration + WallTrail) continue;
-
-                // 只保留墙在中间两条轨道(lineIndex 1~2)的部分, 第1轨/第4轨的部分不管
-                // 左手模式下游戏会把谱面左右镜像, 墙的轨道也要跟着镜像 (共 4 轨)
-                int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
-                int c0 = Mathf.Max(lineIndex, 1);
-                int c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
-                if (c0 > c1) continue; // 墙只在第1轨或第4轨 -> 忽略
-
-                bool coversLane2 = c0 <= 1 && c1 >= 1;
-                bool coversLane3 = c0 <= 2 && c1 >= 2;
-                if (WallBelowHead(obs)) continue;          // 矮墙 (墙顶比头低): 不用躲
-                bool isCeilingWall = IsCeilingWall(obs);
-
-                // 这面墙单独需要的歪头动作
-                float tiltX, tiltRoll;
-                if (coversLane2 && coversLane3)
-                {
-                    // 盖住第2和第3轨 -> 向右靠
-                    tiltX = 0.45f; tiltRoll = -HeadTiltRoll;
-                }
-                else if (coversLane2)
-                {
-                    // 只有第2轨(左中) -> 头向右歪
-                    tiltX = 0.42f; tiltRoll = -HeadTiltRoll;
-                }
-                else
-                {
-                    // 只有第3轨(右中) -> 头向左歪
-                    tiltX = -0.42f; tiltRoll = HeadTiltRoll;
-                }
-
-                if (isCeilingWall)
-                {
-                    ceilingLane2 |= coversLane2;
-                    ceilingLane3 |= coversLane3;
-                    if (tiltX > 0f) { ceilingTiltX = Mathf.Max(ceilingTiltX, tiltX); ceilingTiltRoll = Mathf.Min(ceilingTiltRoll, tiltRoll); }
-                    else { ceilingTiltX = Mathf.Min(ceilingTiltX, tiltX); ceilingTiltRoll = Mathf.Max(ceilingTiltRoll, tiltRoll); }
-                }
-                else
-                {
-                    // 非顶部的墙: 一律歪头, 不蹲
-                    if (tiltX > 0f) { targetX = Mathf.Max(targetX, tiltX); targetRoll = Mathf.Min(targetRoll, tiltRoll); }
-                    else { targetX = Mathf.Min(targetX, tiltX); targetRoll = Mathf.Max(targetRoll, tiltRoll); }
-                }
-            }
-
-            // 蹲下: 不再用"墙在不在"切换, 而是照真人的蹲墙曲线 (见 DuckAmount)
+            // 蹲下: 照真人的蹲墙曲线 (DuckAmount)
             float duck = DuckAmount(t, obstacles, mirror);
             if (duck > 0f)
             {
                 targetY = Mathf.Lerp(targetY, Mathf.Min(targetY, AutoReplayMath.DuckHeight), duck);
                 targetPitch = Mathf.Max(targetPitch, DuckPitch * duck);
             }
-            if (ceilingLane2 && ceilingLane3)
-            {
-                // 第2、3轨同时有顶部掩体 -> 蹲下 (高度由上面的 DuckAmount 决定), 不歪头
-            }
-            else if (ceilingTiltX > 0f)
-            {
-                targetX = Mathf.Max(targetX, ceilingTiltX);
-                targetRoll = Mathf.Min(targetRoll, ceilingTiltRoll);
-            }
-            else if (ceilingTiltX < 0f)
-            {
-                targetX = Mathf.Min(targetX, ceilingTiltX);
-                targetRoll = Mathf.Max(targetRoll, ceilingTiltRoll);
-            }
 
-            return new HeadTarget { position = new Vector3(targetX, targetY, 0f), pitch = targetPitch, roll = targetRoll };
+            // 左右闪: 照真人的闪墙曲线 (LeanOffset)
+            float leanX = LeanOffset(t, obstacles, mirror);
+            float roll = Mathf.Clamp(-leanX * LeanRollPerMeter, -LeanMaxRoll, LeanMaxRoll);
+            return new HeadTarget { position = new Vector3(leanX, targetY, 0f), pitch = targetPitch, roll = roll };
+        }
+
+        // ================= 左右闪墙曲线 =================
+        // 真人 60 份回放 / 410 次孤立的闪墙 (只盖住中间一条轨道的全高墙), 以墙到达为 0, 往墙的反方向为正:
+        //   横移 -0.3s +0.02 | -0.1 +0.06 | 0 +0.09 | +0.2 +0.15 | +0.3 +0.15 (最远) | +0.6 +0.11 | +1.0 +0.04 m
+        //   歪头 最大中位 6.8° (P10 3.8 ~ P90 11.0); 最远横移中位 0.16 m (P10 0.10 ~ P90 0.21), 每次都不一样.
+        // 原本: 墙到前 0.3 秒目标瞬间切到 0.42~0.45 m / 12°, 墙一过就弹回 -> 幅度是真人的 2.7 倍, 而且每次一样, 墙多就晕.
+        public const float LeanBase = 0.16f;           // 真人最远横移中位数
+        public const float LeanVariation = 0.25f;      // 每次随机 ±25% (按墙的时间决定, 每次生成一样)
+        public const float LeanClear = 0.12f;          // 头离墙边至少要这么远
+        public const float LeanStart = 0.35f;          // 墙到前多久开始移
+        public const float LeanRise = 0.45f;           // 移到最远要多久 (墙到时已移了约 90%: 真人最远点在墙过后 0.2~0.3 s,
+                                                       //  但墙到时只移了 9 cm, 照抄会擦到墙边)
+        public const float LeanHold = 0.12f;           // 墙过去后保持多久
+        public const float LeanReturn = 0.90f;         // 回到原位要多久
+        public const float LeanRollPerMeter = 40f;     // 歪头角度 = 横移 * 这个 (0.16 m -> 6.4°)
+        public const float LeanMaxRoll = 14f;
+
+        static List<ObstacleData> _leanSrc;
+        static bool _leanMirror;
+        static List<(float s, float e, float amp)> _leanEvents;   // amp > 0 往右, < 0 往左
+
+        public static float LeanOffset(float t, List<ObstacleData> obstacles, bool mirror)
+        {
+            if (!ReferenceEquals(_leanSrc, obstacles) || _leanMirror != mirror)
+            {
+                _leanSrc = obstacles; _leanMirror = mirror;
+                _leanEvents = BuildLeanEvents(obstacles, mirror);
+            }
+            // 按时间顺序: 新的墙从上一道墙留下的位置接手 (左右交替的墙 -> 头左右来回摆; 原本两边相加会互相抵消, 头停在中间撞墙)
+            float v = 0f;
+            foreach (var (s0, e0, amp) in _leanEvents)
+            {
+                if (t < s0 - LeanStart) break;
+                float up = AutoReplayMath.SmoothStep((t - (s0 - LeanStart)) / LeanRise);
+                v = Mathf.Lerp(v, Mathf.Abs(v) > Mathf.Abs(amp) && Mathf.Sign(v) == Mathf.Sign(amp) ? v : amp, up);
+                if (t > e0 + LeanHold) v *= 1f - AutoReplayMath.SmoothStep((t - (e0 + LeanHold)) / LeanReturn);
+            }
+            return v;
+        }
+
+        // 要闪的墙: 挡到头 (不是矮墙、也不是能蹲过去的顶墙), 盖住中间的第 2 或第 3 轨
+        static List<(float, float, float)> BuildLeanEvents(List<ObstacleData> obstacles, bool mirror)
+        {
+            var res = new List<(float, float, float)>();
+            if (obstacles == null) return res;
+            foreach (var obs in obstacles)
+            {
+                if (WallBelowHead(obs)) continue;
+                int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
+                int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
+                if (c0 > c1) continue;
+                bool lane2 = c0 <= 1 && c1 >= 1, lane3 = c0 <= 2 && c1 >= 2;
+                if (IsCeilingWall(obs) && lane2 && lane3) continue;           // 蹲 (DuckAmount)
+                // 墙边离中线多远: 只盖第 2 轨 -> 墙的右边在 x=0; 两轨都盖 -> 墙的右边在 x=0.6
+                float edge = lane2 && lane3 ? 0.6f : 0f;
+                float dir = lane2 ? 1f : -1f;                                // 墙在左中 -> 往右闪
+                float h = Mathf.Abs(Mathf.Sin(obs.time * 12.9898f + obs.lineIndex * 78.233f) * 43758.5453f) % 1f;
+                float amp = Mathf.Max(edge + LeanClear, LeanBase * (1f + LeanVariation * (2f * h - 1f)));
+                res.Add((obs.time, obs.time + obs.duration, dir * amp));
+            }
+            res.Sort((x, y) => x.Item1.CompareTo(y.Item1));
+            return res;
         }
 
         // ================= 墙的高度 =================
