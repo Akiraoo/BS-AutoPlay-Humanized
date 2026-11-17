@@ -5,9 +5,9 @@ using AutoReplay.Core;
 namespace AutoReplay
 {
     /// <summary>
-    /// 手臂位置模板 (模型的 arm): 手腕之外, 手臂在一次挥刀里多挥的位移.
-    /// 真人数据: 往下挥时, 预挥阶段手臂比"按指向推算"多往后拉约 8 cm, 收势时多往前送约 9 cm 并往方块方向伸 6~12 cm.
-    /// 旧模型没有 arm -> 回传 0, 手的位置照旧只由指向推算.
+    /// 手臂位置模板 (模型的 arm): 手腕之外, 手臂在一次揮刀裡多揮的位移.
+    /// 真人資料: 往下揮時, 預揮階段手臂比"按指向推算"多往後拉約 8 cm, 收勢時多往前送約 9 cm 並往方塊方向伸 6~12 cm.
+    /// 舊模型沒有 arm -> 回傳 0, 手的位置照舊只由指向推算.
     /// </summary>
     public static class ArmTemplates
     {
@@ -42,14 +42,14 @@ namespace AutoReplay
             return v[i] + (v[i + 1] - v[i]) * w;
         }
 
-        /// <summary>挥刀坐标系里的位移 (along, side, fwd), 间隔落在两组之间时线性插值</summary>
+        /// <summary>揮刀座標系裡的位移 (along, side, fwd), 間隔落在兩組之間時線性插值</summary>
         public static Vector3 Eval(int dirClass, float gap, float tau)
         {
             if (!Ensure()) return Vector3.zero;
             var list = _byDir[Mathf.Clamp(dirClass, 0, 2)];
             if (list.Count == 0)
             {
-                // 这个方向没有数据: 用其他方向的 (横向少的时候常见)
+                // 這個方向沒有資料: 用其他方向的 (橫向少的時候常見)
                 foreach (var l in _byDir) if (l.Count > 0) { list = l; break; }
                 if (list.Count == 0) return Vector3.zero;
             }

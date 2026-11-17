@@ -10,21 +10,21 @@ using Zenject;
 
 namespace AutoReplay
 {
-    /// <summary>训练设定 (存在 UserData/AutoPlay/settings.json)</summary>
+    /// <summary>訓練設定 (存在 UserData/AutoPlay/settings.json)</summary>
     public sealed class TrainSettings
     {
-        public const int AllDays = 730;      // 起始滑杆拉到底 = 不限日期
+        public const int AllDays = 730;      // 起始滑桿拉到底 = 不限日期
 
-        public int fromDaysAgo = 30;         // 从几天前开始
-        public int toDaysAgo = 0;            // 到几天前 (0 = 今天)
+        public int fromDaysAgo = 30;         // 從幾天前開始
+        public int toDaysAgo = 0;            // 到幾天前 (0 = 今天)
         public int perMapCap = 3;
         public int maxReplays = 300;
         public float minStars = 0f;
         public bool lookupStars = true;
-        public bool rankedOnly = false;      // 只用 BL 或 SS ranked 的谱
-        public bool preferAcc = false;       // 同谱取分数最高的, 超过上限时取 acc 最高的
-        public bool autoFollow = false;      // 持续追踪最新回放, 在背景自动重训
-        public int autoEveryN = 10;          // 每多几份新回放重训一次
+        public bool rankedOnly = false;      // 只用 BL 或 SS ranked 的譜
+        public bool preferAcc = false;       // 同譜取分數最高的, 超過上限時取 acc 最高的
+        public bool autoFollow = false;      // 持續追蹤最新回放, 在背景自動重訓
+        public int autoEveryN = 10;          // 每多幾份新回放重訓一次
         public long lastAutoTrainUnix;
 
         public DateTime? FromUtc => fromDaysAgo >= AllDays ? (DateTime?)null : DateTime.Now.Date.AddDays(-fromDaysAgo).ToUniversalTime();
@@ -32,8 +32,8 @@ namespace AutoReplay
     }
 
     /// <summary>
-    /// 训练的共用入口 (设定页按钮和自动训练). 同一时间只跑一个训练.
-    /// 只用本人的回放: 先向平台取得目前登入的玩家 ID, 每份回放都要比对.
+    /// 訓練的共用入口 (設定頁按鈕和自動訓練). 同一時間只跑一個訓練.
+    /// 只用本人的回放: 先向平臺取得目前登入的玩家 ID, 每份回放都要比對.
     /// </summary>
     public static class TrainingService
     {
@@ -66,7 +66,7 @@ namespace AutoReplay
             replaysDir = ModelManager.ReplaysDir,
             playerId = playerId,
             fromUtc = t.FromUtc,
-            toUtc = auto ? null : t.ToUtc,     // 自动模式永远到最新
+            toUtc = auto ? null : t.ToUtc,     // 自動模式永遠到最新
             perMapCap = t.perMapCap,
             maxReplays = t.maxReplays,
             minStars = t.minStars,
@@ -74,7 +74,7 @@ namespace AutoReplay
             preferAcc = t.preferAcc,
         };
 
-        /// <summary>训练并保存. auto=true 写到 my-auto/, 否则写新的 my-日期/ 资料夹. 返回模型 id.</summary>
+        /// <summary>訓練並儲存. auto=true 寫到 my-auto/, 否則寫新的 my-日期/ 資料夾. 返回模型 id.</summary>
         public static async Task<string> TrainAsync(bool auto, CancellationToken cancel)
         {
             if (Busy) throw new InvalidOperationException("已經有訓練在進行中");
@@ -101,7 +101,7 @@ namespace AutoReplay
                 var task = Task.Run(() =>
                 {
                     var th = Thread.CurrentThread; var prio = th.Priority;
-                    th.Priority = System.Threading.ThreadPriority.BelowNormal;   // 不要抢游戏的 CPU
+                    th.Priority = System.Threading.ThreadPriority.BelowNormal;   // 不要搶遊戲的 CPU
                     try { return ModelTrainer.Train(opts, out report); }
                     finally { th.Priority = prio; }
                 });
@@ -113,7 +113,7 @@ namespace AutoReplay
                 {
                     t.lastAutoTrainUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     ModelManager.SaveTrainSettings();
-                    // 只有正在用自动模型 (或没有模型) 时才切换, 不抢玩家自己选的模型
+                    // 只有正在用自動模型 (或沒有模型) 時才切換, 不搶玩家自己選的模型
                     if (ModelManager.Current == null || ModelManager.CurrentId == id) ModelManager.Select(id);
                     else ModelManager.Refresh();
                 }
@@ -139,8 +139,8 @@ namespace AutoReplay
     }
 
     /// <summary>
-    /// 持续追踪: 每 30 秒检查一次, 在选单闲置时, 本人的新回放累积到 N 份就在背景重训 my-auto/.
-    /// 开始打歌就取消训练, 之后再试.
+    /// 持續追蹤: 每 30 秒檢查一次, 在選單閒置時, 本人的新回放累積到 N 份就在背景重訓 my-auto/.
+    /// 開始打歌就取消訓練, 之後再試.
     /// </summary>
     public sealed class AutoTrainer : MonoBehaviour
     {
@@ -159,14 +159,14 @@ namespace AutoReplay
 
         CancellationTokenSource _cts;
         bool _checking;
-        float _retryAfter;    // 失败后 10 分钟内不再自动重试
+        float _retryAfter;    // 失敗後 10 分鐘內不再自動重試
 
         void Start() => StartCoroutine(Loop());
 
         IEnumerator Loop()
         {
             var wait = new WaitForSecondsRealtime(2f);
-            float next = Time.realtimeSinceStartup + 20f;   // 进游戏先等一下
+            float next = Time.realtimeSinceStartup + 20f;   // 進遊戲先等一下
             while (true)
             {
                 yield return wait;

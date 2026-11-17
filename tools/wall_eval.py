@@ -1,8 +1,8 @@
-"""牆: 头有没有进到墙里 (真人 / 生成都能算).
-usage: wall_eval.py <谱面资料夹或hash> <难度> <回放.bsor> [更多回放...]
-墙的位置 (照游戏的规则): 每条轨道宽 0.6 m (第 i 轨 x 从 (i-2)*0.6 到 (i-1)*0.6);
-底边 = 层高 (0.25 / 0.85 / 1.45 ...) - 0.15 + 身高偏移 0.5*(设定身高-1.5); 高 = h * 0.6;
-墙在 [time, time+duration] 期间经过玩家所在的位置. 头当成一个点, 再留 HEAD_R 的半径.
+"""牆: 頭有沒有進到牆裡 (真人 / 生成都能算).
+usage: wall_eval.py <譜面資料夾或hash> <難度> <回放.bsor> [更多回放...]
+牆的位置 (照遊戲的規則): 每條軌道寬 0.6 m (第 i 軌 x 從 (i-2)*0.6 到 (i-1)*0.6);
+底邊 = 層高 (0.25 / 0.85 / 1.45 ...) - 0.15 + 身高偏移 0.5*(設定身高-1.5); 高 = h * 0.6;
+牆在 [time, time+duration] 期間經過玩家所在的位置. 頭當成一個點, 再留 HEAD_R 的半徑.
 """
 import sys, os, json
 import numpy as np
@@ -51,7 +51,7 @@ def analyze(replay, walls):
         y0 = LAYER_Y(y) - 0.15 + yoff; y1 = y0 + h * 0.6
         inside = (hx > x0 - HEAD_R) & (hx < x1 + HEAD_R) & (hy > y0 - HEAD_R) & (hy < y1 + HEAD_R)
         if inside.any():
-            # 离开墙需要的最小移动 (越大越"深")
+            # 離開牆需要的最小移動 (越大越"深")
             depth = np.max(np.minimum.reduce([hx - (x0 - HEAD_R), (x1 + HEAD_R) - hx, hy - (y0 - HEAD_R), (y1 + HEAD_R) - hy])[inside])
             hits.append((round(t0, 2), round(t1 - t0, 2), x, y, w, h, round(float(depth), 2), round(float(hx[inside].mean()), 2), round(float(hy[inside].mean()), 2)))
     return info, hits

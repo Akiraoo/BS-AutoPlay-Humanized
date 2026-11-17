@@ -1,8 +1,8 @@
-"""批次评估: 在训练资料以外的真人回放上, 用游戏外生成器比较不同模型 / 参数.
+"""批次評估: 在訓練資料以外的真人回放上, 用遊戲外生成器比較不同模型 / 引數.
 usage: eval_batch.py <variants.json> [--maps N] [--before YYYY-MM-DD] [--seed S]
-variants.json: [{"name": "...", "model": "<模型路径>", "args": ["--no-arm", ...]}, ...]
-每张谱: 从玩家回放挑一份 (日期早于 --before, 也就是不在训练范围), 每个变体生成一次, 和那份真人回放比较.
-指标: 方向误差中位 / >75° 比例 / 手的位置误差 (相对头) / 角速度和手速 相对真人的比例 / 收势与预挥最远角度
+variants.json: [{"name": "...", "model": "<模型路徑>", "args": ["--no-arm", ...]}, ...]
+每張譜: 從玩家回放挑一份 (日期早於 --before, 也就是不在訓練範圍), 每個變體生成一次, 和那份真人回放比較.
+指標: 方向誤差中位 / >75° 比例 / 手的位置誤差 (相對頭) / 角速度和手速 相對真人的比例 / 收勢與預揮最遠角度
 """
 import sys, os, json, glob, subprocess, random, datetime, re
 import numpy as np

@@ -14,7 +14,7 @@ namespace AutoReplay
             return copy;
         }
 
-        // 与 BeatLeader ReplayBeatmapData.CreateSortedNoteDataList 相同的逻辑 (含链条切片)
+        // 與 BeatLeader ReplayBeatmapData.CreateSortedNoteDataList 相同的邏輯 (含鏈條切片)
         private static List<NoteData> CreateSortedNoteDataListFallback(IEnumerable<BeatmapDataItem> items)
         {
             var result = new List<NoteData>();
@@ -55,13 +55,13 @@ namespace AutoReplay
             {
                 Plugin.Log?.Warn($"Failed to read NJS: {ex.Message}");
             }
-            // 谱面没填 NJS (0) 时游戏会按难度给默认值
+            // 譜面沒填 NJS (0) 時遊戲會按難度給預設值
             if (njs <= 0f) njs = MotionGenerator.DefaultNjs(key.difficulty.ToString());
             return njs > 0f ? njs : 19.25f;
         }
 
-        // 反应时间 RT (方块从出现到被切的时间) 和跳跃距离 JD, 公式同游戏 (BeatmapObjectSpawnMovementData):
-        //   半跳拍数从 4 开始, 半跳距离超过 18 就减半, 再加上谱面的 offset, 最少 0.25 拍
+        // 反應時間 RT (方塊從出現到被切的時間) 和跳躍距離 JD, 公式同遊戲 (BeatmapObjectSpawnMovementData):
+        //   半跳拍數從 4 開始, 半跳距離超過 18 就減半, 再加上譜面的 offset, 最少 0.25 拍
         static float GetReactionTime(BeatmapLevel level, BeatmapKey key, float njs, out float jd)
         {
             float offset = 0f;
@@ -84,7 +84,7 @@ namespace AutoReplay
         {
             var replay = new Replay();
 
-            // 优先用 BeatLeader 自己的实现, 保证音符顺序/链条切片与回放器完全一致.
+            // 優先用 BeatLeader 自己的實現, 保證音符順序/鏈條切片與回放器完全一致.
             // 0.10.x 移到了 ReplayBeatmapData, 0.9.x 在 ReplayerScoreProcessor.
             IEnumerable<NoteData> sortedNotes = null;
             foreach (var target in new[]
@@ -111,9 +111,9 @@ namespace AutoReplay
                 sortedNotes = CreateSortedNoteDataListFallback(beatmapData.allBeatmapDataItems);
             }
 
-            // 左手模式: 游戏会把谱面左右镜像 (轨道翻转、红蓝互换、切割方向镜像).
-            // BeatLeader 用"时间 + 音符 ID"匹配事件, ID 来自镜像后的谱面, 所以这里也必须用镜像后的音符.
-            // 做法和 BeatLeader 自己镜像音符的方式一致: CopyWith() 复制一份再 Mirror(4), 不改动原数据.
+            // 左手模式: 遊戲會把譜面左右映象 (軌道翻轉、紅藍互換、切割方向映象).
+            // BeatLeader 用"時間 + 音符 ID"匹配事件, ID 來自映象後的譜面, 所以這裡也必須用映象後的音符.
+            // 做法和 BeatLeader 自己映象音符的方式一致: CopyWith() 複製一份再 Mirror(4), 不改動原資料.
             if (leftHanded)
             {
                 sortedNotes = sortedNotes.Select(MirrorNote).ToList();
@@ -137,7 +137,7 @@ namespace AutoReplay
                 .OrderBy(b => b.time)
                 .ToList();
 
-            // NA(无箭头)模式: 所有方块当点块处理, 上下交替挥, 不看谱面里的切割方向
+            // NA(無箭頭)模式: 所有方塊當點塊處理, 上下交替揮, 不看譜面裡的切割方向
             bool noArrows = modifiers != null && modifiers.noArrows;
 
             float njs = GetNoteJumpSpeed(level, key);
@@ -156,7 +156,7 @@ namespace AutoReplay
                 noteEvents.Add(NoteEventBuilder.Create115NoteEvent(note, noArrows));
                 combo++;
                 int mult = combo >= 14 ? 8 : (combo >= 6 ? 4 : (combo >= 2 ? 2 : 1));
-                // 链条头最高 85、链条切片最高 20, 不是每个块都是 115
+                // 鏈條頭最高 85、鏈條切片最高 20, 不是每個塊都是 115
                 totalScore += ScoreModel.GetNoteScoreDefinition(note.scoringType).maxCutScore * mult;
             }
 
@@ -211,8 +211,8 @@ namespace AutoReplay
                 height = AutoReplayMath.PlayerHeight,
                 startTime = 0f,
                 failTime = 0f,
-                // BeatLeader 里 speed != 0 会被当成"练习模式"设置(PracticeSettings), 回放就会以练习模式启动.
-                // 变速由 modifiers 里的 FS/SF/SS 负责, 所以这里保持 0, 和正常打出来的回放一致.
+                // BeatLeader 裡 speed != 0 會被當成"練習模式"設定(PracticeSettings), 回放就會以練習模式啟動.
+                // 變速由 modifiers 裡的 FS/SF/SS 負責, 所以這裡保持 0, 和正常打出來的回放一致.
                 speed = 0f
             };
 
@@ -222,7 +222,7 @@ namespace AutoReplay
             replay.heights = new List<AutomaticHeight> { new AutomaticHeight { height = AutoReplayMath.PlayerHeight, time = 0f } };
             replay.pauses = new List<Pause>();
             replay.saberOffsets = new SaberOffsets();
-            // 浮水印: 标明这是 AutoPlay 生成的回放, 以及用的是哪个模型 (BeatLeader 会原样保存 customData)
+            // 浮水印: 標明這是 AutoPlay 生成的回放, 以及用的是哪個模型 (BeatLeader 會原樣儲存 customData)
             replay.customData = new Dictionary<string, byte[]>
             {
                 ["AutoPlay"] = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new

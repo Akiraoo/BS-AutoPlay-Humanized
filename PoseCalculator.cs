@@ -6,7 +6,7 @@ using Quaternion = UnityEngine.Quaternion;
 
 namespace AutoReplay
 {
-    /// <summary>头部目标姿态 (还没平滑): 位置 + 俯仰/滚转角</summary>
+    /// <summary>頭部目標姿態 (還沒平滑): 位置 + 俯仰/滾轉角</summary>
     public struct HeadTarget
     {
         public Vector3 position;
@@ -15,21 +15,21 @@ namespace AutoReplay
     }
 
     /// <summary>
-    /// 一只手的待机微动所需的时间信息: 命中时刻和炸弹时刻附近要"稳住", 不加微动.
+    /// 一隻手的待機微動所需的時間資訊: 命中時刻和炸彈時刻附近要"穩住", 不加微動.
     /// </summary>
     public class HandMotionContext
     {
         public readonly float[] hitTimes;
-        public readonly Vector3[] hitTargets;   // 和 hitTimes 一一对应: 方块中心
-        public readonly int[] hitDirs;          // 和 hitTimes 一一对应: 切割方向 (反手扭转用)
+        public readonly Vector3[] hitTargets;   // 和 hitTimes 一一對應: 方塊中心
+        public readonly int[] hitDirs;          // 和 hitTimes 一一對應: 切割方向 (反手扭轉用)
         public readonly float[] bombTimes;
         public readonly float seed;
-        // 手臂模板用: 每一刀 (叠块/几乎同时的合成一刀) 的时间、挥刀坐标系、方向分类、和前后一刀的较短间隔
+        // 手臂模板用: 每一刀 (疊塊/幾乎同時的合成一刀) 的時間、揮刀座標系、方向分類、和前後一刀的較短間隔
         public readonly float[] armTimes;
         public readonly Vector3[] armD, armN, armF;
         public readonly int[] armDir;
         public readonly float[] armGap;
-        // 身体平移 (躲墙时整个人往旁边/往下移, 手也跟着走). 由 AutoReplayGenerator 根据头的轨迹提供
+        // 身體平移 (躲牆時整個人往旁邊/往下移, 手也跟著走). 由 AutoReplayGenerator 根據頭的軌跡提供
         public Func<float, Vector3> bodyOffset = t => Vector3.zero;
 
         public HandMotionContext(List<NoteSwingData> swings, List<NoteData> bombs, float seed)
@@ -39,7 +39,7 @@ namespace AutoReplay
             hitTargets = new Vector3[n];
             hitDirs = new int[n];
             for (int i = 0; i < n; i++) { hitTimes[i] = swings[i].time; hitTargets[i] = swings[i].target; hitDirs[i] = swings[i].cutDirection; }
-            // swings 本来就按时间排好序
+            // swings 本來就按時間排好序
 
             var at = new List<int>();
             for (int i = 0; i < n; i++)
@@ -72,37 +72,37 @@ namespace AutoReplay
 
     public static class PoseCalculator
     {
-        // ================= 待机微动参数 =================
-        // 真人 replay: 手几乎从不完全静止 (角速度 <20°/s 的时间约 1%), 头的朝向也有约 2° 的晃动.
-        // 原本 4° / 2 cm 而且频率太低: 长间隔里剑几乎静止 (3~5°/s), 真人是 30~50°/s. 现在按真人 replay 校准 (见 AutoReplayMath.HandNoise)
-        public const float HandIdleAngle = 9.0f;     // 手的旋转微动幅度(度)
-        public const float HandIdlePos = 0.05f;      // 手的位置微动幅度(米)
-        public const float HitCalmInner = 0.05f;     // 命中前后这么近完全不加旋转微动 (保证剑尖准确穿过方块)
-        public const float HitCalmRamp = 0.15f;      // 再往外这么长时间内微动逐渐恢复
-        public const float BombCalmBefore = 0.40f;   // 炸弹到达前这么久开始收掉旋转微动 (躲避姿势不被打乱)
-        public const float BombCalmAfter = 0.25f;    // 炸弹过去后这么久才恢复
+        // ================= 待機微動引數 =================
+        // 真人 replay: 手幾乎從不完全靜止 (角速度 <20°/s 的時間約 1%), 頭的朝向也有約 2° 的晃動.
+        // 原本 4° / 2 cm 而且頻率太低: 長間隔裡劍幾乎靜止 (3~5°/s), 真人是 30~50°/s. 現在按真人 replay 校準 (見 AutoReplayMath.HandNoise)
+        public const float HandIdleAngle = 9.0f;     // 手的旋轉微動幅度(度)
+        public const float HandIdlePos = 0.05f;      // 手的位置微動幅度(米)
+        public const float HitCalmInner = 0.05f;     // 命中前後這麼近完全不加旋轉微動 (保證劍尖準確穿過方塊)
+        public const float HitCalmRamp = 0.15f;      // 再往外這麼長時間內微動逐漸恢復
+        public const float BombCalmBefore = 0.40f;   // 炸彈到達前這麼久開始收掉旋轉微動 (躲避姿勢不被打亂)
+        public const float BombCalmAfter = 0.25f;    // 炸彈過去後這麼久才恢復
 
-        public const float HeadIdleX = 0.020f, HeadIdleY = 0.006f, HeadIdleZ = 0.015f;   // 头的位置微动(米)
-        public const float HeadIdleYaw = 2.0f, HeadIdlePitch = 1.5f, HeadIdleRoll = 1.0f; // 头的旋转微动(度)
+        public const float HeadIdleX = 0.020f, HeadIdleY = 0.006f, HeadIdleZ = 0.015f;   // 頭的位置微動(米)
+        public const float HeadIdleYaw = 2.0f, HeadIdlePitch = 1.5f, HeadIdleRoll = 1.0f; // 頭的旋轉微動(度)
 
-        // 躲墙时身体平移对手的影响: 头往旁边移 x, 手跟着移 x*BodyFollowX
+        // 躲牆時身體平移對手的影響: 頭往旁邊移 x, 手跟著移 x*BodyFollowX
         public const float BodyFollowX = 0.85f;
-        public const float BodyFollowY = 0.85f;   // 真人蹲墙时手的下降约是头的 0.81~0.86 倍
-        // 躲墙的时机和幅度见下面的 DuckAmount (蹲) / LeanOffset (左右闪), 都照真人回放的曲线
-        public const float DuckPitch = 1.5f;      // 真人蹲墙几乎不低头 (1~2°), 原本 5°
+        public const float BodyFollowY = 0.85f;   // 真人蹲牆時手的下降約是頭的 0.81~0.86 倍
+        // 躲牆的時機和幅度見下面的 DuckAmount (蹲) / LeanOffset (左右閃), 都照真人回放的曲線
+        public const float DuckPitch = 1.5f;      // 真人蹲牆幾乎不低頭 (1~2°), 原本 5°
 
-        // 轨道编号(从左到右): 第1轨 = lineIndex 0, 第2轨 = 1, 第3轨 = 2, 第4轨 = 3
-        // 规则:
-        //   - 第1轨 / 第4轨 的掩体不管 (墙只占外侧轨道时直接忽略, 跨到中间的墙只看它在 2-3 轨的部分)
-        //   - 顶部掩体 (天花板墙) 同时盖住第2轨和第3轨 -> 蹲下 (可以是同一面墙, 也可以是两面墙同时存在)
-        //   - 其他情况只盖住一条中间轨道 -> 歪头躲, 不蹲
-        // 返回的是目标姿态, 平滑由调用方负责
+        // 軌道編號(從左到右): 第1軌 = lineIndex 0, 第2軌 = 1, 第3軌 = 2, 第4軌 = 3
+        // 規則:
+        //   - 第1軌 / 第4軌 的掩體不管 (牆只佔外側軌道時直接忽略, 跨到中間的牆只看它在 2-3 軌的部分)
+        //   - 頂部掩體 (天花板牆) 同時蓋住第2軌和第3軌 -> 蹲下 (可以是同一面牆, 也可以是兩面牆同時存在)
+        //   - 其他情況只蓋住一條中間軌道 -> 歪頭躲, 不蹲
+        // 返回的是目標姿態, 平滑由呼叫方負責
         public static HeadTarget CalculateHeadTarget(float t, List<ObstacleData> obstacles, bool mirror = false)
         {
             float targetY = AutoReplayMath.HeadHeight;
             float targetPitch = 0f;
 
-            // 蹲下: 照真人的蹲墙曲线 (DuckAmount)
+            // 蹲下: 照真人的蹲牆曲線 (DuckAmount)
             float duck = DuckAmount(t, obstacles, mirror);
             if (duck > 0f)
             {
@@ -110,26 +110,26 @@ namespace AutoReplay
                 targetPitch = Mathf.Max(targetPitch, DuckPitch * duck);
             }
 
-            // 左右闪: 照真人的闪墙曲线 (LeanOffset)
+            // 左右閃: 照真人的閃牆曲線 (LeanOffset)
             float leanX = LeanOffset(t, obstacles, mirror);
             float roll = Mathf.Clamp(-leanX * LeanRollPerMeter, -LeanMaxRoll, LeanMaxRoll);
             return new HeadTarget { position = new Vector3(leanX, targetY, 0f), pitch = targetPitch, roll = roll };
         }
 
-        // ================= 左右闪墙曲线 =================
-        // 真人 60 份回放 / 410 次孤立的闪墙 (只盖住中间一条轨道的全高墙), 以墙到达为 0, 往墙的反方向为正:
-        //   横移 -0.3s +0.02 | -0.1 +0.06 | 0 +0.09 | +0.2 +0.15 | +0.3 +0.15 (最远) | +0.6 +0.11 | +1.0 +0.04 m
-        //   歪头 最大中位 6.8° (P10 3.8 ~ P90 11.0); 最远横移中位 0.16 m (P10 0.10 ~ P90 0.21), 每次都不一样.
-        // 原本: 墙到前 0.3 秒目标瞬间切到 0.42~0.45 m / 12°, 墙一过就弹回 -> 幅度是真人的 2.7 倍, 而且每次一样, 墙多就晕.
-        public const float LeanBase = 0.16f;           // 真人最远横移中位数
-        public const float LeanVariation = 0.25f;      // 每次随机 ±25% (按墙的时间决定, 每次生成一样)
-        public const float LeanClear = 0.12f;          // 头离墙边至少要这么远
-        public const float LeanStart = 0.35f;          // 墙到前多久开始移
-        public const float LeanRise = 0.45f;           // 移到最远要多久 (墙到时已移了约 90%: 真人最远点在墙过后 0.2~0.3 s,
-                                                       //  但墙到时只移了 9 cm, 照抄会擦到墙边)
-        public const float LeanHold = 0.12f;           // 墙过去后保持多久
+        // ================= 左右閃牆曲線 =================
+        // 真人 60 份回放 / 410 次孤立的閃牆 (只蓋住中間一條軌道的全高牆), 以牆到達為 0, 往牆的反方向為正:
+        //   橫移 -0.3s +0.02 | -0.1 +0.06 | 0 +0.09 | +0.2 +0.15 | +0.3 +0.15 (最遠) | +0.6 +0.11 | +1.0 +0.04 m
+        //   歪頭 最大中位 6.8° (P10 3.8 ~ P90 11.0); 最遠橫移中位 0.16 m (P10 0.10 ~ P90 0.21), 每次都不一樣.
+        // 原本: 牆到前 0.3 秒目標瞬間切到 0.42~0.45 m / 12°, 牆一過就彈回 -> 幅度是真人的 2.7 倍, 而且每次一樣, 牆多就暈.
+        public const float LeanBase = 0.16f;           // 真人最遠橫移中位數
+        public const float LeanVariation = 0.25f;      // 每次隨機 ±25% (按牆的時間決定, 每次生成一樣)
+        public const float LeanClear = 0.12f;          // 頭離牆邊至少要這麼遠
+        public const float LeanStart = 0.35f;          // 牆到前多久開始移
+        public const float LeanRise = 0.45f;           // 移到最遠要多久 (牆到時已移了約 90%: 真人最遠點在牆過後 0.2~0.3 s,
+                                                       //  但牆到時只移了 9 cm, 照抄會擦到牆邊)
+        public const float LeanHold = 0.12f;           // 牆過去後保持多久
         public const float LeanReturn = 0.90f;         // 回到原位要多久
-        public const float LeanRollPerMeter = 40f;     // 歪头角度 = 横移 * 这个 (0.16 m -> 6.4°)
+        public const float LeanRollPerMeter = 40f;     // 歪頭角度 = 橫移 * 這個 (0.16 m -> 6.4°)
         public const float LeanMaxRoll = 14f;
 
         static List<ObstacleData> _leanSrc;
@@ -143,7 +143,7 @@ namespace AutoReplay
                 _leanSrc = obstacles; _leanMirror = mirror;
                 _leanEvents = BuildLeanEvents(obstacles, mirror);
             }
-            // 按时间顺序: 新的墙从上一道墙留下的位置接手 (左右交替的墙 -> 头左右来回摆; 原本两边相加会互相抵消, 头停在中间撞墙)
+            // 按時間順序: 新的牆從上一道牆留下的位置接手 (左右交替的牆 -> 頭左右來回擺; 原本兩邊相加會互相抵消, 頭停在中間撞牆)
             float v = 0f;
             foreach (var (s0, e0, amp) in _leanEvents)
             {
@@ -155,7 +155,7 @@ namespace AutoReplay
             return v;
         }
 
-        // 要闪的墙: 挡到头 (不是矮墙、也不是能蹲过去的顶墙), 盖住中间的第 2 或第 3 轨
+        // 要閃的牆: 擋到頭 (不是矮牆、也不是能蹲過去的頂牆), 蓋住中間的第 2 或第 3 軌
         static List<(float, float, float)> BuildLeanEvents(List<ObstacleData> obstacles, bool mirror)
         {
             var res = new List<(float, float, float)>();
@@ -168,9 +168,9 @@ namespace AutoReplay
                 if (c0 > c1) continue;
                 bool lane2 = c0 <= 1 && c1 >= 1, lane3 = c0 <= 2 && c1 >= 2;
                 if (IsCeilingWall(obs) && lane2 && lane3) continue;           // 蹲 (DuckAmount)
-                // 墙边离中线多远: 只盖第 2 轨 -> 墙的右边在 x=0; 两轨都盖 -> 墙的右边在 x=0.6
+                // 牆邊離中線多遠: 只蓋第 2 軌 -> 牆的右邊在 x=0; 兩軌都蓋 -> 牆的右邊在 x=0.6
                 float edge = lane2 && lane3 ? 0.6f : 0f;
-                float dir = lane2 ? 1f : -1f;                                // 墙在左中 -> 往右闪
+                float dir = lane2 ? 1f : -1f;                                // 牆在左中 -> 往右閃
                 float h = Mathf.Abs(Mathf.Sin(obs.time * 12.9898f + obs.lineIndex * 78.233f) * 43758.5453f) % 1f;
                 float amp = Mathf.Max(edge + LeanClear, LeanBase * (1f + LeanVariation * (2f * h - 1f)));
                 res.Add((obs.time, obs.time + obs.duration, dir * amp));
@@ -179,35 +179,35 @@ namespace AutoReplay
             return res;
         }
 
-        // ================= 墙的高度 =================
-        // 原本把 "不在最底层 或 高度 <= 3" 都当成顶墙要蹲: 从地板往上只到约 1.3 m 的矮墙 (y=0, h=2) 也蹲,
-        // 结果头反而蹲进墙里 (WIP 谱 M.C.ドナルド 36.8 s: 头 1.09 m, 墙顶约 1.3 m). 现在照墙实际占的高度判断:
-        //   墙顶比站着的头低 -> 不用躲;  墙底比蹲下的头还高 -> 顶墙, 蹲;  其余 (从低处一路盖过头) -> 只能往旁边闪
-        // 高度规则: 底边 = 层高 (0.25 + 0.6*层) - 0.15 + 身高偏移, 高 = h * 0.6 (tools/wall_eval.py 用同一套, 和真人回放对得上)
-        public const float HeadClear = 0.15f;   // 头 (连同头显) 和墙之间要留的距离
+        // ================= 牆的高度 =================
+        // 原本把 "不在最底層 或 高度 <= 3" 都當成頂牆要蹲: 從地板往上只到約 1.3 m 的矮牆 (y=0, h=2) 也蹲,
+        // 結果頭反而蹲進牆裡 (WIP 譜 M.C.ドナルド 36.8 s: 頭 1.09 m, 牆頂約 1.3 m). 現在照牆實際佔的高度判斷:
+        //   牆頂比站著的頭低 -> 不用躲;  牆底比蹲下的頭還高 -> 頂牆, 蹲;  其餘 (從低處一路蓋過頭) -> 只能往旁邊閃
+        // 高度規則: 底邊 = 層高 (0.25 + 0.6*層) - 0.15 + 身高偏移, 高 = h * 0.6 (tools/wall_eval.py 用同一套, 和真人回放對得上)
+        public const float HeadClear = 0.15f;   // 頭 (連同頭顯) 和牆之間要留的距離
 
         public static float WallBottom(ObstacleData o) => 0.25f + 0.6f * (int)o.lineLayer - 0.15f + AutoReplayMath.NoteYOffset;
         public static float WallTop(ObstacleData o) => WallBottom(o) + 0.6f * o.height;
         public static bool WallBelowHead(ObstacleData o) => WallTop(o) <= AutoReplayMath.HeadHeight - HeadClear;
         public static bool IsCeilingWall(ObstacleData o) => WallBottom(o) >= AutoReplayMath.DuckHeight + HeadClear * 0.8f;
 
-        // ================= 蹲墙曲线 =================
-        // 真人 17 份回放 / 146 次独立蹲墙 (盖住中间两轨的顶墙), 以墙到达为 0:
-        //   头 Δy  -0.3s -0.04 | -0.2 -0.15 | -0.1 -0.32 | 0 -0.46 | +0.1 -0.54 | +0.2 -0.56 (最低) | +0.4 -0.45 | +0.6 -0.20 | +0.8 -0.06 m
-        // 也就是: 墙到前约 0.3 秒开始蹲, 墙过去后 0.1~0.2 秒最低, 站起来比蹲下慢 (约 0.6~0.8 秒); 头几乎不低 (1~2°).
-        // 原本: 墙到前 0.3 秒目标瞬间切到蹲, 弹簧 0.07 秒 -> 0.1 秒内猛蹲 42 cm, 墙一过 0.2 秒内弹回, 还低头 5°.
-        public const float DuckDownStart = 0.40f;   // 墙到前多久开始蹲 (含头部弹簧约 0.05 秒的延迟)
-        public const float DuckDownEnd = 0.05f;     // 墙到后多久蹲到底
-        public const float DuckHoldAfter = 0.07f;   // 墙过去后还保持多久
-        public const float DuckUpTime = 0.65f;      // 站起来的时间
+        // ================= 蹲牆曲線 =================
+        // 真人 17 份回放 / 146 次獨立蹲牆 (蓋住中間兩軌的頂牆), 以牆到達為 0:
+        //   頭 Δy  -0.3s -0.04 | -0.2 -0.15 | -0.1 -0.32 | 0 -0.46 | +0.1 -0.54 | +0.2 -0.56 (最低) | +0.4 -0.45 | +0.6 -0.20 | +0.8 -0.06 m
+        // 也就是: 牆到前約 0.3 秒開始蹲, 牆過去後 0.1~0.2 秒最低, 站起來比蹲下慢 (約 0.6~0.8 秒); 頭幾乎不低 (1~2°).
+        // 原本: 牆到前 0.3 秒目標瞬間切到蹲, 彈簧 0.07 秒 -> 0.1 秒內猛蹲 42 cm, 牆一過 0.2 秒內彈回, 還低頭 5°.
+        public const float DuckDownStart = 0.40f;   // 牆到前多久開始蹲 (含頭部彈簧約 0.05 秒的延遲)
+        public const float DuckDownEnd = 0.05f;     // 牆到後多久蹲到底
+        public const float DuckHoldAfter = 0.07f;   // 牆過去後還保持多久
+        public const float DuckUpTime = 0.65f;      // 站起來的時間
 
         static List<ObstacleData> _duckSrc;
         static bool _duckMirror;
         static List<(float s, float e)> _duckIntervals;
-        static List<(float s, float e, float cap)> _lowWalls;   // 矮墙经过时最多能蹲多少 (0 = 不能蹲)
-        public const float LowWallRise = 0.25f;     // 矮墙到前多久要站到够高 (真人先蹲后站时会很快站起来)
+        static List<(float s, float e, float cap)> _lowWalls;   // 矮牆經過時最多能蹲多少 (0 = 不能蹲)
+        public const float LowWallRise = 0.25f;     // 矮牆到前多久要站到夠高 (真人先蹲後站時會很快站起來)
 
-        /// <summary>0 = 站着, 1 = 蹲到底</summary>
+        /// <summary>0 = 站著, 1 = 蹲到底</summary>
         public static float DuckAmount(float t, List<ObstacleData> obstacles, bool mirror)
         {
             if (!ReferenceEquals(_duckSrc, obstacles) || _duckMirror != mirror)
@@ -224,7 +224,7 @@ namespace AutoReplay
                 float up = 1f - AutoReplayMath.SmoothStep((t - (e0 + DuckHoldAfter)) / DuckUpTime);
                 best = Mathf.Max(best, Mathf.Min(down, up));
             }
-            // 矮墙 (先蹲后站的组合): 矮墙经过时头要高过墙顶, 来不及就站快一点
+            // 矮牆 (先蹲後站的組合): 矮牆經過時頭要高過牆頂, 來不及就站快一點
             if (best > 0f)
                 foreach (var (s0, e0, cap) in _lowWalls)
                 {
@@ -237,7 +237,7 @@ namespace AutoReplay
             return Mathf.Max(0f, best);
         }
 
-        // 盖住中间轨道 (第 2 或 3 轨) 的矮墙: 头要高过墙顶 + HeadClear
+        // 蓋住中間軌道 (第 2 或 3 軌) 的矮牆: 頭要高過牆頂 + HeadClear
         static List<(float, float, float)> BuildLowWalls(List<ObstacleData> obstacles, bool mirror)
         {
             var res = new List<(float, float, float)>();
@@ -249,7 +249,7 @@ namespace AutoReplay
                 int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
                 int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
                 if (c0 > c1) continue;
-                float need = WallTop(obs) + HeadClear;                         // 头至少要这么高
+                float need = WallTop(obs) + HeadClear;                         // 頭至少要這麼高
                 if (need <= AutoReplayMath.DuckHeight) continue;               // 蹲到底也碰不到
                 float cap = range > 1e-3f ? Mathf.Clamp01((AutoReplayMath.HeadHeight - need) / range) : 0f;
                 res.Add((obs.time, obs.time + obs.duration, cap));
@@ -257,7 +257,7 @@ namespace AutoReplay
             return res;
         }
 
-        // 需要蹲的时间段: 顶部的墙 (或几面顶墙合起来) 同时盖住第 2、3 轨
+        // 需要蹲的時間段: 頂部的牆 (或幾面頂牆合起來) 同時蓋住第 2、3 軌
         static List<(float, float)> BuildDuckIntervals(List<ObstacleData> obstacles, bool mirror)
         {
             var l2 = new List<(float, float)>(); var l3 = new List<(float, float)>();
@@ -282,7 +282,7 @@ namespace AutoReplay
             return res;
         }
 
-        /// <summary>头的待机微动 (叠加在平滑后的姿态上)</summary>
+        /// <summary>頭的待機微動 (疊加在平滑後的姿態上)</summary>
         public static (Vector3 position, Quaternion rotation) ApplyHeadIdle(float t, Vector3 pos, float pitch, float roll)
         {
             pos += new Vector3(
@@ -296,21 +296,21 @@ namespace AutoReplay
             return (pos, rot);
         }
 
-        // ================= 平滑参数 =================
-        public const int Oversample = 4;            // 内部按 4 倍帧率采样, 平滑后再抽回输出帧率
-        public const float RotSmoothSigma = 0.010f; // 最终姿态的高斯平滑 (秒): 去掉关键帧折线的棱角
-        public const float RollSmoothSigma = 0.030f;// 扭转趋势先在时间上平均
-        public const float RollTau = 0.035f;        // 扭转角跟随真人模型的时间常数 (弹簧)
-        public const float MaxRollSpeed = 1500f;    // 扭转角速度上限 (度/秒): 前臂旋前/旋后转不了更快 -> 不会再"一帧翻半圈"
-        public const float RollConfidence = 0.35f;  // 真人模型的扭转向量长度低于这个值 -> 信心不足, 弹簧变软, 保持当前扭转
-        public static float ArmSmoothSigma = 0.050f; // 手臂(位置)跟随剑指向的延迟: 手臂比手腕重, 快速甩剑主要是手腕在动
-        public const float HitPinWindow = 0.040f;   // 命中前后这么长时间内把剑拉回精确对准方块
-        public const int AimIterations = 3;         // 手臂位置 <-> 命中对准 的迭代次数 (多算几次换更准的轨迹)
+        // ================= 平滑引數 =================
+        public const int Oversample = 4;            // 內部按 4 倍幀率取樣, 平滑後再抽回輸出幀率
+        public const float RotSmoothSigma = 0.010f; // 最終姿態的高斯平滑 (秒): 去掉關鍵幀折線的稜角
+        public const float RollSmoothSigma = 0.030f;// 扭轉趨勢先在時間上平均
+        public const float RollTau = 0.035f;        // 扭轉角跟隨真人模型的時間常數 (彈簧)
+        public const float MaxRollSpeed = 1500f;    // 扭轉角速度上限 (度/秒): 前臂旋前/旋後轉不了更快 -> 不會再"一幀翻半圈"
+        public const float RollConfidence = 0.35f;  // 真人模型的扭轉向量長度低於這個值 -> 信心不足, 彈簧變軟, 保持當前扭轉
+        public static float ArmSmoothSigma = 0.050f; // 手臂(位置)跟隨劍指向的延遲: 手臂比手腕重, 快速甩劍主要是手腕在動
+        public const float HitPinWindow = 0.040f;   // 命中前後這麼長時間內把劍拉回精確對準方塊
+        public const int AimIterations = 3;         // 手臂位置 <-> 命中對準 的迭代次數 (多算幾次換更準的軌跡)
 
         /// <summary>
-        /// 生成一只手每一帧的姿态. 流程:
-        ///   模板轨道 -> 待机微动 -> 指向软限位 -> 扭转(弹簧跟随真人模型) -> 高斯平滑
-        ///   -> [手臂位置(延迟跟随 + 身体平移) -> 命中帧对准方块] x AimIterations
+        /// 生成一隻手每一幀的姿態. 流程:
+        ///   模板軌道 -> 待機微動 -> 指向軟限位 -> 扭轉(彈簧跟隨真人模型) -> 高斯平滑
+        ///   -> [手臂位置(延遲跟隨 + 身體平移) -> 命中幀對準方塊] x AimIterations
         /// </summary>
         public static void BuildHandTrack(float t0, float dt, int count, List<NoteSwingData> swings, List<NoteData> bombs,
                                           bool isLeft, HandMotionContext ctx, Vector3[] outPos, Quaternion[] outRot)
@@ -328,7 +328,7 @@ namespace AutoReplay
                 rv[i] = HumanModel.RollVector(isLeft, f);
             }
 
-            // ---- 扭转: 真人模型给目标, 弹簧跟随 (正向+反向平均, 无延迟), 限速 ----
+            // ---- 扭轉: 真人模型給目標, 彈簧跟隨 (正向+反向平均, 無延遲), 限速 ----
             var rvs = SmoothVec2(rv, RollSmoothSigma / sdt);
             var rollF = RollSpring(rvs, sdt, false);
             var rollB = RollSpring(rvs, sdt, true);
@@ -338,7 +338,7 @@ namespace AutoReplay
             {
                 float t = t0 + (i - pad) * sdt;
                 float roll = rollF[i] + 0.5f * Mathf.DeltaAngle(rollF[i], rollB[i]);
-                // 反手: 切横向/斜向方块的瞬间前臂会大幅旋转, 按 (手, 切割方向) 叠加真人的扭转偏移曲线
+                // 反手: 切橫向/斜向方塊的瞬間前臂會大幅旋轉, 按 (手, 切割方向) 疊加真人的扭轉偏移曲線
                 while (hc < ctx.hitTimes.Length && ctx.hitTimes[hc] < t - RollOffsets.Window) hc++;
                 float best = 0f, bestD = float.MaxValue;
                 for (int h = hc; h < ctx.hitTimes.Length && ctx.hitTimes[h] <= t + RollOffsets.Window; h++)
@@ -350,7 +350,7 @@ namespace AutoReplay
             }
             q = SmoothQuat(q, RotSmoothSigma / sdt);
 
-            // ---- 手臂位置 <-> 命中对准 迭代 ----
+            // ---- 手臂位置 <-> 命中對準 迭代 ----
             var wrist = new Vector3[ns];
             int pinR = Mathf.CeilToInt(HitPinWindow / sdt) + 1;
             for (int it = 0; it < AimIterations; it++)
@@ -386,7 +386,7 @@ namespace AutoReplay
             }
         }
 
-        // 手腕位置 = 人体模型(延迟跟随的剑指向) + 身体平移 + 位置微动
+        // 手腕位置 = 人體模型(延遲跟隨的劍指向) + 身體平移 + 位置微動
         static void ComputeWrists(Quaternion[] q, bool isLeft, HandMotionContext ctx, float t0, int pad, float sdt, Vector3[] wrist)
         {
             int ns = q.Length;
@@ -406,7 +406,7 @@ namespace AutoReplay
         }
 
         /// <summary>
-        /// 手臂模板的位移: 上一刀的后半段和下一刀的前半段, 按在间隔里的位置平滑交接 (和指向的模板一样)
+        /// 手臂模板的位移: 上一刀的後半段和下一刀的前半段, 按在間隔裡的位置平滑交接 (和指向的模板一樣)
         /// </summary>
         static Vector3 ArmOffset(float t, bool isLeft, HandMotionContext ctx)
         {
@@ -426,7 +426,7 @@ namespace AutoReplay
             return At(lo) * (1f - w) + At(hi) * w;
         }
 
-        // 扭转角弹簧: 目标 = 真人模型的扭转; 模型信心低时弹簧变软 (保持当前扭转), 速度有上限
+        // 扭轉角彈簧: 目標 = 真人模型的扭轉; 模型信心低時彈簧變軟 (保持當前扭轉), 速度有上限
         static float[] RollSpring(Vector2[] target, float sdt, bool backward)
         {
             int n = target.Length;
@@ -462,7 +462,7 @@ namespace AutoReplay
             return o;
         }
 
-        // 规划轨道 + 待机微动 + 软限位 之后的剑指向
+        // 規劃軌道 + 待機微動 + 軟限位 之後的劍指向
         static Vector3 RawForward(float t, List<NoteSwingData> swings, List<NoteData> bombs, bool isLeft, HandMotionContext ctx)
         {
             Quaternion rot = NoteSwingPlanner.SampleHandRotation(t, swings, bombs, isLeft);
@@ -533,7 +533,7 @@ namespace AutoReplay
 
             if (ctx.bombTimes.Length > 0)
             {
-                // 炸弹: 到达前 BombCalmBefore ~ 过去后 BombCalmAfter 之间为 0, 两侧 0.15s 渐变
+                // 炸彈: 到達前 BombCalmBefore ~ 過去後 BombCalmAfter 之間為 0, 兩側 0.15s 漸變
                 int i = LowerBound(ctx.bombTimes, t - BombCalmAfter - 0.15f);
                 for (; i < ctx.bombTimes.Length && ctx.bombTimes[i] <= t + BombCalmBefore + 0.15f; i++)
                 {

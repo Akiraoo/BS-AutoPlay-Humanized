@@ -1,5 +1,5 @@
-// 游戏外用的 UnityEngine 数学类型替代品: 只实作生成器用到的部分, 行为照 Unity 的公开定义.
-// 游戏内不会编译这个文件 (只有 tools/ApModelTool 编译, 并定义 AUTOPLAY_STANDALONE).
+// 遊戲外用的 UnityEngine 數學型別替代品: 只實作生成器用到的部分, 行為照 Unity 的公開定義.
+// 遊戲內不會編譯這個檔案 (只有 tools/ApModelTool 編譯, 並定義 AUTOPLAY_STANDALONE).
 using System;
 
 namespace UnityEngine
@@ -24,7 +24,7 @@ namespace UnityEngine
         public static float Pow(float f, float p) => (float)Math.Pow(f, p);
         public static float Abs(float f) => Math.Abs(f);
         public static int Abs(int v) => Math.Abs(v);
-        public static float Sign(float f) => f >= 0f ? 1f : -1f;          // Unity: 0 也回传 1
+        public static float Sign(float f) => f >= 0f ? 1f : -1f;          // Unity: 0 也回傳 1
         public static float Min(float a, float b) => a < b ? a : b;
         public static float Max(float a, float b) => a > b ? a : b;
         public static int Min(int a, int b) => a < b ? a : b;
@@ -37,7 +37,7 @@ namespace UnityEngine
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static float LerpUnclamped(float a, float b, float t) => a + (b - a) * t;
         public static float InverseLerp(float a, float b, float v) => a != b ? Clamp01((v - a) / (b - a)) : 0f;
-        public static float Round(float f) => (float)Math.Round(f);        // Unity 用 Math.Round (银行家舍入)
+        public static float Round(float f) => (float)Math.Round(f);        // Unity 用 Math.Round (銀行家舍入)
         public static int RoundToInt(float f) => (int)Math.Round(f);
         public static int CeilToInt(float f) => (int)Math.Ceiling(f);
         public static int FloorToInt(float f) => (int)Math.Floor(f);
@@ -53,7 +53,7 @@ namespace UnityEngine
         public static bool Approximately(float a, float b) =>
             Math.Abs(b - a) < Math.Max(1e-6f * Math.Max(Math.Abs(a), Math.Abs(b)), Epsilon * 8f);
 
-        // 临界阻尼弹簧 (Game Programming Gems 4, 和 Unity 的 SmoothDamp 同一个公式)
+        // 臨界阻尼彈簧 (Game Programming Gems 4, 和 Unity 的 SmoothDamp 同一個公式)
         public static float SmoothDamp(float current, float target, ref float currentVelocity, float smoothTime, float maxSpeed, float deltaTime)
         {
             smoothTime = Max(0.0001f, smoothTime);
@@ -138,7 +138,7 @@ namespace UnityEngine
             return (float)Math.Acos(dot) * Mathf.Rad2Deg;
         }
 
-        /// <summary>方向按球面插值, 长度按线性插值 (和 Unity 的 Vector3.Slerp 一样)</summary>
+        /// <summary>方向按球面插值, 長度按線性插值 (和 Unity 的 Vector3.Slerp 一樣)</summary>
         public static Vector3 Slerp(Vector3 a, Vector3 b, float t)
         {
             t = Mathf.Clamp01(t);
@@ -152,7 +152,7 @@ namespace UnityEngine
             Vector3 axis;
             if (dot < -0.9995f)
             {
-                // 反向: 随便找一个垂直轴转过去
+                // 反向: 隨便找一個垂直軸轉過去
                 axis = Cross(ua, Math.Abs(ua.x) < 0.9f ? right : up).normalized;
             }
             else axis = Cross(ua, ub).normalized;
@@ -274,7 +274,7 @@ namespace UnityEngine
             return new Quaternion(a.x * s, a.y * s, a.z * s, (float)Math.Cos(h));
         }
 
-        /// <summary>Unity 的欧拉角顺序: 先绕 z, 再绕 x, 最后绕 y (q = qy * qx * qz)</summary>
+        /// <summary>Unity 的尤拉角順序: 先繞 z, 再繞 x, 最後繞 y (q = qy * qx * qz)</summary>
         public static Quaternion Euler(float x, float y, float z) =>
             AngleAxis(y, Vector3.up) * AngleAxis(x, Vector3.right) * AngleAxis(z, Vector3.forward);
         public static Quaternion Euler(Vector3 e) => Euler(e.x, e.y, e.z);
@@ -324,7 +324,7 @@ namespace UnityEngine
             return new Quaternion(c.x, c.y, c.z, 1f + dot).normalized;
         }
 
-        /// <summary>转角 (0~360 度) 和转轴; 几乎没转时轴给 (1,0,0)</summary>
+        /// <summary>轉角 (0~360 度) 和轉軸; 幾乎沒轉時軸給 (1,0,0)</summary>
         public void ToAngleAxis(out float angle, out Vector3 axis)
         {
             Quaternion q = normalized;
@@ -343,7 +343,7 @@ namespace UnityEngine
             Vector3 xAxis = Vector3.Cross(upwards, z);
             if (xAxis.sqrMagnitude < 1e-12f)
             {
-                // forward 和 up 平行: 退回最小旋转
+                // forward 和 up 平行: 退回最小旋轉
                 return FromToRotation(Vector3.forward, z);
             }
             xAxis = xAxis.normalized;
@@ -351,7 +351,7 @@ namespace UnityEngine
             return FromBasis(xAxis, yAxis, z);
         }
 
-        // 旋转矩阵 (列 = x, y, z 轴) 转四元数
+        // 旋轉矩陣 (列 = x, y, z 軸) 轉四元數
         static Quaternion FromBasis(Vector3 X, Vector3 Y, Vector3 Z)
         {
             float m00 = X.x, m01 = Y.x, m02 = Z.x;

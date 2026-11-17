@@ -1,8 +1,8 @@
 namespace AutoReplay.Core
 {
     /// <summary>
-    /// 官方模型的签名公钥 (RSA-2048). 私钥只在作者本机, 不进 repo.
-    /// 用 tools/ApModelTool 的 keygen 产生; 换钥匙要同时更新这里.
+    /// 官方模型的簽名公鑰 (RSA-2048). 私鑰只在作者本機, 不進 repo.
+    /// 用 tools/ApModelTool 的 keygen 產生; 換鑰匙要同時更新這裡.
     /// </summary>
     public static class OfficialKey
     {

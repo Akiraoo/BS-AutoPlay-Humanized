@@ -9,23 +9,23 @@ namespace AutoReplay
 {
     public static class AutoReplayMath
     {
-        public const float BaseHeadHeight = 1.50f;   // 旧模型 (没有身高资料) 的默认值, 也是下面方块高度的基准身高
+        public const float BaseHeadHeight = 1.50f;   // 舊模型 (沒有身高資料) 的預設值, 也是下面方塊高度的基準身高
         public const float DuckHeadHeight = 1.00f;
 
-        // 身高 (来自模型): 设定身高决定方块和墙的上下位置 (每高 1 m 上移 0.5 m, 真人回放实测), 头高是真人身体的高度
+        // 身高 (來自模型): 設定身高決定方塊和牆的上下位置 (每高 1 m 上移 0.5 m, 真人回放實測), 頭高是真人身體的高度
         public static float PlayerHeight { get { var b = ModelManager.Current?.body; return b != null && b.height > 1f ? b.height : BaseHeadHeight; } }
         public static float HeadHeight { get { var b = ModelManager.Current?.body; return b != null && b.headHeight > 1f ? b.headHeight : BaseHeadHeight; } }
         public static float NoteYOffset => 0.5f * (PlayerHeight - BaseHeadHeight);
         public static float DuckHeight => DuckHeadHeight + NoteYOffset;
         public const float CutDistanceZ = 1.50f;
 
-        // 手的基准位置 (剑指向正前方附近时手柄所在处), 来自 HumanModel 的真人统计.
-        // 实际手腕位置随剑的指向移动, 见 HumanModel.WristFor
+        // 手的基準位置 (劍指向正前方附近時手柄所在處), 來自 HumanModel 的真人統計.
+        // 實際手腕位置隨劍的指向移動, 見 HumanModel.WristFor
         public static Vector3 LeftWristBase => HumanModel.HandBase(true);
         public static Vector3 RightWristBase => HumanModel.HandBase(false);
 
-        // ================= 平滑噪声 (待机微动) =================
-        // 几个不成倍数的正弦叠加, 输出约 [-1, 1], 连续且平滑, 不需要随机数状态
+        // ================= 平滑噪聲 (待機微動) =================
+        // 幾個不成倍數的正弦疊加, 輸出約 [-1, 1], 連續且平滑, 不需要隨機數狀態
         public static float Noise(float t, float seed)
         {
             return 0.5f * Mathf.Sin(t * 1.37f + seed * 12.9898f)
@@ -34,9 +34,9 @@ namespace AutoReplay
         }
 
         /// <summary>
-        /// 手的待机微动: 频率比 Noise 高 (0.5~3.7 Hz). 按真人 replay 长间隔中段校准:
-        /// 真人剑指向角速度中位 40°/s, 偏离平均方向 5°; 手的移动 0.20 m/s, 偏离 3.6 cm.
-        /// 振幅 9° 时角速度中位 41°/s, 偏离 4°; 位置振幅 5 cm 时 0.21 m/s, 3 cm.
+        /// 手的待機微動: 頻率比 Noise 高 (0.5~3.7 Hz). 按真人 replay 長間隔中段校準:
+        /// 真人劍指向角速度中位 40°/s, 偏離平均方向 5°; 手的移動 0.20 m/s, 偏離 3.6 cm.
+        /// 振幅 9° 時角速度中位 41°/s, 偏離 4°; 位置振幅 5 cm 時 0.21 m/s, 3 cm.
         /// </summary>
         public static float HandNoise(float t, float seed)
         {
@@ -91,9 +91,9 @@ namespace AutoReplay
                     baseAngle = 180f;
                     break;
             }
-            // 这里的角度是顺时针 (0=上 90=右), 游戏的 cutDirectionAngleOffset 是逆时针为正, 所以要减.
-            // (原本写成加: 斜向叠块被游戏转到沿连线方向时 (例如 18°), 挥刀方向反而偏了两倍 (36°);
-            //  对照游戏内外生成的同一张谱确认)
+            // 這裡的角度是順時針 (0=上 90=右), 遊戲的 cutDirectionAngleOffset 是逆時針為正, 所以要減.
+            // (原本寫成加: 斜向疊塊被遊戲轉到沿連線方向時 (例如 18°), 揮刀方向反而偏了兩倍 (36°);
+            //  對照遊戲內外生成的同一張譜確認)
             float a = (baseAngle - note.cutDirectionAngleOffset) % 360f;
             return a < 0f ? a + 360f : a;
         }
@@ -101,7 +101,7 @@ namespace AutoReplay
         public static Vector3 GetNotePos(NoteData note)
         {
             float noteX = (note.lineIndex - 1.5f) * 0.60f;
-            float noteY = 0.72f + ((int)note.noteLineLayer) * 0.53f + NoteYOffset; // 身高 1.50 时 Layer 0: 0.72, 1: 1.25, 2: 1.78
+            float noteY = 0.72f + ((int)note.noteLineLayer) * 0.53f + NoteYOffset; // 身高 1.50 時 Layer 0: 0.72, 1: 1.25, 2: 1.78
             return new Vector3(noteX, noteY, CutDistanceZ);
         }
 
@@ -224,10 +224,10 @@ namespace AutoReplay
             return defaultRest;
         }
 
-#if !AUTOPLAY_STANDALONE  // 游戏外的工具 (tools/ApModelTool) 没有 BeatLeader / 游戏的修饰符类型
-        // 修饰符代码必须和 BeatLeader 的解析一致 (MapEnhancer 写入 / ReplayDataUtils.GetModifiersFromReplay 读取):
-        //   SS=慢速  FS=快速  SF=超快  SA=严格角度  SC=小方块  CS=剑碰撞失败  NA=无箭头  NB=无炸弹  NO=无墙
-        //   DA=消失箭头  GN=幽灵音符  PM=专业模式  NF=0能量不失败  IF=一击即死  BE=电池能量
+#if !AUTOPLAY_STANDALONE  // 遊戲外的工具 (tools/ApModelTool) 沒有 BeatLeader / 遊戲的修飾符型別
+        // 修飾符程式碼必須和 BeatLeader 的解析一致 (MapEnhancer 寫入 / ReplayDataUtils.GetModifiersFromReplay 讀取):
+        //   SS=慢速  FS=快速  SF=超快  SA=嚴格角度  SC=小方塊  CS=劍碰撞失敗  NA=無箭頭  NB=無炸彈  NO=無牆
+        //   DA=消失箭頭  GN=幽靈音符  PM=專業模式  NF=0能量不失敗  IF=一擊即死  BE=電池能量
         public static string EncodeModifiers(GameplayModifiers m)
         {
             if (m == null) return "";

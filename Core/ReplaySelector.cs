@@ -5,31 +5,31 @@ using System.Linq;
 
 namespace AutoReplay.Core
 {
-    /// <summary>挑训练用 replay 的条件</summary>
+    /// <summary>挑訓練用 replay 的條件</summary>
     public sealed class SelectionOptions
     {
         public string replaysDir;
-        public string playerId;              // 只用这个玩家的 replay (必须); null = 本机最常见的 (仅命令行工具)
-        public DateTime? fromUtc;            // 日期范围 (含), null = 不限
+        public string playerId;              // 只用這個玩家的 replay (必須); null = 本機最常見的 (僅命令列工具)
+        public DateTime? fromUtc;            // 日期範圍 (含), null = 不限
         public DateTime? toUtc;
-        public int perMapCap = 3;            // 同一张谱同一难度最多几份 (取最新)
-        public int maxReplays = 300;         // 总数上限, 超过就在日期范围内平均抽样
-        public float minStars = 0f;          // BL 星数下限 (0 = 不限; 没有星数的谱不受影响)
-        public float heightTolerance = 0.10f; // 身高设定和中位数差太多的回放不用 (方块位置不同)
-        public bool rankedOnly;               // 只用 BL 或 SS ranked 的谱 (需要星数查询)
-        public bool preferAcc;                // 超过上限时优先取 acc 高的 (而不是平均抽样)
+        public int perMapCap = 3;            // 同一張譜同一難度最多幾份 (取最新)
+        public int maxReplays = 300;         // 總數上限, 超過就在日期範圍內平均抽樣
+        public float minStars = 0f;          // BL 星數下限 (0 = 不限; 沒有星數的譜不受影響)
+        public float heightTolerance = 0.10f; // 身高設定和中位數差太多的回放不用 (方塊位置不同)
+        public bool rankedOnly;               // 只用 BL 或 SS ranked 的譜 (需要星數查詢)
+        public bool preferAcc;                // 超過上限時優先取 acc 高的 (而不是平均抽樣)
     }
 
     public sealed class ReplayEntry
     {
         public string path;
-        public float acc;          // 0..1, 由 info.score / 谱面满分算; 不知道满分时为 0
+        public float acc;          // 0..1, 由 info.score / 譜面滿分算; 不知道滿分時為 0
         public BsorReplay info;
         public DateTime timeUtc;
         public StarInfo stars;
     }
 
-    /// <summary>每一步筛完剩几份, 给界面和训练报告看</summary>
+    /// <summary>每一步篩完剩幾份, 給介面和訓練報告看</summary>
     public sealed class SelectionResult
     {
         public string playerId;
@@ -49,7 +49,7 @@ namespace AutoReplay.Core
 
     public static class ReplaySelector
     {
-        // 只读 info 的缓存 (路径 + 修改时间), 游戏内反复预览时不用重读 1000+ 个文件
+        // 只讀 info 的快取 (路徑 + 修改時間), 遊戲內反覆預覽時不用重讀 1000+ 個檔案
         static readonly Dictionary<string, (DateTime mtime, BsorReplay info)> _headers = new Dictionary<string, (DateTime, BsorReplay)>();
         static readonly object _lock = new object();
 
@@ -74,8 +74,8 @@ namespace AutoReplay.Core
         }
 
         /// <summary>
-        /// 日期范围 → 本人 → 基本条件 → 同谱上限 → 总数上限 (平均抽样).
-        /// stars 不为 null 时再按星数下限筛 (network=false 只看缓存, 用于预览).
+        /// 日期範圍 → 本人 → 基本條件 → 同譜上限 → 總數上限 (平均抽樣).
+        /// stars 不為 null 時再按星數下限篩 (network=false 只看快取, 用於預覽).
         /// </summary>
         public static SelectionResult Select(SelectionOptions o, StarService stars = null, bool network = false,
                                              Action<string> progress = null, System.Threading.CancellationToken cancel = default)
@@ -94,25 +94,25 @@ namespace AutoReplay.Core
             var own = inRange.Where(e => e.info.playerId == pid).ToList();
             r.own = own.Count;
 
-            // Standard, 右手模式, 没有改变速度的修饰符 (FS/SF/SS 会让挥刀节奏不像平常)
+            // Standard, 右手模式, 沒有改變速度的修飾符 (FS/SF/SS 會讓揮刀節奏不像平常)
             var eligible = own.Where(e => !e.info.leftHanded && e.info.mode == "Standard" && !e.info.HasSpeedModifier("FS", "SF", "SS")).ToList();
             r.eligible = eligible.Count;
 
-            // 身高设定: 取中位数, 差太多的不用 (身高设定决定方块的上下位置, 混在一起会学到两套轨迹)
+            // 身高設定: 取中位數, 差太多的不用 (身高設定決定方塊的上下位置, 混在一起會學到兩套軌跡)
             var hs = eligible.Select(e => e.info.height).Where(h => h > 1f && h < 2.5f).OrderBy(h => h).ToList();
             r.heightMedian = hs.Count > 0 ? hs[hs.Count / 2] : 0f;
             if (r.heightMedian > 0f)
                 eligible = eligible.Where(e => Math.Abs(e.info.height - r.heightMedian) <= o.heightTolerance).ToList();
             r.heightOk = eligible.Count;
 
-            // 同一张谱 + 难度最多 perMapCap 份, 取最新 (避免刷同一张谱的人让模型只学到那几张)
+            // 同一張譜 + 難度最多 perMapCap 份, 取最新 (避免刷同一張譜的人讓模型只學到那幾張)
             var deduped = eligible.GroupBy(e => (e.info.hash ?? "").ToUpperInvariant() + "|" + e.info.difficulty)
                                   .SelectMany(g => (o.preferAcc ? g.OrderByDescending(e => e.info.score) : g.OrderByDescending(e => e.timeUtc))
-                                                   .Take(Math.Max(1, o.perMapCap)))   // acc 优先: 同一张谱取分数最高的
+                                                   .Take(Math.Max(1, o.perMapCap)))   // acc 優先: 同一張譜取分數最高的
                                   .OrderBy(e => e.timeUtc).ToList();
             r.deduped = deduped.Count;
 
-            // 星数 (查询在抽样之后做, 只查真正会用到的谱; 被星数刷掉的再从剩下的补)
+            // 星數 (查詢在抽樣之後做, 只查真正會用到的譜; 被星數刷掉的再從剩下的補)
             var pool = deduped;
             if (stars != null && (o.minStars > 0f || o.rankedOnly || o.preferAcc))
             {
@@ -125,7 +125,7 @@ namespace AutoReplay.Core
                     if (e.stars?.blMaxScore > 0 && e.info.score > 0) e.acc = Math.Min(1f, e.info.score / (float)e.stars.blMaxScore);
                     if (Keep(e.stars, o)) kept.Add(e);
                     if (network) progress?.Invoke($"查詢星數… {kept.Count}/{Math.Min(target, pool.Count)}");
-                    if (network && !o.preferAcc && kept.Count >= target * 2) break;   // 够抽样用就停 (acc 优先要比较全部, 不能停)
+                    if (network && !o.preferAcc && kept.Count >= target * 2) break;   // 夠抽樣用就停 (acc 優先要比較全部, 不能停)
                 }
                 pool = kept.OrderBy(e => e.timeUtc).ToList();
                 r.starFiltered = pool.Count;
@@ -134,7 +134,7 @@ namespace AutoReplay.Core
             r.sampled = pool.Count > o.maxReplays;
             if (o.preferAcc && r.sampled)
             {
-                // 优先 acc 高的: 按 acc 排序取前 N 份 (acc 不明的排最后), 再按时间排回去
+                // 優先 acc 高的: 按 acc 排序取前 N 份 (acc 不明的排最後), 再按時間排回去
                 r.picked = pool.OrderByDescending(e => e.acc).Take(o.maxReplays).OrderBy(e => e.timeUtc).ToList();
             }
             else r.picked = EvenSample(pool, o.maxReplays);
@@ -148,11 +148,11 @@ namespace AutoReplay.Core
             return true;
         }
 
-        /// <summary>打散顺序 (黄金比例): 中途停下时, 已处理的也均匀分布在整段时间里</summary>
+        /// <summary>打散順序 (黃金比例): 中途停下時, 已處理的也均勻分佈在整段時間裡</summary>
         static IEnumerable<ReplayEntry> SpreadOrder(List<ReplayEntry> sorted) =>
             Enumerable.Range(0, sorted.Count).OrderBy(i => (i * 0.6180339887) % 1.0).Select(i => sorted[i]);
 
-        /// <summary>按时间顺序平均取 n 份 (不只取最新的, 让整段时间都有代表)</summary>
+        /// <summary>按時間順序平均取 n 份 (不只取最新的, 讓整段時間都有代表)</summary>
         static List<ReplayEntry> EvenSample(List<ReplayEntry> sorted, int n)
         {
             if (sorted.Count <= n) return sorted.ToList();

@@ -18,7 +18,7 @@ namespace AutoReplay
                     Directory.CreateDirectory(folder);
                 }
                 string safeHash = Safe(hash);
-                // 只用目前选中的模型生成一份; 文件名带上模型名称和生成时间, 每次生成都是新文件, 不会互相覆盖
+                // 只用目前選中的模型生成一份; 檔名帶上模型名稱和生成時間, 每次生成都是新檔案, 不會互相覆蓋
                 string model = Safe(Path.GetFileNameWithoutExtension((ModelManager.CurrentId ?? "no-model").TrimEnd('/')));
                 string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}_{model}_{DateTime.Now:yyyyMMdd-HHmmss}.bsor");
 

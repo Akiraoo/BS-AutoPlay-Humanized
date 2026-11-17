@@ -6,12 +6,12 @@ using Newtonsoft.Json;
 namespace AutoReplay.Tools
 {
     /// <summary>
-    /// AutoPlay 模型命令行工具 (和游戏内共用 Core):
-    ///   train   &lt;Replays资料夹&gt; &lt;输出 model.json&gt; [--player ID] [--max 80] [--name 名称] [--author 作者]
-    ///   pack    &lt;model.json&gt; &lt;输出.apmodel&gt; [--sign 私钥.xml]
-    ///   unpack  &lt;in.apmodel&gt; &lt;输出 model.json&gt;
+    /// AutoPlay 模型命令列工具 (和遊戲內共用 Core):
+    ///   train   &lt;Replays資料夾&gt; &lt;輸出 model.json&gt; [--player ID] [--max 80] [--name 名稱] [--author 作者]
+    ///   pack    &lt;model.json&gt; &lt;輸出.apmodel&gt; [--sign 私鑰.xml]
+    ///   unpack  &lt;in.apmodel&gt; &lt;輸出 model.json&gt;
     ///   inspect &lt;in.apmodel 或 model.json&gt;
-    ///   keygen  &lt;私钥输出.xml&gt; &lt;公钥输出.xml&gt;
+    ///   keygen  &lt;私鑰輸出.xml&gt; &lt;公鑰輸出.xml&gt;
     /// </summary>
     static class Program
     {

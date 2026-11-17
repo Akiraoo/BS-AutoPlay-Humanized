@@ -1,4 +1,4 @@
-// 游戏外用的 Beat Saber 谱面类型替代品 (只有生成器用到的字段). 枚举数值和游戏 BeatmapCore.dll 一致.
+// 遊戲外用的 Beat Saber 譜面型別替代品 (只有生成器用到的欄位). 列舉數值和遊戲 BeatmapCore.dll 一致.
 using System;
 using AutoReplay.Core;
 
@@ -23,7 +23,7 @@ public class NoteData
 
     public NoteData CopyWith() => (NoteData)MemberwiseClone();
 
-    /// <summary>左手模式: 和游戏一样左右镜像 (轨道翻转、红蓝互换、切割方向镜像)</summary>
+    /// <summary>左手模式: 和遊戲一樣左右映象 (軌道翻轉、紅藍互換、切割方向映象)</summary>
     public void Mirror(int lineCount)
     {
         lineIndex = lineCount - 1 - lineIndex;
@@ -58,7 +58,7 @@ public class ObstacleData
 
 namespace AutoReplay
 {
-    /// <summary>游戏外: 日志直接印到终端 (Info 默认不印, 太吵)</summary>
+    /// <summary>遊戲外: 日誌直接印到終端 (Info 預設不印, 太吵)</summary>
     public sealed class StandaloneLog
     {
         public bool verbose;
@@ -74,7 +74,7 @@ namespace AutoReplay
         public static StandaloneLog Log = new StandaloneLog();
     }
 
-    /// <summary>游戏外: 只有一个"目前的模型", 由命令行指定</summary>
+    /// <summary>遊戲外: 只有一個"目前的模型", 由命令列指定</summary>
     public static class ModelManager
     {
         public static AutoPlayModel Current { get; set; }

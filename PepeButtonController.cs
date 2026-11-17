@@ -11,17 +11,17 @@ using UnityEngine.UI;
 namespace AutoReplay
 {
     /// <summary>
-    /// 把 Pepe 按钮放在世界坐标 (2.1, 0.6, 3.2), 也就是歌曲列表和排行榜之间, 并朝向玩家。
-    /// 用 BSML 的 FloatingScreen 承载 (自带射线检测), 按钮本体是自己建的 Image + Button,
-    /// 使用游戏的 UINoGlow 材质, 所以不发光。
-    /// GIF 首次运行时从 GifUrl 下载并缓存到 UserData/AutoReplay/bs-pepe.gif。
+    /// 把 Pepe 按鈕放在世界座標 (2.1, 0.6, 3.2), 也就是歌曲列表和排行榜之間, 並朝向玩家。
+    /// 用 BSML 的 FloatingScreen 承載 (自帶射線檢測), 按鈕本體是自己建的 Image + Button,
+    /// 使用遊戲的 UINoGlow 材質, 所以不發光。
+    /// GIF 首次執行時從 GifUrl 下載並快取到 UserData/AutoReplay/bs-pepe.gif。
     /// </summary>
     public static class PepeButtonController
     {
         private const string ScreenName = "AutoReplayPepeScreen";
         private const string GifUrl = "https://beatleader.com/assets/bs-pepe.gif";
 
-        // ===== 可调参数 =====
+        // ===== 可調引數 =====
         private static readonly Vector3 Position = new Vector3(2.1f, 0.6f, 3.2f);
         private static readonly Vector3 PlayerHead = new Vector3(0f, 1.5f, 0f);
         private const float ButtonSize = 18f;
@@ -32,7 +32,7 @@ namespace AutoReplay
         private static Sprite _fallbackSprite;
         private static Texture2D _fallbackTexture;
         private static Material _noGlowMat;
-        private static bool _loading;   // 防止重复下载/解码
+        private static bool _loading;   // 防止重複下載/解碼
 
         public static void AttachToLevelFiltering(LevelFilteringNavigationController nav)
         {
@@ -104,9 +104,9 @@ namespace AutoReplay
                 }
             });
 
-            // 不要再手动 AddComponent<HoverHint>(): 它需要 Zenject 注入, 否则鼠标一指上去就抛空引用并打断点击。
+            // 不要再手動 AddComponent<HoverHint>(): 它需要 Zenject 注入, 否則滑鼠一指上去就拋空引用並打斷點選。
 
-            // GIF 加载失败/加载中显示的文字
+            // GIF 載入失敗/載入中顯示的文字
             var labelGo = new GameObject("FallbackLabel", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
             labelGo.transform.SetParent(go.transform, false);
             var labelRt = (RectTransform)labelGo.transform;
@@ -168,13 +168,13 @@ namespace AutoReplay
             return _fallbackSprite;
         }
 
-        // GIF 文件头: "GIF8"
+        // GIF 檔案頭: "GIF8"
         private static bool IsGif(byte[] b)
         {
             return b != null && b.Length > 6 && b[0] == 'G' && b[1] == 'I' && b[2] == 'F' && b[3] == '8';
         }
 
-        /// <summary>优先读本地缓存; 没有 (或文件损坏) 就从 GifUrl 下载并写入缓存。</summary>
+        /// <summary>優先讀本地快取; 沒有 (或檔案損壞) 就從 GifUrl 下載並寫入快取。</summary>
         private static async Task<byte[]> GetGifBytesAsync(string gifPath)
         {
             if (File.Exists(gifPath))
@@ -213,7 +213,7 @@ namespace AutoReplay
             {
                 if (_pepeAnimData == null)
                 {
-                    if (_loading) return;   // 已有一个加载任务在跑
+                    if (_loading) return;   // 已有一個載入任務在跑
                     _loading = true;
                     try
                     {
@@ -233,7 +233,7 @@ namespace AutoReplay
                             return;
                         }
 
-                        // AnimationController 可能还没初始化, 最多等 5 秒
+                        // AnimationController 可能還沒初始化, 最多等 5 秒
                         for (int i = 0; i < 50 && AnimationController.Instance == null; i++)
                             await Task.Delay(100);
 
@@ -251,7 +251,7 @@ namespace AutoReplay
                     }
                 }
 
-                // await 期间场景可能已经切换, 按钮被销毁
+                // await 期間場景可能已經切換, 按鈕被銷燬
                 if (img == null || img.gameObject == null || _pepeAnimData == null) return;
 
                 var updater = img.gameObject.AddComponent<AnimationStateUpdater>();

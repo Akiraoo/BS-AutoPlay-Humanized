@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace AutoReplay.Core
 {
-    /// <summary>把模型资讯排成几行文字 (游戏内设定页和命令行工具共用)</summary>
+    /// <summary>把模型資訊排成幾行文字 (遊戲內設定頁和命令列工具共用)</summary>
     public static class ModelInfoText
     {
         static string F(float v, string fmt = "0.0") => v.ToString(fmt, CultureInfo.InvariantCulture);

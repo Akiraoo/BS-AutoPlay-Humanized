@@ -1,7 +1,7 @@
-"""左右闪墙: 真人 (或生成) 遇到只盖住中间一条轨道的全高墙时, 头怎么动.
-usage: dodge_stats.py [--maps N] [--seed S] [--replay 生成.bsor 谱面hash 难度]...
-只取 "孤立" 的墙 (前后 1.5 秒内没有别的会影响头的墙), 以墙到达为 0, 统计:
-  头的横向位移 (往墙的反方向为正)、歪头 (roll, 往墙的反方向为正)、开始 / 最远 / 回来的时间、每次之间的差异
+"""左右閃牆: 真人 (或生成) 遇到只蓋住中間一條軌道的全高牆時, 頭怎麼動.
+usage: dodge_stats.py [--maps N] [--seed S] [--replay 生成.bsor 譜面hash 難度]...
+只取 "孤立" 的牆 (前後 1.5 秒內沒有別的會影響頭的牆), 以牆到達為 0, 統計:
+  頭的橫向位移 (往牆的反方向為正)、歪頭 (roll, 往牆的反方向為正)、開始 / 最遠 / 回來的時間、每次之間的差異
 """
 import sys, os, glob, json, random, re
 import numpy as np
@@ -13,7 +13,7 @@ TAU = np.arange(-0.6, 1.01, 0.1)
 
 
 def head_roll(q):
-    # 头的 roll: 头的"右"向量的 y 分量 (往右歪 = 右边低)
+    # 頭的 roll: 頭的"右"向量的 y 分量 (往右歪 = 右邊低)
     r = qrot(q, np.array([1.0, 0, 0]))
     return np.degrees(np.arcsin(np.clip(-r[:, 1], -1, 1)))
 
@@ -28,17 +28,17 @@ def events(replay, walls, mirror=False):
     rel = []
     for (t0, t1, x, y, w, h) in walls:
         bottom = 0.25 + 0.6 * y - 0.15 + yoff; top = bottom + 0.6 * h
-        if top < head_h - 0.15 or bottom > head_h + 0.1: continue          # 不挡头
+        if top < head_h - 0.15 or bottom > head_h + 0.1: continue          # 不擋頭
         c0, c1 = max(x, 1), min(x + w - 1, 2)
         if c0 > c1: continue
         rel.append((t0, t1, c0, c1, bottom))
     out = []
     for i, (t0, t1, c0, c1, bottom) in enumerate(rel):
-        if c0 != c1: continue                       # 只要盖住一条中间轨道的
-        if bottom > 1.0: continue                   # 要闪不能蹲 (从低处盖过头)
+        if c0 != c1: continue                       # 只要蓋住一條中間軌道的
+        if bottom > 1.0: continue                   # 要閃不能蹲 (從低處蓋過頭)
         if any(abs(o[0] - t0) < 1.5 and o is not rel[i] for o in rel): continue   # 孤立
         if t0 - 0.7 < t[0] or t1 + 1.1 > t[-1]: continue
-        side = 1.0 if c0 == 1 else -1.0             # 墙在左中 (第2轨) -> 往右闪 (+)
+        side = 1.0 if c0 == 1 else -1.0             # 牆在左中 (第2軌) -> 往右閃 (+)
         dx = (np.interp(t0 + TAU, t, hx) - bx) * side
         dr = (np.interp(t0 + TAU, t, roll) - br) * side
         out.append((dx, dr, t1 - t0))

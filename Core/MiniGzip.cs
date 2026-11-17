@@ -4,12 +4,12 @@ using System.IO;
 namespace AutoReplay.Core
 {
     /// <summary>
-    /// 纯托管的 gzip 解压 (RFC 1952 + RFC 1951 inflate) 和 "stored" gzip 打包.
-    /// 游戏内的 Mono GZipStream 不可靠 (解出空数据), 所以 .apmodel 不依赖它.
+    /// 純託管的 gzip 解壓 (RFC 1952 + RFC 1951 inflate) 和 "stored" gzip 打包.
+    /// 遊戲內的 Mono GZipStream 不可靠 (解出空資料), 所以 .apmodel 不依賴它.
     /// </summary>
     public static class MiniGzip
     {
-        // ---------------- 打包: 不压缩的 deflate stored 块 (任何 gzip 解压器都能读) ----------------
+        // ---------------- 打包: 不壓縮的 deflate stored 塊 (任何 gzip 解壓器都能讀) ----------------
         public static byte[] WrapStored(byte[] data)
         {
             using (var ms = new MemoryStream())
@@ -34,7 +34,7 @@ namespace AutoReplay.Core
 
         static void WriteU32(Stream s, uint v) { for (int i = 0; i < 4; i++) s.WriteByte((byte)(v >> (8 * i))); }
 
-        // ---------------- 解压 ----------------
+        // ---------------- 解壓 ----------------
         public static byte[] Gunzip(byte[] gz)
         {
             if (gz.Length < 18 || gz[0] != 0x1f || gz[1] != 0x8b || gz[2] != 8) throw new InvalidDataException("模型資料不是 gzip");
@@ -89,7 +89,7 @@ namespace AutoReplay.Core
                     else if (type == 2) Dynamic();
                     else throw new InvalidDataException("模型資料損壞 (deflate 區塊類型)");
                 } while (final == 0);
-                bitBuf = 0; bitCnt = 0;   // 剩余位丢弃, 对齐到字节
+                bitBuf = 0; bitCnt = 0;   // 剩餘位丟棄, 對齊到位元組
                 var r = new byte[outLen];
                 Array.Copy(win, r, outLen);
                 return r;

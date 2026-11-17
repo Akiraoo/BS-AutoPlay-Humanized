@@ -5,12 +5,12 @@ using AutoReplay.Core;
 namespace AutoReplay
 {
     /// <summary>
-    /// 真人挥刀模板: 以"切到方块的瞬间"为 0 点对齐, 统计真人 replay 里剑的轨迹 (中位数曲线).
-    ///   alpha(τ): 沿挥动方向的角度. τ&lt;0 时为负 (预挥, 剑还在后方), τ&gt;0 时为正 (后挥)
-    ///   beta(τ) : 偏离挥动平面的侧向角度 -> 来回挥时的 "8 字" / 同向复位时的绕圈
-    /// 按 (和上一刀挥动方向的夹角 0/45/90/135/180°, 挥动方向, 和上一刀的间隔) 分组; 间隔落在两组之间时线性插值.
-    /// 夹角分组很重要: tech 谱常见的 90° 转向 (例如 下->右) 预挥是从侧边绕进来的, 和来回挥(180°)、同向复位(0°) 都不一样.
-    /// 数据来自当前载入的 AutoPlay 模型 (ModelManager), 训练见 Core/ModelTrainer.cs.
+    /// 真人揮刀模板: 以"切到方塊的瞬間"為 0 點對齊, 統計真人 replay 裡劍的軌跡 (中位數曲線).
+    ///   alpha(τ): 沿揮動方向的角度. τ&lt;0 時為負 (預揮, 劍還在後方), τ&gt;0 時為正 (後揮)
+    ///   beta(τ) : 偏離揮動平面的側向角度 -> 來回揮時的 "8 字" / 同向復位時的繞圈
+    /// 按 (和上一刀揮動方向的夾角 0/45/90/135/180°, 揮動方向, 和上一刀的間隔) 分組; 間隔落在兩組之間時線性插值.
+    /// 夾角分組很重要: tech 譜常見的 90° 轉向 (例如 下->右) 預揮是從側邊繞進來的, 和來回揮(180°)、同向復位(0°) 都不一樣.
+    /// 資料來自當前載入的 AutoPlay 模型 (ModelManager), 訓練見 Core/ModelTrainer.cs.
     /// </summary>
     public static class SwingTemplates
     {
@@ -57,7 +57,7 @@ namespace AutoReplay
                 }
                 foreach (var list in _byKey.Values) list.Sort((a, b) => a.Center.CompareTo(b.Center));
             }
-            // 优先: 同夹角同方向 -> 同夹角任意方向 -> 相邻夹角 (先往大的找, 0°/45° 数据少)
+            // 優先: 同夾角同方向 -> 同夾角任意方向 -> 相鄰夾角 (先往大的找, 0°/45° 資料少)
             for (int d = 0; d <= 4; d++)
             {
                 foreach (int r in d == 0 ? new[] { rel } : new[] { rel + d, rel - d })
@@ -73,7 +73,7 @@ namespace AutoReplay
         static int Key(int rel, int dir) => rel * 10 + dir;
 
         public const int RelBack = 4, Rel135 = 3, Rel90 = 2, Rel45 = 1, RelSame = 0;
-        /// <summary>两个挥动方向(2D)的夹角分组: 0=0° 1=45° 2=90° 3=135° 4=180°</summary>
+        /// <summary>兩個揮動方向(2D)的夾角分組: 0=0° 1=45° 2=90° 3=135° 4=180°</summary>
         public static int RelBin(Vector3 a, Vector3 b)
         {
             float ang = Vector3.Angle(a, b);
@@ -87,7 +87,7 @@ namespace AutoReplay
             return DirSide;
         }
 
-        /// <summary>τ 时刻的 (alpha, beta), 单位: 度. beta 以右手为准</summary>
+        /// <summary>τ 時刻的 (alpha, beta), 單位: 度. beta 以右手為準</summary>
         public static void Eval(int rel, int dir, float gap, float tau, out float alpha, out float beta)
         {
             var list = Candidates(rel, dir);
@@ -113,9 +113,9 @@ namespace AutoReplay
             beta = Mathf.Lerp(Sample(a.beta, tau), Sample(b.beta, tau), w);
         }
 
-        // 超过 AmplitudeKnee 的挥动幅度按 AmplitudeSlope 压缩, 只防极端角度 (追踪跳变); 指向软限位 (<=125°) 另外防戳到头.
-        // 原本 90° / 0.45 压太多: 真人收势会挥到离命中方向 115-122°, 生成只到 92°, 两刀之间的速度只有真人一半.
-        // 离线对比真人 replay: 110° / 0.8 的误差和完全不压缩一样 (23.8° vs 原本 25.3°), 速度中位 213 -> 269°/s (真人 339)
+        // 超過 AmplitudeKnee 的揮動幅度按 AmplitudeSlope 壓縮, 只防極端角度 (追蹤跳變); 指向軟限位 (<=125°) 另外防戳到頭.
+        // 原本 90° / 0.45 壓太多: 真人收勢會揮到離命中方向 115-122°, 生成只到 92°, 兩刀之間的速度只有真人一半.
+        // 離線對比真人 replay: 110° / 0.8 的誤差和完全不壓縮一樣 (23.8° vs 原本 25.3°), 速度中位 213 -> 269°/s (真人 339)
         public static float AmplitudeKnee = 110f;
         public const float AmplitudeSlope = 0.8f;
         static float Compress(float a)
@@ -125,11 +125,11 @@ namespace AutoReplay
             return Mathf.Sign(a) * (AmplitudeKnee + (m - AmplitudeKnee) * AmplitudeSlope);
         }
 
-        /// <summary>预挥最远点距离命中的时间 (正数, 秒) —— 用来和反应时间比较, 太早就压缩</summary>
+        /// <summary>預揮最遠點距離命中的時間 (正數, 秒) —— 用來和反應時間比較, 太早就壓縮</summary>
         public static float PreExtremeLead(int rel, int dir, float gap)
         {
             float best = 0f, bestT = 0.1f;
-            Candidates(rel, dir);   // 确保 TauStart/TauStep 已按当前模型设置
+            Candidates(rel, dir);   // 確保 TauStart/TauStep 已按當前模型設定
             for (int i = 0; i < TauCount; i++)
             {
                 float tau = TauStart + i * TauStep;

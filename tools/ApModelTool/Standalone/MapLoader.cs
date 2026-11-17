@@ -7,14 +7,14 @@ using Newtonsoft.Json.Linq;
 namespace AutoReplay.Tools
 {
     /// <summary>
-    /// 游戏外读谱面: Info.dat + 难度文件 (v2 / v3 / v4), BPM 变化, 弧线 / 链条的计分类型.
-    /// 结果和游戏 + BeatLeader 的 CreateSortedNoteDataList 对齐 (链条切片用同样的规则).
+    /// 遊戲外讀譜面: Info.dat + 難度檔案 (v2 / v3 / v4), BPM 變化, 弧線 / 鏈條的計分型別.
+    /// 結果和遊戲 + BeatLeader 的 CreateSortedNoteDataList 對齊 (鏈條切片用同樣的規則).
     /// </summary>
     public sealed class LoadedMap
     {
         public string folder, hash, songName = "", mapper = "", characteristic = "Standard", difficulty = "";
         public float bpm, njs, offset;
-        public List<NoteData> notes = new List<NoteData>();      // 要切的方块 (含链条切片), 已按时间排序
+        public List<NoteData> notes = new List<NoteData>();      // 要切的方塊 (含鏈條切片), 已按時間排序
         public List<NoteData> bombs = new List<NoteData>();
         public List<ObstacleData> obstacles = new List<ObstacleData>();
         public string formatVersion = "";
@@ -23,7 +23,7 @@ namespace AutoReplay.Tools
 
     public static class MapLoader
     {
-        // ---------------- 找谱面: 资料夹路径, 或用 hash 查 SongCore 的快取 ----------------
+        // ---------------- 找譜面: 資料夾路徑, 或用 hash 查 SongCore 的快取 ----------------
         public static string FindFolder(string gameDir, string hashOrPath)
         {
             if (Directory.Exists(hashOrPath)) return hashOrPath;
@@ -39,7 +39,7 @@ namespace AutoReplay.Tools
                         if (Directory.Exists(full)) return full;
                     }
             }
-            // 快取里没有 (例如 CustomWIPLevels 的 WIP 谱): 逐个资料夹算 hash
+            // 快取裡沒有 (例如 CustomWIPLevels 的 WIP 譜): 逐個資料夾算 hash
             string want = hashOrPath.Replace(" WIP", "").Trim();
             foreach (var root in new[] { "CustomWIPLevels", "CustomLevels" })
             {
@@ -54,7 +54,7 @@ namespace AutoReplay.Tools
             throw new DirectoryNotFoundException("找不到譜面 (資料夾或 hash): " + hashOrPath);
         }
 
-        /// <summary>谱面 hash = SHA1(Info.dat + 各难度文件, 按 Info 里列出的顺序), 和 SongCore 一样</summary>
+        /// <summary>譜面 hash = SHA1(Info.dat + 各難度檔案, 按 Info 裡列出的順序), 和 SongCore 一樣</summary>
         public static string ComputeHash(string folder)
         {
             string infoPath = Path.Combine(folder, "Info.dat");
@@ -154,7 +154,7 @@ namespace AutoReplay.Tools
             }
             if (diffFile == null)
             {
-                // 没指定模式又没有 Standard: 改用唯一有这个难度的模式 (例如 OneSaber 谱)
+                // 沒指定模式又沒有 Standard: 改用唯一有這個難度的模式 (例如 OneSaber 譜)
                 var modes = info["difficultyBeatmaps"] is JArray v4
                     ? v4.Where(d => (string)d["difficulty"] == difficulty).Select(d => (string)d["characteristic"]).Distinct().ToList()
                     : (info["_difficultyBeatmapSets"] ?? new JArray()).Where(s => s["_difficultyBeatmaps"].Any(d => (string)d["_difficulty"] == difficulty))
@@ -219,7 +219,7 @@ namespace AutoReplay.Tools
                     color.Add(nd);
                 }
             }
-            // v2.6 的 _sliders (弧线)
+            // v2.6 的 _sliders (弧線)
             var arcs = new List<(float hb, int hx, int hy, int c, float tb, int tx, int ty)>();
             foreach (var s in d["_sliders"] ?? new JArray())
                 arcs.Add(((float)s["_headTime"], (int)s["_headLineIndex"], (int)s["_headLineLayer"], (int)s["_colorType"],
@@ -287,7 +287,7 @@ namespace AutoReplay.Tools
             }
         }
 
-        // ---------------- v4 (对象和数据分开存, 用索引对应) ----------------
+        // ---------------- v4 (物件和資料分開存, 用索引對應) ----------------
         static void LoadV4(LoadedMap map, JObject d)
         {
             map.warnings.Add("v4 譜面: BPM 變化存在另外的音訊檔, 目前只用 Info 的固定 BPM");
@@ -346,9 +346,9 @@ namespace AutoReplay.Tools
         }
 
         /// <summary>
-        /// 游戏的"同排方块"处理: 同一时间、同颜色、同方向的两个箭头块, 连线和箭头方向接近时,
-        /// 两个箭头都转到沿连线的方向, 存在 cutDirectionAngleOffset (逆时针为正, 用格子单位算连线).
-        /// 对照游戏内生成的 Break Me (V2): 18.4° 的斜向叠块完全一致. 门槛 40° 是印象中的游戏数值, 18.4°~90° 之间还没有实测确认.
+        /// 遊戲的"同排方塊"處理: 同一時間、同顏色、同方向的兩個箭頭塊, 連線和箭頭方向接近時,
+        /// 兩個箭頭都轉到沿連線的方向, 存在 cutDirectionAngleOffset (逆時針為正, 用格子單位算連線).
+        /// 對照遊戲內生成的 Break Me (V2): 18.4° 的斜向疊塊完全一致. 門檻 40° 是印象中的遊戲數值, 18.4°~90° 之間還沒有實測確認.
         /// </summary>
         const float SnapMaxDeg = 40f;
 
@@ -367,13 +367,13 @@ namespace AutoReplay.Tools
                     var a = row[0]; var b = row[1];
                     if (a.cutDirection != b.cutDirection || a.cutDirection == NoteCutDirection.Any || a.cutDirection == NoteCutDirection.None) continue;
                     float dx = b.lineIndex - a.lineIndex, dy = (int)b.noteLineLayer - (int)a.noteLineLayer;
-                    // 顺时针角度 (0=上, 90=右), 和 AutoReplayMath.GetCutAngle 相同; 先去掉谱面原有的偏移
+                    // 順時針角度 (0=上, 90=右), 和 AutoReplayMath.GetCutAngle 相同; 先去掉譜面原有的偏移
                     float cut = AutoReplayMath.GetCutAngle(a) + a.cutDirectionAngleOffset;
                     float line = (float)(Math.Atan2(dx, dy) * 180.0 / Math.PI);
                     float d = DeltaDeg(cut, line);
-                    if (Math.Abs(d) > 90f) d = DeltaDeg(cut, line + 180f);    // 连线方向取和箭头同向的那一端
+                    if (Math.Abs(d) > 90f) d = DeltaDeg(cut, line + 180f);    // 連線方向取和箭頭同向的那一端
                     if (Math.Abs(d) > SnapMaxDeg) continue;
-                    a.cutDirectionAngleOffset = -d;                            // 逆时针为正
+                    a.cutDirectionAngleOffset = -d;                            // 逆時針為正
                     b.cutDirectionAngleOffset = -d;
                 }
                 i = e + 1;
@@ -392,8 +392,8 @@ namespace AutoReplay.Tools
             Math.Abs(n.beat - beat) < 1e-3f && n.lineIndex == x && (int)n.noteLineLayer == y && (int)n.colorType == c;
 
         /// <summary>
-        /// 链条: 头方块变成 ChainHead; 切片和 BeatLeader 的 CreateSortedNoteDataList 一样产生
-        /// (i = 1..sc-1, 时间在头尾之间线性分布, 位置除最后一片外用头的位置, 方向 Any, 计分 ChainLink)
+        /// 鏈條: 頭方塊變成 ChainHead; 切片和 BeatLeader 的 CreateSortedNoteDataList 一樣產生
+        /// (i = 1..sc-1, 時間在頭尾之間線性分佈, 位置除最後一片外用頭的位置, 方向 Any, 計分 ChainLink)
         /// </summary>
         static void AddChains(LoadedMap map, List<NoteData> color, List<(float hb, int hx, int hy, int c, float tb, int tx, int ty, int sc)> chains, BpmMap bpm)
         {
@@ -420,13 +420,13 @@ namespace AutoReplay.Tools
             }
         }
 
-        /// <summary>弧线: 头 / 尾方块的计分类型 (同时是链条头时组合成 ChainHeadArcTail 等)</summary>
+        /// <summary>弧線: 頭 / 尾方塊的計分型別 (同時是鏈條頭時組合成 ChainHeadArcTail 等)</summary>
         static void ApplyArcs(List<NoteData> color, List<(float hb, int hx, int hy, int c, float tb, int tx, int ty)> arcs)
         {
             foreach (var a in arcs)
             {
                 var head = color.FirstOrDefault(n => n.gameplayType != NoteData.GameplayType.BurstSliderElement && Same(n, a.hb, a.hx, a.hy, a.c));
-                // 长度为 0 的弧线 (头尾同一拍): 游戏只标记头, 尾端的方块不算弧线尾 (对照 LESSON - HARPY HARE 的游戏内结果)
+                // 長度為 0 的弧線 (頭尾同一拍): 遊戲只標記頭, 尾端的方塊不算弧線尾 (對照 LESSON - HARPY HARE 的遊戲內結果)
                 var tail = a.tb <= a.hb + 1e-3f ? null
                          : color.FirstOrDefault(n => n.gameplayType != NoteData.GameplayType.BurstSliderElement && Same(n, a.tb, a.tx, a.ty, a.c));
                 if (head != null)

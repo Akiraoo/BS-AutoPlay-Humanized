@@ -13,7 +13,7 @@ using BeatSaberMarkupLanguage.Util;
 
 namespace AutoReplay.UI
 {
-    /// <summary>设定 > 模组设定 > AutoPlay: 三个分页 (模型 / 训练 / 自动训练)</summary>
+    /// <summary>設定 > 模組設定 > AutoPlay: 三個分頁 (模型 / 訓練 / 自動訓練)</summary>
     public class SettingsHost : INotifyPropertyChanged
     {
         public static readonly SettingsHost Instance = new SettingsHost();
@@ -178,7 +178,7 @@ namespace AutoReplay.UI
         {
             if (TrainingService.Busy) return;
             try { await TrainingService.TrainAsync(false, CancellationToken.None); }
-            catch { }   // 讯息已经在 TrainingService.Progress
+            catch { }   // 訊息已經在 TrainingService.Progress
             SetTask(TrainingService.Progress + (ModelManager.CurrentTrust == ModelTrust.Unpacked ? "\n想分享可以到「模型」頁按「打包成 .apmodel」" : ""));
             RefreshAll();
         }
@@ -201,7 +201,7 @@ namespace AutoReplay.UI
             SchedulePreview();
         }
 
-        /// <summary>设定变了: 等 0.4 秒没再变, 在背景算每一步筛完剩几份 (星数只看快取, 不连网)</summary>
+        /// <summary>設定變了: 等 0.4 秒沒再變, 在背景算每一步篩完剩幾份 (星數只看快取, 不連網)</summary>
         async void SchedulePreview()
         {
             int v = ++_previewVersion;
@@ -225,7 +225,7 @@ namespace AutoReplay.UI
             catch (Exception ex) { SetPreview("預覽失敗: " + ex.Message); }
         }
 
-        // =============================== 刷新 ===============================
+        // =============================== 重新整理 ===============================
         static int Clamp(float v, int lo, int hi) => Math.Max(lo, Math.Min(hi, (int)Math.Round(v)));
 
         void OnTrainingState()
@@ -235,7 +235,7 @@ namespace AutoReplay.UI
             Notify(nameof(CanPack));
         }
 
-        // 进度讯息可能带很长的文件名, 截短免得超出版面
+        // 進度訊息可能帶很長的檔名, 截短免得超出版面
         static string Short(string s) => s == null || s.Length <= 60 ? s : s.Substring(0, 57) + "…";
 
         void SetPack(string s) { _packStatus = s ?? ""; Notify(nameof(PackStatus)); }

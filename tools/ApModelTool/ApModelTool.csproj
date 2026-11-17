@@ -6,16 +6,16 @@
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>AutoReplay.Tools</RootNamespace>
-    <!-- 游戏外生成回放: 和模组共用生成器原始码, 用 Standalone/ 里的 Unity / 游戏类型替代品 -->
+    <!-- 遊戲外生成回放: 和模組共用生成器原始碼, 用 Standalone/ 裡的 Unity / 遊戲型別替代品 -->
     <DefineConstants>$(DefineConstants);AUTOPLAY_STANDALONE</DefineConstants>
   </PropertyGroup>
 
-  <!-- 和模组共用 Core (模型格式/训练器), 保证两边结果一致 -->
+  <!-- 和模組共用 Core (模型格式/訓練器), 保證兩邊結果一致 -->
   <ItemGroup>
     <Compile Include="..\..\Core\*.cs" Link="Core\%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- 和模组共用的生成器 (揮刀规划 / 头 / 手 / 人体模型), 游戏内外是同一份程序 -->
+  <!-- 和模組共用的生成器 (揮刀規劃 / 頭 / 手 / 人體模型), 遊戲內外是同一份程式 -->
   <ItemGroup>
     <Compile Include="..\..\MotionGenerator.cs" Link="Generator\MotionGenerator.cs" />
     <Compile Include="..\..\NoteSwingPlanner.cs" Link="Generator\NoteSwingPlanner.cs" />

@@ -5,16 +5,16 @@ using System.Text;
 
 namespace AutoReplay.Core
 {
-    /// <summary>精简版 .bsor 读取器: 只读训练要用的 info / frames / notes. 不依赖 BeatLeader 和 Unity.</summary>
+    /// <summary>精簡版 .bsor 讀取器: 只讀訓練要用的 info / frames / notes. 不依賴 BeatLeader 和 Unity.</summary>
     public sealed class BsorReplay
     {
         public string playerId, playerName, hash, songName, difficulty, mode, modifiers, hmd, platform, modVersion, gameVersion;
-        public long timestamp;     // unix 秒 (回放录制时间)
+        public long timestamp;     // unix 秒 (回放錄製時間)
         public int score;
         public bool leftHanded;
         public float height;
-        public float[] time;      // 帧时间
-        public float[][] head;    // 每帧 7: px py pz qx qy qz qw
+        public float[] time;      // 幀時間
+        public float[][] head;    // 每幀 7: px py pz qx qy qz qw
         public float[][] left;
         public float[][] right;
         public List<BsorNote> notes = new List<BsorNote>();
@@ -32,7 +32,7 @@ namespace AutoReplay.Core
         public int id;        // BeatLeader noteID: ...,lineIndex*1000 + layer*100 + color*10 + cutDirection
         public float time;
         public int type;      // 0 good, 1 bad, 2 miss, 3 bomb
-        public int saberType; // 只有 good/bad 有, 其余 -1
+        public int saberType; // 只有 good/bad 有, 其餘 -1
         public int Color => (id / 10) % 10;
         public int CutDirection => id % 10;
     }
@@ -41,7 +41,7 @@ namespace AutoReplay.Core
     {
         const int MagicNumber = 0x442d3d69;
 
-        /// <summary>只读 info (很快, 用来筛选)</summary>
+        /// <summary>只讀 info (很快, 用來篩選)</summary>
         public static BsorReplay ReadInfo(string path)
         {
             using (var fs = File.OpenRead(path))

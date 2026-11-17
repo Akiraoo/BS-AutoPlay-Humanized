@@ -9,18 +9,18 @@ namespace AutoReplay
 {
     /// <summary>
     /// 模型管理: UserData/AutoPlay/Models 下
-    ///   *.apmodel           打包好的单档 (混淆 + 可选作者签名), 可以分享
-    ///   &lt;名称&gt;/model.json  本机训练输出的未打包模型 (可读)
-    /// 选中的模型记在 UserData/AutoPlay/settings.json.
+    ///   *.apmodel           打包好的單檔 (混淆 + 可選作者簽名), 可以分享
+    ///   &lt;名稱&gt;/model.json  本機訓練輸出的未打包模型 (可讀)
+    /// 選中的模型記在 UserData/AutoPlay/settings.json.
     /// </summary>
     public static class ModelManager
     {
         public sealed class Entry
         {
-            public string id;          // 文件名或资料夹名 (唯一)
+            public string id;          // 檔名或資料夾名 (唯一)
             public string path;
             public bool packed;
-            public string displayName; // 下拉选单显示
+            public string displayName; // 下拉選單顯示
         }
 
         sealed class Settings
@@ -32,7 +32,7 @@ namespace AutoReplay
         static Settings _settings;
         static Settings Cfg => _settings ?? (_settings = LoadSettings());
 
-        /// <summary>训练设定 (设定页和自动训练共用), 改完要呼叫 SaveTrainSettings</summary>
+        /// <summary>訓練設定 (設定頁和自動訓練共用), 改完要呼叫 SaveTrainSettings</summary>
         public static TrainSettings Train => Cfg.train ?? (Cfg.train = new TrainSettings());
         public static void SaveTrainSettings() => SaveSettings(Cfg);
 
@@ -55,7 +55,7 @@ namespace AutoReplay
 
         public static List<Entry> Entries { get; private set; } = new List<Entry>();
 
-        /// <summary>生成回放时用: 没有模型就抛异常 (调用前应先检查 Current)</summary>
+        /// <summary>生成回放時用: 沒有模型就拋異常 (呼叫前應先檢查 Current)</summary>
         public static AutoPlayModel Require()
         {
             var m = Current;
@@ -94,7 +94,7 @@ namespace AutoReplay
                     list.Add(new Entry { id = Path.GetFileName(f), path = f, packed = true });
                 foreach (var d in Directory.GetDirectories(ModelsDir).OrderBy(x => x))
                 {
-                    if (d.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)) continue;   // 自动训练的备份
+                    if (d.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)) continue;   // 自動訓練的備份
                     string mj = Path.Combine(d, "model.json");
                     if (File.Exists(mj)) list.Add(new Entry { id = Path.GetFileName(d) + "/", path = mj, packed = false });
                 }
@@ -137,7 +137,7 @@ namespace AutoReplay
             }
         }
 
-        /// <summary>保存本机训练结果 (未打包), 返回 id</summary>
+        /// <summary>儲存本機訓練結果 (未打包), 返回 id</summary>
         public static string SaveUnpacked(AutoPlayModel model, string report)
         {
             string name = SafeName(model.meta.name);
@@ -150,7 +150,7 @@ namespace AutoReplay
             return Path.GetFileName(dir) + "/";
         }
 
-        /// <summary>自动训练: 覆盖固定的 my-auto/ 资料夹, 旧的留一份 my-auto.bak/</summary>
+        /// <summary>自動訓練: 覆蓋固定的 my-auto/ 資料夾, 舊的留一份 my-auto.bak/</summary>
         public static string SaveAuto(AutoPlayModel model, string report)
         {
             string dir = Path.Combine(ModelsDir, AutoModelName);
@@ -169,7 +169,7 @@ namespace AutoReplay
 
         public static bool AutoModelExists => File.Exists(Path.Combine(ModelsDir, AutoModelName, "model.json"));
 
-        /// <summary>把未打包的模型打包成 .apmodel (不签名), 返回新文件 id</summary>
+        /// <summary>把未打包的模型打包成 .apmodel (不簽名), 返回新檔案 id</summary>
         public static string Pack(string id)
         {
             var e = Entries.FirstOrDefault(x => x.id == id);

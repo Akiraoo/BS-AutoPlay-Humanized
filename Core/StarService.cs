@@ -8,22 +8,22 @@ using Newtonsoft.Json.Linq;
 
 namespace AutoReplay.Core
 {
-    /// <summary>一个谱面难度的星数. BL 对 unranked 也有 AI 估计星数; SS 只有 ranked 才有.</summary>
+    /// <summary>一個譜面難度的星數. BL 對 unranked 也有 AI 估計星數; SS 只有 ranked 才有.</summary>
     public sealed class StarInfo
     {
         public float? blStars, blPass, blAcc, blTech;
-        public int? blMaxScore;            // 谱面满分 (算 acc 用)
+        public int? blMaxScore;            // 譜面滿分 (算 acc 用)
         public int blStatus = -1;          // BL: 0 unranked, 1 nominated, 2 qualified, 3 ranked ...
         public float? ssStars;             // SS ranked 才有 (>0)
         public bool ssRanked;
-        public bool blChecked, ssChecked;  // 查过 (就算没有数据也算)
+        public bool blChecked, ssChecked;  // 查過 (就算沒有資料也算)
         public long fetchedUnix;
     }
 
     /// <summary>
-    /// 查 BeatLeader / ScoreSaber 公开 API 拿星数 (不需要登入). 结果缓存在本机 JSON, 30 天后才重查.
-    /// 遵守限流: BL 每 10 秒 50 次, SS 每 10 秒 100 次 -> 这里各自留余量.
-    /// 网络失败不会抛异常, 只是没有星数.
+    /// 查 BeatLeader / ScoreSaber 公開 API 拿星數 (不需要登入). 結果快取在本機 JSON, 30 天后才重查.
+    /// 遵守限流: BL 每 10 秒 50 次, SS 每 10 秒 100 次 -> 這裡各自留餘量.
+    /// 網路失敗不會拋異常, 只是沒有星數.
     /// </summary>
     public sealed class StarService
     {
@@ -41,7 +41,7 @@ namespace AutoReplay.Core
         int _netFailures;
         bool _dirty;
 
-        public bool Offline => _netFailures >= 3;   // 连续失败就当作没网, 不再尝试
+        public bool Offline => _netFailures >= 3;   // 連續失敗就當作沒網, 不再嘗試
 
         public StarService(string cachePath)
         {
@@ -60,13 +60,13 @@ namespace AutoReplay.Core
 
         static string Key(string hash, string diff) => (hash ?? "").ToUpperInvariant() + "|" + diff;
 
-        /// <summary>只看缓存, 不连网 (预览用)</summary>
+        /// <summary>只看快取, 不連網 (預覽用)</summary>
         public StarInfo Cached(string hash, string diff)
         {
             lock (_lock) return _cache.TryGetValue(Key(hash, diff), out var s) ? s : null;
         }
 
-        /// <summary>查询 (缓存优先). network=false 时只看缓存.</summary>
+        /// <summary>查詢 (快取優先). network=false 時只看快取.</summary>
         public StarInfo Get(string hash, string diff, bool network = true, CancellationToken cancel = default)
         {
             if (string.IsNullOrEmpty(hash) || string.IsNullOrEmpty(diff)) return null;
@@ -77,7 +77,7 @@ namespace AutoReplay.Core
             if (!network || Offline || (fresh && s.blChecked && s.ssChecked && (s.blStars == null || s.blMaxScore != null))) return s;
 
             s = s ?? new StarInfo();
-            if (!fresh || !s.blChecked || (s.blStars != null && s.blMaxScore == null))   // 旧缓存没有满分, 补查
+            if (!fresh || !s.blChecked || (s.blStars != null && s.blMaxScore == null))   // 舊快取沒有滿分, 補查
             {
                 bool ok = FetchBl(hash, cancel);
                 s = Cached(hash, diff) ?? s;
@@ -89,12 +89,12 @@ namespace AutoReplay.Core
             return s;
         }
 
-        // BL 一次回传这首歌所有难度, 一起写进缓存
+        // BL 一次回傳這首歌所有難度, 一起寫進快取
         bool FetchBl(string hash, CancellationToken cancel)
         {
             Wait(ref _lastBl, BlIntervalMs, cancel);
             string body = Http($"https://api.beatleader.com/map/hash/{hash}", out int code);
-            if (body == null) return code == 404;      // 404 = BL 没有这首歌, 也算查过
+            if (body == null) return code == 404;      // 404 = BL 沒有這首歌, 也算查過
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             try
             {
@@ -166,7 +166,7 @@ namespace AutoReplay.Core
             catch (WebException ex) when (ex.Response is HttpWebResponse r)
             {
                 status = (int)r.StatusCode;
-                if (status == 429) Thread.Sleep(2000);     // 被限流: 等一下, 这次当作没数据
+                if (status == 429) Thread.Sleep(2000);     // 被限流: 等一下, 這次當作沒資料
                 else _netFailures = 0;
                 return null;
             }

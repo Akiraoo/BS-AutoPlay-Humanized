@@ -49,9 +49,9 @@ namespace AutoReplay
             };
 
             int noteId = ReplayDataUtils.ComputeNoteId(note, false, false, false);
-            // NA(无箭头)下, 回放器里的 NoteData 切割方向已经被游戏改成 Any(8),
-            // 而 BeatLeader 是靠"时间 + 音符 ID"去匹配事件的, ID 末位就是切割方向.
-            // 这里的 ID 如果还是原谱的方向, 就会匹配不上 -> 显示成 miss. 所以 NA 时把方向替换成 Any.
+            // NA(無箭頭)下, 回放器裡的 NoteData 切割方向已經被遊戲改成 Any(8),
+            // 而 BeatLeader 是靠"時間 + 音符 ID"去匹配事件的, ID 末位就是切割方向.
+            // 這裡的 ID 如果還是原譜的方向, 就會匹配不上 -> 顯示成 miss. 所以 NA 時把方向替換成 Any.
             if (noArrows)
                 noteId = noteId - (int)note.cutDirection + (int)NoteCutDirection.Any;
             return new NoteEvent

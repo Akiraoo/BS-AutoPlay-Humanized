@@ -106,8 +106,8 @@ namespace AutoReplay
                 if (playerDataModel == null) playerDataModel = Resources.FindObjectsOfTypeAll<PlayerDataModel>().FirstOrDefault();
                 GameplayModifiers modifiers = playerDataModel?.playerData?.gameplayModifiers ?? GameplayModifiers.noModifiers;
 
-                // 玩家是不是左手模式: 是的话回放也按左手模式生成 (谱面镜像 + 回放标记为左手),
-                // 回放器启动时会按回放里的 leftHanded 重新设置游戏, 所以这两处必须一致.
+                // 玩家是不是左手模式: 是的話回放也按左手模式生成 (譜面映象 + 回放標記為左手),
+                // 回放器啟動時會按回放裡的 leftHanded 重新設定遊戲, 所以這兩處必須一致.
                 bool leftHanded = playerDataModel?.playerData?.playerSpecificSettings?.leftHanded ?? false;
                 Plugin.Log?.Info($"Player left-handed mode: {leftHanded}");
 
@@ -147,7 +147,7 @@ namespace AutoReplay
                 Plugin.Log?.Info($"Starting BeatLeader Replayer with modifiers: {AutoReplayMath.EncodeModifiers(modifiers)}");
                 var replayerSettings = ReplayerSettings.UserSettings ?? new ReplayerSettings();
                 replayerSettings.IgnoreModifiers = false;
-                // BeatLeader 0.10.x: 签名变为 (replay, player, optionalData, settings, finishCallback, token)
+                // BeatLeader 0.10.x: 簽名變為 (replay, player, optionalData, settings, finishCallback, token)
                 var started = await ReplayerMenuLoader.Instance.StartReplayAsync(replay, dummyPlayer, settings: replayerSettings);
                 if (!started)
                 {

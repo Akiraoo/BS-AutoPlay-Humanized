@@ -10,8 +10,8 @@ using UnityEngine;
 namespace AutoReplay.Tools
 {
     /// <summary>
-    /// 游戏外生成回放: 读谱面 + 模型 -> MotionGenerator (和游戏内同一份程序) -> 写 .bsor.
-    /// 生成的文件可以直接放进 BeatLeader 的回放资料夹在游戏里看.
+    /// 遊戲外生成回放: 讀譜面 + 模型 -> MotionGenerator (和遊戲內同一份程式) -> 寫 .bsor.
+    /// 生成的檔案可以直接放進 BeatLeader 的回放資料夾在遊戲裡看.
     /// </summary>
     public static class StandaloneGenerate
     {
@@ -23,26 +23,26 @@ namespace AutoReplay.Tools
             bool noArrows = Array.IndexOf(a, "--na") >= 0;
             Plugin.Log.verbose = Array.IndexOf(a, "--verbose") >= 0;
             if (Array.IndexOf(a, "--limit-knee") >= 0) HumanModel.LimitKneeAtLimit = true;   // debug
-            if (Array.IndexOf(a, "--soft-limit") >= 0) HumanModel.LimitKneeAtLimit = false;   // debug: 限位前就开始软压缩 (旧版)
+            if (Array.IndexOf(a, "--soft-limit") >= 0) HumanModel.LimitKneeAtLimit = false;   // debug: 限位前就開始軟壓縮 (舊版)
             string lkb = opt(a, "--lim-below", null); if (lkb != null) HumanModel.LimitKneeBelow = float.Parse(lkb, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string lov = opt(a, "--lim-over", null); if (lov != null) HumanModel.LimitOver = float.Parse(lov, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string hcl = opt(a, "--head-clear", null); if (hcl != null) MotionGenerator.HeadClear = float.Parse(hcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string hcs = opt(a, "--head-soft", null); if (hcs != null) MotionGenerator.HeadClearSoft = float.Parse(hcs, System.Globalization.CultureInfo.InvariantCulture);   // debug
-            string knee = opt(a, "--amp-knee", null);   // debug: 挥动幅度压缩的起点 (度)
+            string knee = opt(a, "--amp-knee", null);   // debug: 揮動幅度壓縮的起點 (度)
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug
             if (bd != null) NoteSwingPlanner.BlendDelay = float.Parse(bd, System.Globalization.CultureInfo.InvariantCulture);
             if (Array.IndexOf(a, "--bomb-up") >= 0) BombAvoider.PreferUp = true;   // debug
-            string span = opt(a, "--bomb-span", null);   // debug: 一串炸弹最长跨度 (秒)
+            string span = opt(a, "--bomb-span", null);   // debug: 一串炸彈最長跨度 (秒)
             if (span != null) BombAvoider.MaxClusterSpan = float.Parse(span, System.Globalization.CultureInfo.InvariantCulture);
             NoteSwingPlanner.DebugDots = Array.IndexOf(a, "--debug-dots") >= 0;
-            string dbc = opt(a, "--dot-bomb-cost", null);   // debug: 点块方向规划里炸弹的代价 (0 = 不看炸弹)
+            string dbc = opt(a, "--dot-bomb-cost", null);   // debug: 點塊方向規劃裡炸彈的代價 (0 = 不看炸彈)
             if (dbc != null) NoteSwingPlanner.DotBombCost = float.Parse(dbc, System.Globalization.CultureInfo.InvariantCulture);
             string upm = opt(a, "--up-margin", null);
             if (upm != null) BombAvoider.UpMargin = float.Parse(upm, System.Globalization.CultureInfo.InvariantCulture);
-            string safety = opt(a, "--bomb-safety", null);   // debug: 炸弹安全余量 (米)
+            string safety = opt(a, "--bomb-safety", null);   // debug: 炸彈安全餘量 (米)
             if (safety != null) BombAvoider.Safety = float.Parse(safety, System.Globalization.CultureInfo.InvariantCulture);
-            string armSmooth = opt(a, "--arm-smooth", null);   // debug: 手臂跟随指向的平滑 (秒)
+            string armSmooth = opt(a, "--arm-smooth", null);   // debug: 手臂跟隨指向的平滑 (秒)
             if (armSmooth != null) PoseCalculator.ArmSmoothSigma = float.Parse(armSmooth, System.Globalization.CultureInfo.InvariantCulture);
 
             LoadModel(modelPath);
@@ -65,7 +65,7 @@ namespace AutoReplay.Tools
             string orderFrom = opt(a, "--order-from", null);
             if (orderFrom != null)
             {
-                // debug: 照另一份回放 (例如游戏内生成的) 的方块事件顺序排列, 用来排查顺序造成的差异
+                // debug: 照另一份回放 (例如遊戲內生成的) 的方塊事件順序排列, 用來排查順序造成的差異
                 var ev = BsorReader.Read(orderFrom).notes;
                 var pool = allNotes.ToList(); var ordered = new List<NoteData>();
                 foreach (var e in ev)
@@ -79,7 +79,7 @@ namespace AutoReplay.Tools
             string jitter = opt(a, "--jitter", null);
             if (jitter != null)
             {
-                // debug: 给方块时间加极小的扰动, 找出对数值误差敏感的地方
+                // debug: 給方塊時間加極小的擾動, 找出對數值誤差敏感的地方
                 var rnd = new Random(int.Parse(jitter));
                 foreach (var n in allNotes) n.time += (float)(rnd.NextDouble() - 0.5) * 2e-5f;
             }
@@ -120,7 +120,7 @@ namespace AutoReplay.Tools
             ModelManager.CurrentId = name;
         }
 
-        // ---------------- .bsor (和 BeatLeader ReplayEncoder 同一个格式) ----------------
+        // ---------------- .bsor (和 BeatLeader ReplayEncoder 同一個格式) ----------------
         static void Str(BinaryWriter w, string s) { var b = Encoding.UTF8.GetBytes(s ?? ""); w.Write(b.Length); w.Write(b); }
         static void V(BinaryWriter w, Vector3 v) { w.Write(v.x); w.Write(v.y); w.Write(v.z); }
         static void Q(BinaryWriter w, Quaternion q) { w.Write(q.x); w.Write(q.y); w.Write(q.z); w.Write(q.w); }
@@ -151,7 +151,7 @@ namespace AutoReplay.Tools
                 V(w, m.rightPos[i]); Q(w, m.rightRot[i]);
             }
 
-            w.Write((byte)2);   // notes (全部 115 good, 和游戏内 NoteEventBuilder 一样)
+            w.Write((byte)2);   // notes (全部 115 good, 和遊戲內 NoteEventBuilder 一樣)
             w.Write((uint)notes.Count);
             foreach (var n in notes)
             {

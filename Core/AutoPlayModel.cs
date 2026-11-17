@@ -4,10 +4,10 @@ using System.Collections.Generic;
 namespace AutoReplay.Core
 {
     /// <summary>
-    /// AutoPlay 的动作模型: 从真人 replay 统计出来的全部参数.
-    /// 未打包格式 = 资料夹里的 model.json (可读, 本机训练直接输出这个);
-    /// 打包格式 = .apmodel 单档 (混淆 + 可选签名), 见 ApModelFile.
-    /// 这个类不依赖 Unity, 游戏内和命令行工具 (tools/ApModelTool) 共用.
+    /// AutoPlay 的動作模型: 從真人 replay 統計出來的全部引數.
+    /// 未打包格式 = 資料夾裡的 model.json (可讀, 本機訓練直接輸出這個);
+    /// 打包格式 = .apmodel 單檔 (混淆 + 可選簽名), 見 ApModelFile.
+    /// 這個類不依賴 Unity, 遊戲內和命令列工具 (tools/ApModelTool) 共用.
     /// </summary>
     public sealed class AutoPlayModel
     {
@@ -19,12 +19,12 @@ namespace AutoReplay.Core
         public HandParams right = new HandParams();
         public TemplateSet templates = new TemplateSet();
         public RollOffsetSet rollOffsets = new RollOffsetSet();
-        public BodyParams body;      // 身高 (旧模型没有 -> 用 1.50 m)
-        public ArmTemplateSet arm;   // 手臂位置模板 (旧模型没有 -> 手的位置只由剑的指向推算)
+        public BodyParams body;      // 身高 (舊模型沒有 -> 用 1.50 m)
+        public ArmTemplateSet arm;   // 手臂位置模板 (舊模型沒有 -> 手的位置只由劍的指向推算)
 
         public HandParams Hand(bool isLeft) => isLeft ? left : right;
 
-        /// <summary>检查参数是否完整, 不完整时返回原因</summary>
+        /// <summary>檢查引數是否完整, 不完整時返回原因</summary>
         public string Validate()
         {
             if (format > CurrentFormat) return $"模型格式版本 {format} 比這個模組新, 請更新 AutoPlay";
@@ -49,52 +49,52 @@ namespace AutoReplay.Core
         public string name = "";
         public string author = "";
         public string createdUtc = "";
-        public string trainer = "";          // 训练工具/版本
-        public int replayCount;               // 用了几份 replay
-        public int swingCount;                // 统计到的挥刀次数
+        public string trainer = "";          // 訓練工具/版本
+        public int replayCount;               // 用了幾份 replay
+        public int swingCount;                // 統計到的揮刀次數
         public string notes = "";
-        public TrainingInfo training;         // 训练资料的详细信息 (旧模型没有)
+        public TrainingInfo training;         // 訓練資料的詳細資訊 (舊模型沒有)
     }
 
     /// <summary>
-    /// 模型资讯: 训练用的资料从哪来、长什么样. 不存任何玩家 ID.
-    /// 有作者签名的模型, 这些内容在签名范围内; 未签名的只能参考.
+    /// 模型資訊: 訓練用的資料從哪來、長什麼樣. 不存任何玩家 ID.
+    /// 有作者簽名的模型, 這些內容在簽名範圍內; 未簽名的只能參考.
     /// </summary>
     public sealed class TrainingInfo
     {
-        public string modVersion = "";        // 训练时的 AutoPlay 版本
-        public string playerName = "";        // 回放里的玩家名称 (排行榜上公开的名字)
+        public string modVersion = "";        // 訓練時的 AutoPlay 版本
+        public string playerName = "";        // 回放裡的玩家名稱 (排行榜上公開的名字)
         public string platform = "";          // steam / oculus ...
-        public string hmd = "";               // 最常见的头盔
-        public string gameVersions = "";      // 回放录制时的游戏版本 (可能多个)
+        public string hmd = "";               // 最常見的頭盔
+        public string gameVersions = "";      // 回放錄製時的遊戲版本 (可能多個)
         public string beatLeaderVersions = "";
-        public string mode = "manual";        // manual = 固定范围; auto = 持续追踪最新回放
+        public string mode = "manual";        // manual = 固定範圍; auto = 持續追蹤最新回放
 
-        // 筛选条件
-        public string rangeFrom = "", rangeTo = "";   // 设定的日期范围 (空 = 不限)
-        public int rollingDays;                        // auto 模式: 最近几天
+        // 篩選條件
+        public string rangeFrom = "", rangeTo = "";   // 設定的日期範圍 (空 = 不限)
+        public int rollingDays;                        // auto 模式: 最近幾天
         public int perMapCap, maxReplays;
         public float minStars;
         public bool rankedOnly, preferAcc;
-        public string selection = "";                  // 每一步筛完剩几份
+        public string selection = "";                  // 每一步篩完剩幾份
 
-        // 实际采用的资料
-        public string dataFrom = "", dataTo = "";      // 采用的回放最早 / 最晚日期
+        // 實際採用的資料
+        public string dataFrom = "", dataTo = "";      // 採用的回放最早 / 最晚日期
         public int uniqueMaps;
         public float npsMedian, npsP90;
-        public StarStats blStars, blTech, blPass, blAcc;  // BeatLeader 评分 (unranked 也有 AI 估计)
-        public int ssRankedCount;                         // 其中 ScoreSaber ranked 的份数
+        public StarStats blStars, blTech, blPass, blAcc;  // BeatLeader 評分 (unranked 也有 AI 估計)
+        public int ssRankedCount;                         // 其中 ScoreSaber ranked 的份數
         public float ssStarsMedian;
-        public float techShare;                           // 和上一刀转向 <= 90° 的挥刀比例 (tech 程度)
+        public float techShare;                           // 和上一刀轉向 <= 90° 的揮刀比例 (tech 程度)
     }
 
     public sealed class StarStats
     {
-        public int count;                     // 有数据的份数
+        public int count;                     // 有資料的份數
         public float median, p10, p90;
     }
 
-    /// <summary>一只手: 位置模型 手柄 - 头 = b + A·f; 扭转模型 [cos,sin](roll) = C·feats(f); 指向限位</summary>
+    /// <summary>一隻手: 位置模型 手柄 - 頭 = b + A·f; 扭轉模型 [cos,sin](roll) = C·feats(f); 指向限位</summary>
     public sealed class HandParams
     {
         public float[] b = new float[3];
@@ -107,20 +107,20 @@ namespace AutoReplay.Core
     }
 
     /// <summary>
-    /// 身高: height = BeatLeader 记录的游戏内身高设定 (决定方块的上下位置: 每高 1 m 方块上移 0.5 m);
-    /// headHeight = 实际头高 (真人的身体高度, 和设定无关). 生成时两个都照用, 才能还原录制时的轨迹.
+    /// 身高: height = BeatLeader 記錄的遊戲內身高設定 (決定方塊的上下位置: 每高 1 m 方塊上移 0.5 m);
+    /// headHeight = 實際頭高 (真人的身體高度, 和設定無關). 生成時兩個都照用, 才能還原錄製時的軌跡.
     /// </summary>
     public sealed class BodyParams
     {
-        public float height;        // 设定身高中位数
+        public float height;        // 設定身高中位數
         public float heightMin, heightMax;
-        public float headHeight;    // 打歌时头的高度中位数
+        public float headHeight;    // 打歌時頭的高度中位數
     }
 
     /// <summary>
-    /// 手臂位置模板: 以切块瞬间对齐, 真人手的位置 - (b + A·指向) 的残差, 也就是"手臂在手腕之外多挥的部分".
-    /// 坐标系: along = 沿挥动方向, side = 侧向 (右手为准), fwd = 沿命中时剑的指向 (往方块伸).
-    /// 按 (挥动方向 0=下 1=上 2=横, 和前后一刀的较短间隔) 分组. 单位: 米
+    /// 手臂位置模板: 以切塊瞬間對齊, 真人手的位置 - (b + A·指向) 的殘差, 也就是"手臂在手腕之外多揮的部分".
+    /// 座標系: along = 沿揮動方向, side = 側向 (右手為準), fwd = 沿命中時劍的指向 (往方塊伸).
+    /// 按 (揮動方向 0=下 1=上 2=橫, 和前後一刀的較短間隔) 分組. 單位: 米
     /// </summary>
     public sealed class ArmTemplateSet
     {
@@ -139,24 +139,24 @@ namespace AutoReplay.Core
 
     public sealed class TemplateSet
     {
-        public bool peakAligned;    // 模板是否先对齐每次挥刀各自的最远点再取中位数 (保留真实幅度)
+        public bool peakAligned;    // 模板是否先對齊每次揮刀各自的最遠點再取中位數 (保留真實幅度)
         public float tauStart = -0.70f;
         public float tauStep = 0.02f;
         public List<SwingTemplateData> groups = new List<SwingTemplateData>();
     }
 
-    /// <summary>挥刀模板: rel = 和上一刀挥动方向的夹角分组 (0=0° 1=45° 2=90° 3=135° 4=180°); dir: 0=下 1=上 2=横 3=任意</summary>
+    /// <summary>揮刀模板: rel = 和上一刀揮動方向的夾角分組 (0=0° 1=45° 2=90° 3=135° 4=180°); dir: 0=下 1=上 2=橫 3=任意</summary>
     public sealed class SwingTemplateData
     {
         public int rel;
         public int dir;
         public float gap0, gap1;
         public int n;
-        public float[] alpha;   // 度, 沿挥动方向
-        public float[] beta;    // 度, 侧向 (右手为准)
+        public float[] alpha;   // 度, 沿揮動方向
+        public float[] beta;    // 度, 側向 (右手為準)
     }
 
-    /// <summary>反手扭转偏移: data[手 0=左 1=右][切割方向 0..8][τ], 已乘一致性 R</summary>
+    /// <summary>反手扭轉偏移: data[手 0=左 1=右][切割方向 0..8][τ], 已乘一致性 R</summary>
     public sealed class RollOffsetSet
     {
         public float tauStart = -0.20f;

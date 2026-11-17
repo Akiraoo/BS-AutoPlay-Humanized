@@ -9,32 +9,32 @@ namespace AutoReplay.Core
     public sealed class TrainOptions
     {
         public SelectionOptions selection = new SelectionOptions();
-        public int minReplays = 10;          // 少于这个数就不训练
+        public int minReplays = 10;          // 少於這個數就不訓練
         public string modelName = "my-model";
         public string author = "";
-        public StarService stars;            // null = 不查星数
-        public bool network = true;          // 允许连网查星数
+        public StarService stars;            // null = 不查星數
+        public bool network = true;          // 允許連網查星數
         public string modVersion = "";
         public string mode = "manual";       // manual / auto
-        public int rollingDays;              // auto 模式的滚动天数
+        public int rollingDays;              // auto 模式的滾動天數
         public Action<string> progress;
         public CancellationToken cancel;
     }
 
     /// <summary>
-    /// 从本机 BeatLeader replay 训练 AutoPlay 模型. 算法和 tools/ 下的 Python 脚本一致:
-    ///   wrist_fit.py (手的位置/扭转/限位), tech_templates.py (按转向角度分组的挥刀模板), roll_offset_templates.py (反手扭转)
-    /// 纯 C#, 不依赖 Unity, 可以在后台线程跑.
+    /// 從本機 BeatLeader replay 訓練 AutoPlay 模型. 演算法和 tools/ 下的 Python 指令碼一致:
+    ///   wrist_fit.py (手的位置/扭轉/限位), tech_templates.py (按轉向角度分組的揮刀模板), roll_offset_templates.py (反手扭轉)
+    /// 純 C#, 不依賴 Unity, 可以在後臺執行緒跑.
     /// </summary>
     public static class ModelTrainer
     {
         public const string TrainerVersion = "AutoPlay-trainer/1";
 
         // ---- 和 Python 版一致的常量 ----
-        const double MergeGap = 0.06;                                    // 0.06s 内的切块算同一刀
+        const double MergeGap = 0.06;                                    // 0.06s 內的切塊算同一刀
         static readonly double[] GapBins = { 0.10, 0.18, 0.26, 0.36, 0.50, 0.75, 1.20, 3.0 };
         static readonly double[] RelEdges = { 30, 67.5, 112.5, 157.5 };
-        const double TauStart = -0.70, TauStepFine = 0.01; const int TauFine = 111;   // -0.70..0.40, 输出隔一个取 -> 56
+        const double TauStart = -0.70, TauStepFine = 0.01; const int TauFine = 111;   // -0.70..0.40, 輸出隔一個取 -> 56
         const double RollTauStart = -0.20, RollTauStep = 0.02; const int RollTau = 21;
 
         sealed class Row { public int rel, dir; public double gap; public float[] alpha, beta; }
@@ -52,7 +52,7 @@ namespace AutoReplay.Core
             if (files.Count < o.minReplays)
                 throw new InvalidOperationException($"符合條件的 replay 只有 {files.Count} 份, 至少需要 {o.minReplays} 份 (可以放寬日期範圍)");
 
-            // ---------- 第 1 轮: 手部模型 + 挥刀模板 ----------
+            // ---------- 第 1 輪: 手部模型 + 揮刀模板 ----------
             var hand = new HandAcc[] { new HandAcc(), new HandAcc() };
             var rows = new List<Row>();
             var used = new List<string>();
@@ -86,7 +86,7 @@ namespace AutoReplay.Core
             model.templates = BuildTemplates(rows, minCount);
             P($"挥刀样本 {rows.Count} 次, 模板 {model.templates.groups.Count} 组 (每组至少 {minCount} 次)");
 
-            // ---------- 第 2 轮: 反手扭转偏移 (要用到刚训练好的扭转模型) ----------
+            // ---------- 第 2 輪: 反手扭轉偏移 (要用到剛訓練好的扭轉模型) ----------
             var roll = new RollAcc();
             var armRows = new List<ArmRow>();
             done = 0;
@@ -129,7 +129,7 @@ namespace AutoReplay.Core
             return model;
         }
 
-        const double MinNps = 1.5;   // 平均每秒音符数低于这个的回放太简单, 挥刀不像平常
+        const double MinNps = 1.5;   // 平均每秒音符數低於這個的回放太簡單, 揮刀不像平常
 
         static double MedianHeadY(Frames fr)
         {
@@ -146,7 +146,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  模型资讯: 训练资料的统计 (不含玩家 ID)
+        //  模型資訊: 訓練資料的統計 (不含玩家 ID)
         // =====================================================================
         static TrainingInfo BuildInfo(TrainOptions o, SelectionResult sel, List<ReplayEntry> used, List<double> nps, List<Row> rows, Action<string> P)
         {
@@ -176,7 +176,7 @@ namespace AutoReplay.Core
                 uniqueMaps = used.Select(e => (e.info.hash ?? "").ToUpperInvariant()).Distinct().Count(),
                 npsMedian = (float)Pct(nps, 0.5),
                 npsP90 = (float)Pct(nps, 0.9),
-                techShare = rows.Count > 0 ? rows.Count(r => r.rel <= 2) / (float)rows.Count : 0f,   // 和上一刀转向 <= 90 度
+                techShare = rows.Count > 0 ? rows.Count(r => r.rel <= 2) / (float)rows.Count : 0f,   // 和上一刀轉向 <= 90 度
             };
 
             if (o.stars != null)
@@ -202,7 +202,7 @@ namespace AutoReplay.Core
             return ti;
         }
 
-        // BL 的 hmd 字段有时是 ""Oculus""""Oculus Quest2"" 这种拼接, 取最后一段
+        // BL 的 hmd 欄位有時是 ""Oculus""""Oculus Quest2"" 這種拼接, 取最後一段
         static string CleanHmd(string h)
         {
             if (string.IsNullOrEmpty(h)) return "";
@@ -227,7 +227,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  帧预处理: 去掉时间不递增的帧, 按头的平均朝向把房间偏航转正
+        //  幀預處理: 去掉時間不遞增的幀, 按頭的平均朝向把房間偏航轉正
         // =====================================================================
         sealed class Frames
         {
@@ -273,7 +273,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  手部模型 (wrist_fit.py): 位置 = b + A f 最小二乘; 扭转 [cos,sin] = C feats(f); 限位 = 每个方位的 p99
+        //  手部模型 (wrist_fit.py): 位置 = b + A f 最小二乘; 扭轉 [cos,sin] = C feats(f); 限位 = 每個方位的 p99
         // =====================================================================
         sealed class HandAcc
         {
@@ -336,7 +336,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  挥刀模板 (tech_templates.py)
+        //  揮刀模板 (tech_templates.py)
         // =====================================================================
         static void CollectSwings(Frames fr, BsorReplay rep, List<Row> rows)
         {
@@ -409,9 +409,9 @@ namespace AutoReplay.Core
         }
 
         /// <summary>
-        /// 每次挥刀到达最远点的时间不同, 直接在同一时间点取中位数会把高峰抹平
-        /// (真人收势各自最远约 123°, 同时间点中位数只剩约 97°).
-        /// 先把每条曲线的时间轴分段伸缩, 让预挥最远点 / 命中 / 后挥最远点对齐到这组的中位时间, 再取中位数.
+        /// 每次揮刀到達最遠點的時間不同, 直接在同一時間點取中位數會把高峰抹平
+        /// (真人收勢各自最遠約 123°, 同時間點中位數只剩約 97°).
+        /// 先把每條曲線的時間軸分段伸縮, 讓預揮最遠點 / 命中 / 後揮最遠點對齊到這組的中位時間, 再取中位數.
         /// </summary>
         static List<Row> AlignPeaks(List<Row> sel, int len)
         {
@@ -427,7 +427,7 @@ namespace AutoReplay.Core
                 ipre[j] = kMin; ipost[j] = kMax;
             }
             double Tpre = MedianD(ipre), Tpost = MedianD(ipost);
-            // 太靠边 (模板窗口里没有真正的最远点) 就不伸缩那一段
+            // 太靠邊 (模板視窗裡沒有真正的最遠點) 就不伸縮那一段
             bool preOk = Tpre > 1 && Tpre < i0 - 1, postOk = Tpost > i0 + 1 && Tpost < len - 2;
             var res = new List<Row>(sel.Count);
             for (int j = 0; j < sel.Count; j++)
@@ -464,7 +464,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  手臂位置模板: 真人手的位置 - 模型按指向推算的位置, 以切块瞬间对齐, 换到挥刀坐标系
+        //  手臂位置模板: 真人手的位置 - 模型按指向推算的位置, 以切塊瞬間對齊, 換到揮刀座標系
         // =====================================================================
         const double ArmTauStart = -0.5, ArmTauStep = 0.02; const int ArmTau = 51;
         static readonly double[] ArmGapBins = { 0.0, 0.3, 0.6, 3.0 };
@@ -547,7 +547,7 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  反手扭转 (roll_offset_templates.py): 切块前后真人扭转 - 指向模型扭转 的圆平均, 乘一致性 R
+        //  反手扭轉 (roll_offset_templates.py): 切塊前後真人扭轉 - 指向模型扭轉 的圓平均, 乘一致性 R
         // =====================================================================
         sealed class RollAcc
         {
@@ -613,14 +613,14 @@ namespace AutoReplay.Core
         }
 
         // =====================================================================
-        //  数学工具
+        //  數學工具
         // =====================================================================
         const double Rad2Deg = 180.0 / Math.PI;
         static double Clamp(double v, double a, double b) => v < a ? a : v > b ? b : v;
 
         static double[] Feats(V3 f) => new[] { 1, f.x, f.y, f.z, f.x * f.x, f.y * f.y, f.z * f.z, f.x * f.y, f.y * f.z, f.x * f.z };
 
-        // 以 "+z 到 f 的最小旋轉" 搬运过去的 +y 为参考, 手柄 up 绕 f 的角度
+        // 以 "+z 到 f 的最小旋轉" 搬運過去的 +y 為參考, 手柄 up 繞 f 的角度
         static double RollOf(Q4 q, V3 f)
         {
             V3 u = q.Rotate(V3.Y);
@@ -673,12 +673,12 @@ namespace AutoReplay.Core
             return n % 2 == 1 ? c[n / 2] : 0.5 * (c[n / 2 - 1] + c[n / 2]);
         }
 
-        // 解正规方程 (XtX) W = XtY, 高斯消元 + 部分主元
+        // 解正規方程 (XtX) W = XtY, 高斯消元 + 部分主元
         static double[,] SolveLS(double[,] xtx, double[,] xty, int n, int m)
         {
             var A = new double[n, n + m];
             for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) A[i, j] = xtx[i, j]; for (int j = 0; j < m; j++) A[i, n + j] = xty[i, j]; }
-            for (int i = 0; i < n; i++) A[i, i] += 1e-9;       // 防止奇异
+            for (int i = 0; i < n; i++) A[i, i] += 1e-9;       // 防止奇異
             for (int col = 0; col < n; col++)
             {
                 int piv = col;
@@ -701,7 +701,7 @@ namespace AutoReplay.Core
         }
     }
 
-    // ---- 双精度小向量/四元数 (训练用, 不依赖 Unity) ----
+    // ---- 雙精度小向量/四元數 (訓練用, 不依賴 Unity) ----
     public struct V3
     {
         public double x, y, z;

@@ -118,7 +118,7 @@
     </Reference>
   </ItemGroup>
 
-  <!-- tools/ 下是独立的命令行工具和 Python 脚本, 不编进模组 -->
+  <!-- tools/ 下是獨立的命令列工具和 Python 指令碼, 不編進模組 -->
   <ItemGroup>
     <Compile Remove="tools\**" />
     <None Remove="tools\**" />

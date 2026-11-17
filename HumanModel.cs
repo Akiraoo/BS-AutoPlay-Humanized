@@ -4,34 +4,34 @@ using AutoReplay.Core;
 namespace AutoReplay
 {
     /// <summary>
-    /// 手部运动学模型 (参数来自当前载入的 AutoPlay 模型, 见 ModelManager / Core.AutoPlayModel).
-    /// 回放里只有手柄(剑)和头的姿态, 没有手肘/前臂, 所以"手腕关节限位"用三件事近似:
-    ///   1) 位置: 手的位置 = 头 + b + A·f      (f = 剑的指向; 剑朝哪, 整条手臂就带着手往哪移)
-    ///   2) 扭转: 剑绕自身轴的滚转角 = 指向的平滑函数 (前臂旋前/旋后)
-    ///   3) 限位: 每个方位上, 剑偏离正前方的角度不超过真人的 p99 (软限位, 越接近越"推不动")
-    /// 扭转角的定义: 以 "+z 到 f 的最小旋转" 把 +y 搬过去当参考上方向, 再绕 f 转 roll 度.
+    /// 手部運動學模型 (引數來自當前載入的 AutoPlay 模型, 見 ModelManager / Core.AutoPlayModel).
+    /// 回放裡只有手柄(劍)和頭的姿態, 沒有手肘/前臂, 所以"手腕關節限位"用三件事近似:
+    ///   1) 位置: 手的位置 = 頭 + b + A·f      (f = 劍的指向; 劍朝哪, 整條手臂就帶著手往哪移)
+    ///   2) 扭轉: 劍繞自身軸的滾轉角 = 指向的平滑函式 (前臂旋前/旋後)
+    ///   3) 限位: 每個方位上, 劍偏離正前方的角度不超過真人的 p99 (軟限位, 越接近越"推不動")
+    /// 扭轉角的定義: 以 "+z 到 f 的最小旋轉" 把 +y 搬過去當參考上方向, 再繞 f 轉 roll 度.
     /// </summary>
     public static class HumanModel
     {
-        // ---- 头的基准位置 (AutoPlay 的头基本固定在这里, 手的模型以它为原点) ----
+        // ---- 頭的基準位置 (AutoPlay 的頭基本固定在這裡, 手的模型以它為原點) ----
         public static Vector3 HeadBase => new Vector3(0f, AutoReplayMath.HeadHeight, 0f);
 
-        // 回放记录的是手柄位置; AutoPlay 的旋转中心(手腕)在它后面 PommelOffset 处 (和 AutoReplayGenerator 的 pommelOffset 一致)
+        // 回放記錄的是手柄位置; AutoPlay 的旋轉中心(手腕)在它後面 PommelOffset 處 (和 AutoReplayGenerator 的 pommelOffset 一致)
         public const float PommelOffset = 0.20f;
 
-        // 手腕 z 方向最多往前伸多少 (A 的 z 行 - PommelOffset, 取上界), 炸弹检测的"够得着"范围要用
+        // 手腕 z 方向最多往前伸多少 (A 的 z 行 - PommelOffset, 取上界), 炸彈檢測的"夠得著"範圍要用
         public const float MaxWristForwardZ = 0.15f;
 
-        const float LimitSoftZone = 20f;   // 软压缩的宽度
-        // 从上限 (真人 p99) 本身才开始软压缩, 超出部分最多再多 LimitSoftZone.
-        // 原本在上限前 20° 就开始压, 真人常到的角度也被压掉: 收势最远只到 103° (真人 120°).
-        // 游戏外 12 张训练外的谱: 收势 103 -> 111°, 角速度 0.86 -> 0.94 倍真人, 方向误差 32.0 -> 31.9°
+        const float LimitSoftZone = 20f;   // 軟壓縮的寬度
+        // 從上限 (真人 p99) 本身才開始軟壓縮, 超出部分最多再多 LimitSoftZone.
+        // 原本在上限前 20° 就開始壓, 真人常到的角度也被壓掉: 收勢最遠只到 103° (真人 120°).
+        // 遊戲外 12 張訓練外的譜: 收勢 103 -> 111°, 角速度 0.86 -> 0.94 倍真人, 方向誤差 32.0 -> 31.9°
         public static bool LimitKneeAtLimit = true;
-        public static float LimitKneeBelow = 0f;   // 软压缩从上限前多少度开始
-        public static float LimitOver = 20f;       // 最多超过上限多少度
+        public static float LimitKneeBelow = 0f;   // 軟壓縮從上限前多少度開始
+        public static float LimitOver = 20f;       // 最多超過上限多少度
 
-        // 追踪误差修正: 真人数据里剑偏离正前方的极限 (126~166°) 有一部分是手柄贴近头显时的追踪跳变 ("剑戳脑袋"),
-        // 这里把限位上限压到 MaxForwardAngle
+        // 追蹤誤差修正: 真人資料裡劍偏離正前方的極限 (126~166°) 有一部分是手柄貼近頭顯時的追蹤跳變 ("劍戳腦袋"),
+        // 這裡把限位上限壓到 MaxForwardAngle
         public const float MaxForwardAngle = 125f;
 
         static HandParams P(bool isLeft) => ModelManager.Require().Hand(isLeft);
@@ -42,7 +42,7 @@ namespace AutoReplay
             return HeadBase + new Vector3(b[0], b[1], b[2]);
         }
 
-        /// <summary>手腕(旋转中心)位置: 由剑的指向决定</summary>
+        /// <summary>手腕(旋轉中心)位置: 由劍的指向決定</summary>
         public static Vector3 WristFor(bool isLeft, Quaternion q) => WristForDir(isLeft, q * Vector3.forward);
 
         public static Vector3 WristForDir(bool isLeft, Vector3 f)
@@ -56,7 +56,7 @@ namespace AutoReplay
             return HeadBase + new Vector3(p.b[0], p.b[1], p.b[2]) + af - f * PommelOffset;
         }
 
-        /// <summary>命中姿态: 剑从手腕出发正好穿过 target. 手腕又取决于指向 -> 不动点迭代</summary>
+        /// <summary>命中姿態: 劍從手腕出發正好穿過 target. 手腕又取決於指向 -> 不動點迭代</summary>
         public static Quaternion AimAt(bool isLeft, Vector3 target)
         {
             Quaternion q = Quaternion.LookRotation((target - HandBase(isLeft)).normalized, Vector3.up);
@@ -65,14 +65,14 @@ namespace AutoReplay
             return q;
         }
 
-        /// <summary>软限位: 剑偏离正前方的角度超过 knee 后被逐渐压缩, 最多到 top (上限 + LimitOver). 防戳头另外在 MotionGenerator.AvoidHead 按实际距离处理</summary>
+        /// <summary>軟限位: 劍偏離正前方的角度超過 knee 後被逐漸壓縮, 最多到 top (上限 + LimitOver). 防戳頭另外在 MotionGenerator.AvoidHead 按實際距離處理</summary>
         public static Vector3 LimitForward(bool isLeft, Vector3 f)
         {
             float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
             float az = Mathf.Atan2(f.y, f.x) * Mathf.Rad2Deg;
             float lim = Mathf.Min(MaxForwardAngle, LimitAt(P(isLeft), az));
             float knee = LimitKneeAtLimit ? lim - LimitKneeBelow : lim - LimitSoftZone;
-            float top = LimitKneeAtLimit ? lim + LimitOver : lim;      // 最多到这里
+            float top = LimitKneeAtLimit ? lim + LimitOver : lim;      // 最多到這裡
             if (ang <= knee) return f;
 
             float zone = Mathf.Max(1f, top - knee);
@@ -84,7 +84,7 @@ namespace AutoReplay
             return (Vector3.forward * Mathf.Cos(r) + side * Mathf.Sin(r)).normalized;
         }
 
-        /// <summary>真人在这个指向下的扭转趋势 (未归一化, 长度 = 信心; 长度接近 0 的方向真人怎么转都有)</summary>
+        /// <summary>真人在這個指向下的扭轉趨勢 (未歸一化, 長度 = 信心; 長度接近 0 的方向真人怎麼轉都有)</summary>
         public static Vector2 RollVector(bool isLeft, Vector3 f)
         {
             var p = P(isLeft);
@@ -96,7 +96,7 @@ namespace AutoReplay
                 s[0] * f0 + s[1] * f1 + s[2] * f2 + s[3] * f3 + s[4] * f4 + s[5] * f5 + s[6] * f6 + s[7] * f7 + s[8] * f8 + s[9] * f9);
         }
 
-        /// <summary>由指向 f 和扭转角 roll(度) 组成旋转</summary>
+        /// <summary>由指向 f 和扭轉角 roll(度) 組成旋轉</summary>
         public static Quaternion Compose(Vector3 f, float rollDeg)
         {
             return Quaternion.AngleAxis(rollDeg, f) * Quaternion.FromToRotation(Vector3.forward, f);
