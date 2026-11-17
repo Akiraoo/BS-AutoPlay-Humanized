@@ -90,10 +90,10 @@ namespace AutoReplay
         public const float WallTrail = 0.10f;
         // 躲墙时身体平移对手的影响: 头往旁边移 x, 手跟着移 x*BodyFollowX; 蹲下时手下降得少一点
         public const float BodyFollowX = 0.85f;
-        public const float BodyFollowY = 0.70f;
+        public const float BodyFollowY = 0.85f;   // 真人蹲墙时手的下降约是头的 0.81~0.86 倍
         // 躲墙时头的歪斜角度: 原本 40°, 看回放会晕. 现在主要靠身体平移, 头只稍微歪一点
         public const float HeadTiltRoll = 12f;
-        public const float DuckPitch = 5f;
+        public const float DuckPitch = 1.5f;      // 真人蹲墙几乎不低头 (1~2°), 原本 5°
 
         // 轨道编号(从左到右): 第1轨 = lineIndex 0, 第2轨 = 1, 第3轨 = 2, 第4轨 = 3
         // 规则:
@@ -163,11 +163,16 @@ namespace AutoReplay
                 }
             }
 
+            // 蹲下: 不再用"墙在不在"切换, 而是照真人的蹲墙曲线 (见 DuckAmount)
+            float duck = DuckAmount(t, obstacles, mirror);
+            if (duck > 0f)
+            {
+                targetY = Mathf.Lerp(targetY, Mathf.Min(targetY, AutoReplayMath.DuckHeight), duck);
+                targetPitch = Mathf.Max(targetPitch, DuckPitch * duck);
+            }
             if (ceilingLane2 && ceilingLane3)
             {
-                // 第2、3轨同时有顶部掩体 -> 蹲下
-                targetY = Mathf.Min(targetY, AutoReplayMath.DuckHeight);
-                targetPitch = Mathf.Max(targetPitch, DuckPitch);
+                // 第2、3轨同时有顶部掩体 -> 蹲下 (高度由上面的 DuckAmount 决定), 不歪头
             }
             else if (ceilingTiltX > 0f)
             {
@@ -181,6 +186,65 @@ namespace AutoReplay
             }
 
             return new HeadTarget { position = new Vector3(targetX, targetY, 0f), pitch = targetPitch, roll = targetRoll };
+        }
+
+        // ================= 蹲墙曲线 =================
+        // 真人 17 份回放 / 146 次独立蹲墙 (盖住中间两轨的顶墙), 以墙到达为 0:
+        //   头 Δy  -0.3s -0.04 | -0.2 -0.15 | -0.1 -0.32 | 0 -0.46 | +0.1 -0.54 | +0.2 -0.56 (最低) | +0.4 -0.45 | +0.6 -0.20 | +0.8 -0.06 m
+        // 也就是: 墙到前约 0.3 秒开始蹲, 墙过去后 0.1~0.2 秒最低, 站起来比蹲下慢 (约 0.6~0.8 秒); 头几乎不低 (1~2°).
+        // 原本: 墙到前 0.3 秒目标瞬间切到蹲, 弹簧 0.07 秒 -> 0.1 秒内猛蹲 42 cm, 墙一过 0.2 秒内弹回, 还低头 5°.
+        public const float DuckDownStart = 0.40f;   // 墙到前多久开始蹲 (含头部弹簧约 0.05 秒的延迟)
+        public const float DuckDownEnd = 0.05f;     // 墙到后多久蹲到底
+        public const float DuckHoldAfter = 0.07f;   // 墙过去后还保持多久
+        public const float DuckUpTime = 0.65f;      // 站起来的时间
+
+        static List<ObstacleData> _duckSrc;
+        static bool _duckMirror;
+        static List<(float s, float e)> _duckIntervals;
+
+        /// <summary>0 = 站着, 1 = 蹲到底</summary>
+        public static float DuckAmount(float t, List<ObstacleData> obstacles, bool mirror)
+        {
+            if (!ReferenceEquals(_duckSrc, obstacles) || _duckMirror != mirror)
+            {
+                _duckSrc = obstacles; _duckMirror = mirror;
+                _duckIntervals = BuildDuckIntervals(obstacles, mirror);
+            }
+            float best = 0f;
+            foreach (var (s0, e0) in _duckIntervals)
+            {
+                if (t < s0 - DuckDownStart || t > e0 + DuckHoldAfter + DuckUpTime) continue;
+                float down = AutoReplayMath.SmoothStep((t - (s0 - DuckDownStart)) / (DuckDownStart + DuckDownEnd));
+                float up = 1f - AutoReplayMath.SmoothStep((t - (e0 + DuckHoldAfter)) / DuckUpTime);
+                best = Mathf.Max(best, Mathf.Min(down, up));
+            }
+            return best;
+        }
+
+        // 需要蹲的时间段: 顶部的墙 (或几面顶墙合起来) 同时盖住第 2、3 轨
+        static List<(float, float)> BuildDuckIntervals(List<ObstacleData> obstacles, bool mirror)
+        {
+            var l2 = new List<(float, float)>(); var l3 = new List<(float, float)>();
+            if (obstacles != null)
+                foreach (var obs in obstacles)
+                {
+                    bool isCeilingWall = obs.lineLayer != NoteLineLayer.Base || obs.height <= 3;
+                    if (!isCeilingWall) continue;
+                    int lineIndex = mirror ? 4 - (obs.lineIndex + obs.width) : obs.lineIndex;
+                    int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
+                    if (c0 > c1) continue;
+                    var iv = (obs.time, obs.time + obs.duration);
+                    if (c0 <= 1 && c1 >= 1) l2.Add(iv);
+                    if (c0 <= 2 && c1 >= 2) l3.Add(iv);
+                }
+            var res = new List<(float, float)>();
+            foreach (var a in l2)
+                foreach (var b in l3)
+                {
+                    float s0 = Mathf.Max(a.Item1, b.Item1), e0 = Mathf.Min(a.Item2, b.Item2);
+                    if (e0 >= s0 - 1e-4f) res.Add((s0, e0));
+                }
+            return res;
         }
 
         /// <summary>头的待机微动 (叠加在平滑后的姿态上)</summary>
