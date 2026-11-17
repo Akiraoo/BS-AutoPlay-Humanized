@@ -19,14 +19,15 @@ namespace AutoReplay.Core
         public int rollingDays;              // auto 模式的滾動天數
         public Action<string> progress;
         public CancellationToken cancel;
+        public string gameDir;               // 讀譜面 (學躲牆 / 躲炸彈); null = 從 replay 資料夾往上推
     }
 
     /// <summary>
-    /// 從本機 BeatLeader replay 訓練 AutoPlay 模型. 演算法和 tools/ 下的 Python 指令碼一致:
+    /// 從本機 BeatLeader replay 訓練 AutoPlay 模型. 演演算法和 tools/ 下的 Python 指令碼一致:
     ///   wrist_fit.py (手的位置/扭轉/限位), tech_templates.py (按轉向角度分組的揮刀模板), roll_offset_templates.py (反手扭轉)
     /// 純 C#, 不依賴 Unity, 可以在後臺執行緒跑.
     /// </summary>
-    public static class ModelTrainer
+    public static partial class ModelTrainer
     {
         public const string TrainerVersion = "AutoPlay-trainer/1";
 
@@ -56,6 +57,7 @@ namespace AutoReplay.Core
             var hand = new HandAcc[] { new HandAcc(), new HandAcc() };
             var rows = new List<Row>();
             var used = new List<string>();
+            var style = new StyleAcc(o.gameDir ?? GameDirFrom(o.selection?.replaysDir));
             var npsList = new List<double>();
             var headList = new List<double>();
             int done = 0;
@@ -70,6 +72,7 @@ namespace AutoReplay.Core
                 var fr = Prepare(rep);
                 if (fr == null) continue;
                 AccumulateHands(fr, rep, hand);
+                try { style.Add(fr, rep); } catch (Exception ex) { P($"   個人習慣統計失敗: {ex.Message}"); }
                 CollectSwings(fr, rep, rows);
                 used.Add(f);
                 npsList.Add(nps);
@@ -103,6 +106,7 @@ namespace AutoReplay.Core
             }
             model.rollOffsets = roll.Solve();
             model.arm = BuildArm(armRows);
+            model.style = style.Solve(P);
             P($"手臂樣本 {armRows.Count} 次, 模板 {model.arm.groups.Count} 組");
             var hset = files.Select(f => (double)entryOf[f].info.height).Where(h => h > 1 && h < 2.5).ToList();
             if (hset.Count > 0 && headList.Count > 0)
@@ -236,6 +240,7 @@ namespace AutoReplay.Core
             public V3[][] pos = new V3[2][];
             public Q4[][] rot = new Q4[2][];
             public V3[][] fwd = new V3[2][];
+            public Q4[] headRot;
         }
 
         static Frames Prepare(BsorReplay rep)
@@ -253,13 +258,14 @@ namespace AutoReplay.Core
             var yaw = new Q4(0, Math.Sin(-psi / 2), 0, Math.Cos(-psi / 2));
             V3 RY(V3 v) => new V3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
 
-            var fr = new Frames { t = new double[m], headPos = new V3[m] };
+            var fr = new Frames { t = new double[m], headPos = new V3[m], headRot = new Q4[m] };
             for (int h = 0; h < 2; h++) { fr.pos[h] = new V3[m]; fr.rot[h] = new Q4[m]; fr.fwd[h] = new V3[m]; }
             for (int k = 0; k < m; k++)
             {
                 int i = keep[k];
                 fr.t[k] = rep.time[i];
                 fr.headPos[k] = RY(V3.From(rep.head[i]));
+                fr.headRot[k] = (yaw * Q4.From(rep.head[i])).Normalized();
                 for (int h = 0; h < 2; h++)
                 {
                     float[] src = h == 0 ? rep.left[i] : rep.right[i];

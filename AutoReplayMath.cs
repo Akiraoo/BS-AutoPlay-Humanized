@@ -16,7 +16,18 @@ namespace AutoReplay
         public static float PlayerHeight { get { var b = ModelManager.Current?.body; return b != null && b.height > 1f ? b.height : BaseHeadHeight; } }
         public static float HeadHeight { get { var b = ModelManager.Current?.body; return b != null && b.headHeight > 1f ? b.headHeight : BaseHeadHeight; } }
         public static float NoteYOffset => 0.5f * (PlayerHeight - BaseHeadHeight);
-        public static float DuckHeight => DuckHeadHeight + NoteYOffset;
+        // 蹲下時頭的高度; 模型有蹲牆習慣時, 下降量按 "這個模型 / 作者參考值 0.56 m" 的比例調整
+        public static float DuckHeight
+        {
+            get
+            {
+                float def = DuckHeadHeight + NoteYOffset;
+                var d = ModelManager.Current?.style?.duck;
+                if (d == null || d.depth <= 0.05f) return def;
+                float drop = (HeadHeight - def) * Mathf.Clamp(d.depth / 0.56f, 0.3f, 1.6f);
+                return HeadHeight - drop;
+            }
+        }
         public const float CutDistanceZ = 1.50f;
 
         // 手的基準位置 (劍指向正前方附近時手柄所在處), 來自 HumanModel 的真人統計.

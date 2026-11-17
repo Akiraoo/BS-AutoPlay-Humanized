@@ -48,8 +48,27 @@ namespace AutoReplay.Core
             if (t.blAcc != null) sub.Add($"acc {F(t.blAcc.median)}");
             if (sub.Count > 0) L.Add("BL 分項中位: " + string.Join(" · ", sub));
             if (t.ssRankedCount > 0) L.Add($"其中 SS ranked {t.ssRankedCount} 份 · SS ★ 中位 {F(t.ssStarsMedian)}");
+            L.AddRange(StyleLines(m.style));
             return L;
         }
+
+        /// <summary>個人習慣 (模型的 style); 沒有的專案註明用預設</summary>
+        public static List<string> StyleLines(StyleParams st)
+        {
+            var L = new List<string>();
+            string def = "樣本不夠, 用預設";
+            var d = st?.dots;
+            L.Add("點塊: " + (d == null ? def : $"{d.count} 個 · 下/中/上排往下揮 {Pct(d.downShare, 0)}/{Pct(d.downShare, 1)}/{Pct(d.downShare, 2)} · 往上平均外斜 {F(d.flowUp[0], "0")}°"));
+            var l = st?.lean;
+            L.Add("閃牆: " + (l == null ? def : $"{l.count} 次 · 最遠 {F(l.peak, "0.00")} m · 歪頭 {F(l.rollPerMeter * l.peak, "0")}° · {F(l.returnTime)} s 回原位"));
+            var k = st?.duck;
+            L.Add("蹲牆: " + (k == null ? def : $"{k.count} 次 · 下降 {F(k.depth, "0.00")} m · 牆到前 {F(-k.startTime)} s 開始 · 牆到後 {F(k.recoverTime)} s 站回"));
+            var b = st?.bombs;
+            L.Add("炸彈: " + (b == null ? def : $"{b.count} 顆 · 劍離炸彈 中位 {F(b.clearMedian, "0.00")} m (P10 {F(b.clearP10, "0.00")}) · 劍在上方 {F(b.upShare * 100, "0")}%"));
+            return L;
+        }
+
+        static string Pct(float[] a, int i) => a != null && i < a.Length && a[i] >= 0f ? F(a[i] * 100, "0") + "%" : "?";
 
         static IEnumerable<string> Where0(this string[] xs)
         {

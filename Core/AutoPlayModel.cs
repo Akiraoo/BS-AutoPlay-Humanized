@@ -21,6 +21,7 @@ namespace AutoReplay.Core
         public RollOffsetSet rollOffsets = new RollOffsetSet();
         public BodyParams body;      // 身高 (舊模型沒有 -> 用 1.50 m)
         public ArmTemplateSet arm;   // 手臂位置模板 (舊模型沒有 -> 手的位置只由劍的指向推算)
+        public StyleParams style;    // 個人習慣 (點塊角度、閃牆、蹲牆、躲炸彈); 舊模型沒有 -> 用內建的預設值
 
         public HandParams Hand(bool isLeft) => isLeft ? left : right;
 
@@ -162,5 +163,55 @@ namespace AutoReplay.Core
         public float tauStart = -0.20f;
         public float tauStep = 0.02f;
         public float[][][] data;
+    }
+
+    /// <summary>
+    /// 從訓練回放統計出來的個人習慣. 存的是量測值本身 (不是生成器的引數); 生成器怎麼換算見各處引用 (PoseCalculator / NoteSwingPlanner / BombAvoider).
+    /// 任何一項樣本不夠時那一項是 null, 生成器改用內建預設值.
+    /// </summary>
+    public sealed class StyleParams
+    {
+        public DotStyle dots;
+        public LeanStyle lean;
+        public DuckStyle duck;
+        public BombStyle bombs;
+    }
+
+    /// <summary>點塊: 實際切割角度 (偏離正上 / 正下, 往外為正, 度) = c0 + c1*dx_prev + c2*dx_next + c3*dy_prev + c4*dy_next (位移單位: 米, 往外為正)</summary>
+    public sealed class DotStyle
+    {
+        public int count;
+        public float[] flowUp;          // 5 個係數
+        public float[] flowDown;
+        public float[] downShare;       // 最下 / 中間 / 最上排 往下揮的比例
+    }
+
+    /// <summary>左右閃牆 (只蓋住中間一條軌道的全高牆), 以牆到達為 0</summary>
+    public sealed class LeanStyle
+    {
+        public int count;
+        public float peak, peakP10, peakP90;   // 最遠橫移 (米): 中位 / P10 / P90
+        public float peakTime;                  // 中位曲線最遠點的時間 (秒)
+        public float returnTime;                // 從最遠點回到 25% 的時間 (秒)
+        public float rollPerMeter;              // 歪頭最大角度 / 最遠橫移 (度/米)
+    }
+
+    /// <summary>蹲牆 (蓋住中間兩軌的頂牆), 以牆到達為 0; 時間都取自頭高度的中位曲線</summary>
+    public sealed class DuckStyle
+    {
+        public int count;
+        public float depth;          // 最低點頭下降多少 (米)
+        public float startTime;      // 下降到 10% 的時間 (秒, 負 = 牆到前)
+        public float bottomTime;     // 最低點的時間
+        public float recoverTime;    // 最低點之後回到 10% 的時間
+        public float handFollow;     // 手的下降 / 頭的下降
+    }
+
+    /// <summary>炸彈: 每顆炸彈經過時劍身離炸彈中心最近的距離</summary>
+    public sealed class BombStyle
+    {
+        public int count;
+        public float clearMedian, clearP10;   // 米
+        public float upShare;                  // 最近時劍在炸彈上方的比例
     }
 }

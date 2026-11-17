@@ -21,6 +21,7 @@ namespace UnityEngine
         public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
         public static float Sqrt(float f) => (float)Math.Sqrt(f);
         public static float Exp(float f) => (float)Math.Exp(f);
+        public static float Log(float f) => (float)Math.Log(f);
         public static float Pow(float f, float p) => (float)Math.Pow(f, p);
         public static float Abs(float f) => Math.Abs(f);
         public static int Abs(int v) => Math.Abs(v);

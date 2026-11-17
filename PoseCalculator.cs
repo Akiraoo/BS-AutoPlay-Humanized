@@ -88,7 +88,18 @@ namespace AutoReplay
 
         // 躲牆時身體平移對手的影響: 頭往旁邊移 x, 手跟著移 x*BodyFollowX
         public const float BodyFollowX = 0.85f;
-        public const float BodyFollowY = 0.85f;   // 真人蹲牆時手的下降約是頭的 0.81~0.86 倍
+        public const float BodyFollowYDefault = 0.85f;   // 真人蹲牆時手的下降約是頭的 0.81~0.86 倍
+        // 模型有蹲牆習慣時照比例換算 (訓練器量到作者的參考值 1.01 對應 0.85)
+        public static float BodyFollowY => Duck != null && Duck.handFollow > 0f ? Mathf.Clamp(BodyFollowYDefault * Duck.handFollow / RefDuckHandFollow, 0.5f, 1f) : BodyFollowYDefault;
+
+        // ================= 個人習慣 (模型的 style) =================
+        // 模型裡存的是量測值; 下面的預設引數是照作者的資料調的, 所以換算方式 = 預設值按 "這個模型 / 作者參考值" 的比例或差值調整.
+        // 參考值 = 訓練器在作者 295 份回放 (2026-05 ~ 11, 不限 ranked) 上量到的數字.
+        static Core.StyleParams Style => ModelManager.Current?.style;
+        static Core.LeanStyle Lean => Style?.lean;
+        static Core.DuckStyle Duck => Style?.duck;
+        const float RefLeanSpread = (0.20f - 0.10f) / 0.16f, RefLeanRoll = 39f, RefLeanReturn = 0.8f;
+        const float RefDuckStart = -0.2f, RefDuckBottom = 0.2f, RefDuckRecover = 1.1f, RefDuckHandFollow = 1.01f;
         // 躲牆的時機和幅度見下面的 DuckAmount (蹲) / LeanOffset (左右閃), 都照真人回放的曲線
         public const float DuckPitch = 1.5f;      // 真人蹲牆幾乎不低頭 (1~2°), 原本 5°
 
@@ -122,15 +133,15 @@ namespace AutoReplay
         //   橫移 -0.3s +0.02 | -0.1 +0.06 | 0 +0.09 | +0.2 +0.15 | +0.3 +0.15 (最遠) | +0.6 +0.11 | +1.0 +0.04 m
         //   歪頭 最大中位 6.8° (P10 3.8 ~ P90 11.0); 最遠橫移中位 0.16 m (P10 0.10 ~ P90 0.21), 每次都不一樣.
         // 原本: 牆到前 0.3 秒目標瞬間切到 0.42~0.45 m / 12°, 牆一過就彈回 -> 幅度是真人的 2.7 倍, 而且每次一樣, 牆多就暈.
-        public const float LeanBase = 0.16f;           // 真人最遠橫移中位數
-        public const float LeanVariation = 0.25f;      // 每次隨機 ±25% (按牆的時間決定, 每次生成一樣)
+        public static float LeanBase => Lean != null ? Mathf.Clamp(Lean.peak, 0.05f, 0.40f) : 0.16f;   // 最遠橫移中位數 (模型直接量到的)
+        public static float LeanVariation => Lean != null && Lean.peak > 0.02f ? Mathf.Clamp(0.25f * (Lean.peakP90 - Lean.peakP10) / Lean.peak / RefLeanSpread, 0f, 0.5f) : 0.25f;   // 每次隨機 ±25% (按牆的時間決定)
         public const float LeanClear = 0.12f;          // 頭離牆邊至少要這麼遠
         public const float LeanStart = 0.35f;          // 牆到前多久開始移
         public const float LeanRise = 0.45f;           // 移到最遠要多久 (牆到時已移了約 90%: 真人最遠點在牆過後 0.2~0.3 s,
                                                        //  但牆到時只移了 9 cm, 照抄會擦到牆邊)
         public const float LeanHold = 0.12f;           // 牆過去後保持多久
-        public const float LeanReturn = 0.90f;         // 回到原位要多久
-        public const float LeanRollPerMeter = 40f;     // 歪頭角度 = 橫移 * 這個 (0.16 m -> 6.4°)
+        public static float LeanReturn => Lean != null && Lean.returnTime > 0f ? Mathf.Clamp(0.90f * Lean.returnTime / RefLeanReturn, 0.4f, 2f) : 0.90f;   // 回到原位要多久
+        public static float LeanRollPerMeter => Lean != null && Lean.rollPerMeter > 0f ? Mathf.Clamp(40f * Lean.rollPerMeter / RefLeanRoll, 0f, 90f) : 40f;   // 歪頭角度 = 橫移 * 這個 (0.16 m -> 6.4°)
         public const float LeanMaxRoll = 14f;
 
         static List<ObstacleData> _leanSrc;
@@ -200,10 +211,10 @@ namespace AutoReplay
         //   頭 Δy  -0.3s -0.04 | -0.2 -0.15 | -0.1 -0.32 | 0 -0.46 | +0.1 -0.54 | +0.2 -0.56 (最低) | +0.4 -0.45 | +0.6 -0.20 | +0.8 -0.06 m
         // 也就是: 牆到前約 0.3 秒開始蹲, 牆過去後 0.1~0.2 秒最低, 站起來比蹲下慢 (約 0.6~0.8 秒); 頭幾乎不低 (1~2°).
         // 原本: 牆到前 0.3 秒目標瞬間切到蹲, 彈簧 0.07 秒 -> 0.1 秒內猛蹲 42 cm, 牆一過 0.2 秒內彈回, 還低頭 5°.
-        public const float DuckDownStart = 0.40f;   // 牆到前多久開始蹲 (含頭部彈簧約 0.05 秒的延遲)
-        public const float DuckDownEnd = 0.05f;     // 牆到後多久蹲到底
+        public static float DuckDownStart => Duck != null ? Mathf.Clamp(0.40f + (RefDuckStart - Duck.startTime), 0.15f, 0.8f) : 0.40f;   // 牆到前多久開始蹲 (含頭部彈簧約 0.05 秒的延遲)
+        public static float DuckDownEnd => Duck != null ? Mathf.Clamp(0.05f + (Duck.bottomTime - RefDuckBottom), -0.1f, 0.3f) : 0.05f;   // 牆到後多久蹲到底
         public const float DuckHoldAfter = 0.07f;   // 牆過去後還保持多久
-        public const float DuckUpTime = 0.65f;      // 站起來的時間
+        public static float DuckUpTime => Duck != null && Duck.recoverTime > Duck.bottomTime ? Mathf.Clamp(0.65f * (Duck.recoverTime - Duck.bottomTime) / (RefDuckRecover - RefDuckBottom), 0.3f, 1.5f) : 0.65f;   // 站起來的時間
 
         static List<ObstacleData> _duckSrc;
         static bool _duckMirror;

@@ -535,8 +535,24 @@ namespace AutoReplay
         // 真人 150 份回放 / 7026 個點塊: 只有 63% 在正上下 20° 以內, 23% 斜超過 35°; 最主要是順著從上一塊過來的方向斜
         // (每橫移 1 m 斜約 25°). 往上的平均還往外 18°. 擬合 R2 0.36~0.39, 殘差中位 11~12°
         public static bool DotFlow = true;
-        static readonly float[] DotFlowUp = { 17.9f, 25.5f, -2.1f, -10.7f, 4.6f };     // 常數, dx_prev, dx_next, dy_prev, dy_next
-        static readonly float[] DotFlowDown = { -3.7f, 25.0f, -7.4f, -4.7f, 0.8f };
+        static readonly float[] DotFlowUpDefault = { 17.9f, 25.5f, -2.1f, -10.7f, 4.6f };     // 常數, dx_prev, dx_next, dy_prev, dy_next (作者的資料)
+        static readonly float[] DotFlowDownDefault = { -3.7f, 25.0f, -7.4f, -4.7f, 0.8f };
+        static Core.DotStyle DotStyleNow => ModelManager.Current?.style?.dots;
+        static float[] DotFlowUp => DotStyleNow?.flowUp?.Length == 5 ? DotStyleNow.flowUp : DotFlowUpDefault;
+        static float[] DotFlowDown => DotStyleNow?.flowDown?.Length == 5 ? DotStyleNow.flowDown : DotFlowDownDefault;
+
+        // 點塊和所在排不符的代價: 模型有每排往下揮的比例 p 時 = DotLayerK * |logit(p)|, 罰少數的那個方向;
+        // 作者 (下 89% / 中 28% / 上 7% 往下) 換算出來約 0.54 / 0.24 / 0.67, 和原本手調的 0.6 / 0.24 / 0.6 一樣
+        public const float DotLayerK = 0.26f;
+        static float DotLayerPenalty(int layer, float y)
+        {
+            var sh = DotStyleNow?.downShare;
+            if (sh == null || sh.Length != 3 || layer < 0 || layer > 2 || sh[layer] < 0f)
+                return DotLayerPref * (layer == 0 ? Mathf.Max(0f, y) : layer == 2 ? Mathf.Max(0f, -y) : 0.4f * Mathf.Max(0f, -y));
+            float p = Mathf.Clamp(sh[layer], 0.03f, 0.97f);
+            float k = DotLayerK * Mathf.Abs(Mathf.Log(p / (1f - p))) * DotLayerPref / 0.6f;
+            return p >= 0.5f ? k * Mathf.Max(0f, y) : k * Mathf.Max(0f, -y);   // 多半往下 -> 罰往上; 多半往上 -> 罰往下
+        }
         public const float DotFlowMax = 50f;
         public static float DotFlowScale = 0.85f;   // 整體縮放: 生成後實際的角度會被模板 / 平滑放大一點; 0.85 時偏離正上下的分佈最接近真人 (中位 14° vs 13°)
 
@@ -589,11 +605,7 @@ namespace AutoReplay
                 {
                     int layer = (int)notes[i].noteLineLayer;
                     for (int k = 0; k < cand[i].Count; k++)
-                    {
-                        float y = cand[i][k].y;
-                        float wrong = layer == 0 ? Mathf.Max(0f, y) : layer == 2 ? Mathf.Max(0f, -y) : 0.4f * Mathf.Max(0f, -y);
-                        prior[i][k] += DotLayerPref * wrong;
-                    }
+                        prior[i][k] += DotLayerPenalty(layer, cand[i][k].y);
                 }
 
                 if (bombs != null && bombs.Count > 0)
@@ -705,6 +717,11 @@ namespace AutoReplay
         // 真人 40 份回放 / 5719 顆炸彈: 距離中位 1.00 m, P10 0.66 m, < 0.40 m 只有 3%
         public static float Safety = 0.30f;
         public static bool PreferUp = true;      // 躲避時優先把劍舉起朝上 (真人 55~58%)
+        // 模型有炸彈習慣時: 餘量按 "這個模型 / 作者參考值" 的 P10 距離差調整, 劍在上方的比例 >= 45% 才優先舉劍
+        const float RefBombClearP10 = 0.69f;
+        static Core.BombStyle BombStyleNow => ModelManager.Current?.style?.bombs;
+        public static float SafetyNow => BombStyleNow != null ? Mathf.Clamp(Safety + (BombStyleNow.clearP10 - RefBombClearP10), 0.15f, 0.60f) : Safety;
+        public static bool PreferUpNow => BombStyleNow != null ? BombStyleNow.upShare >= 0.45f : PreferUp;
         public static float UpMargin = 0.30f;    // 朝上時額外要求的餘量 (最後的手臂動作會讓手移動, 規劃時的檢查不夠保守)
         public const float SaberStart = 0.30f;   // 劍身起點(離手腕)
         public const float SaberLen = 1.60f;     // 手腕(旋轉中心) -> 劍尖. 真人 replay 實測: 命中時方塊中心到控制器的距離 p99=1.57m, 再減去 pommel 0.20, 取 1.6 偏保守
@@ -780,7 +797,7 @@ namespace AutoReplay
                 float tb = B[bi].t, tF = tb - Before, tL = B[bj].t + After;
                 int next = bj + 1;
                 if (tb < track[0].t - Before || B[bj].t > track[track.Count - 1].t + After
-                    || Clearance(track, B, wrist, tF, tL) >= Safety)
+                    || Clearance(track, B, wrist, tF, tL) >= SafetyNow)
                 {
                     bi = next; continue;
                 }
@@ -842,7 +859,7 @@ namespace AutoReplay
                     for (int k = i1 + 1; k < track.Count; k++) tt.Add(track[k]);
                     float c = Clearance(tt, B, wrist, S0 + 0.01f, S1 - 0.01f);
                     if (bestSeg == null || c > bestC) { bestC = c; bestSeg = sub; bestI0 = i0; bestI1 = i1; }
-                    if (c >= Safety) break;
+                    if (c >= SafetyNow) break;
                 }
                 track.RemoveRange(bestI0, bestI1 - bestI0 + 1);
                 track.InsertRange(bestI0, bestSeg);
@@ -914,7 +931,7 @@ namespace AutoReplay
                     hit++;
                     if (logged++ < 40) LogRemaining(track, B, i, wrist, c);
                 }
-                else if (c < Safety) near++;
+                else if (c < SafetyNow) near++;
             }
         }
 
@@ -1000,15 +1017,15 @@ namespace AutoReplay
         {
             // 0) 真人的習慣: 炸彈飛過來、手上沒有方塊要切時, 劍多半直接舉起朝上 (55~58%, 朝下 15~17%, 往前約 20%;
             //    40 份回放 / 2700 次統計). 朝上躲得開就朝上 (劍尖稍微往前, 不會戳到頭)
-            if (PreferUp)
+            if (PreferUpNow)
             {
                 Vector3 up = wrist + new Vector3(0f, 2.0f, 0.6f);
-                if (ClearanceConst(HumanModel.AimAt(s_isLeft, up), B, wrist, t0, t1) >= Safety + UpMargin) return up;
+                if (ClearanceConst(HumanModel.AimAt(s_isLeft, up), B, wrist, t0, t1) >= SafetyNow + UpMargin) return up;
             }
 
             // 1) 斜對角目標本身能躲開 -> 直接朝它
             Quaternion qt = HumanModel.AimAt(s_isLeft, target);
-            if (ClearanceConst(qt, B, wrist, t0, t1) >= Safety + 0.02f) return target;
+            if (ClearanceConst(qt, B, wrist, t0, t1) >= SafetyNow + 0.02f) return target;
 
             // 2) 否則在候選點裡, 取"能躲開"且離目標最近的; 都躲不開就取最安全的
             Vector3 best = target, fallback = target;
@@ -1019,7 +1036,7 @@ namespace AutoReplay
                 Quaternion q = HumanModel.AimAt(s_isLeft, p);
                 float c = ClearanceConst(q, B, wrist, t0, t1);
                 if (c > fallbackClear) { fallbackClear = c; fallback = p; }
-                if (c >= Safety + 0.02f)
+                if (c >= SafetyNow + 0.02f)
                 {
                     float cost = Dist2D(p, target) + 0.02f * Dist2D(p, aim);
                     if (cost < bestCost) { bestCost = cost; best = p; }
@@ -1048,7 +1065,7 @@ namespace AutoReplay
             }
             Configure(wrist, isLeft);
             float c = ClearanceConst(HumanModel.AimAt(isLeft, aimPoint), _poseCache, wrist, t0, t1);
-            return c >= Safety ? 0f : Mathf.Clamp01(1f - c / Safety);
+            return c >= SafetyNow ? 0f : Mathf.Clamp01(1f - c / SafetyNow);
         }
 
         static float ClearanceConst(Quaternion q, Bomb[] B, Vector3 wrist, float t0, float t1)
