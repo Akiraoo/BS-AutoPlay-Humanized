@@ -91,7 +91,11 @@ namespace AutoReplay
                     baseAngle = 180f;
                     break;
             }
-            return (baseAngle + note.cutDirectionAngleOffset) % 360f;
+            // 这里的角度是顺时针 (0=上 90=右), 游戏的 cutDirectionAngleOffset 是逆时针为正, 所以要减.
+            // (原本写成加: 斜向叠块被游戏转到沿连线方向时 (例如 18°), 挥刀方向反而偏了两倍 (36°);
+            //  对照游戏内外生成的同一张谱确认)
+            float a = (baseAngle - note.cutDirectionAngleOffset) % 360f;
+            return a < 0f ? a + 360f : a;
         }
 
         public static Vector3 GetNotePos(NoteData note)

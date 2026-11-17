@@ -178,6 +178,7 @@ namespace AutoReplay.Tools
             else LoadV2(map, diff);
 
             map.notes.Sort((a, b) => a.time.CompareTo(b.time));
+            SnapStackAngles(map.notes);
             map.bombs.Sort((a, b) => a.time.CompareTo(b.time));
             map.obstacles.Sort((a, b) => a.time.CompareTo(b.time));
             return map;
@@ -342,6 +343,49 @@ namespace AutoReplay.Tools
                     width = (int?)x["w"] ?? 1, height = (int?)x["h"] ?? 5,
                 });
             }
+        }
+
+        /// <summary>
+        /// 游戏的"同排方块"处理: 同一时间、同颜色、同方向的两个箭头块, 连线和箭头方向接近时,
+        /// 两个箭头都转到沿连线的方向, 存在 cutDirectionAngleOffset (逆时针为正, 用格子单位算连线).
+        /// 对照游戏内生成的 Break Me (V2): 18.4° 的斜向叠块完全一致. 门槛 40° 是印象中的游戏数值, 18.4°~90° 之间还没有实测确认.
+        /// </summary>
+        const float SnapMaxDeg = 40f;
+
+        static void SnapStackAngles(List<NoteData> notes)
+        {
+            for (int i = 0; i < notes.Count;)
+            {
+                int e = i;
+                while (e + 1 < notes.Count && Math.Abs(notes[e + 1].time - notes[i].time) < 1e-4f) e++;
+                foreach (var color in new[] { ColorType.ColorA, ColorType.ColorB })
+                {
+                    var row = new List<NoteData>();
+                    for (int k = i; k <= e; k++)
+                        if (notes[k].colorType == color && notes[k].gameplayType != NoteData.GameplayType.BurstSliderElement) row.Add(notes[k]);
+                    if (row.Count != 2) continue;
+                    var a = row[0]; var b = row[1];
+                    if (a.cutDirection != b.cutDirection || a.cutDirection == NoteCutDirection.Any || a.cutDirection == NoteCutDirection.None) continue;
+                    float dx = b.lineIndex - a.lineIndex, dy = (int)b.noteLineLayer - (int)a.noteLineLayer;
+                    // 顺时针角度 (0=上, 90=右), 和 AutoReplayMath.GetCutAngle 相同; 先去掉谱面原有的偏移
+                    float cut = AutoReplayMath.GetCutAngle(a) + a.cutDirectionAngleOffset;
+                    float line = (float)(Math.Atan2(dx, dy) * 180.0 / Math.PI);
+                    float d = DeltaDeg(cut, line);
+                    if (Math.Abs(d) > 90f) d = DeltaDeg(cut, line + 180f);    // 连线方向取和箭头同向的那一端
+                    if (Math.Abs(d) > SnapMaxDeg) continue;
+                    a.cutDirectionAngleOffset = -d;                            // 逆时针为正
+                    b.cutDirectionAngleOffset = -d;
+                }
+                i = e + 1;
+            }
+        }
+
+        static float DeltaDeg(float from, float to)
+        {
+            float d = (to - from) % 360f;
+            if (d > 180f) d -= 360f;
+            if (d < -180f) d += 360f;
+            return d;
         }
 
         static bool Same(NoteData n, float beat, int x, int y, int c) =>

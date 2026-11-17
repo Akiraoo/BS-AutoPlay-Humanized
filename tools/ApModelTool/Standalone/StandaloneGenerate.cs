@@ -39,6 +39,27 @@ namespace AutoReplay.Tools
             }
             var allNotes = notes.Where(n => n.scoringType != NoteData.ScoringType.Ignore && n.gameplayType != NoteData.GameplayType.Bomb &&
                                             (n.colorType == ColorType.ColorA || n.colorType == ColorType.ColorB)).ToList();
+            string orderFrom = opt(a, "--order-from", null);
+            if (orderFrom != null)
+            {
+                // debug: 照另一份回放 (例如游戏内生成的) 的方块事件顺序排列, 用来排查顺序造成的差异
+                var ev = BsorReader.Read(orderFrom).notes;
+                var pool = allNotes.ToList(); var ordered = new List<NoteData>();
+                foreach (var e in ev)
+                {
+                    int k = pool.FindIndex(n => Math.Abs(n.time - e.time) < 1e-3f && MotionGenerator.NoteId(n, noArrows) == e.id);
+                    if (k >= 0) { ordered.Add(pool[k]); pool.RemoveAt(k); }
+                }
+                ordered.AddRange(pool);
+                allNotes = ordered;
+            }
+            string jitter = opt(a, "--jitter", null);
+            if (jitter != null)
+            {
+                // debug: 给方块时间加极小的扰动, 找出对数值误差敏感的地方
+                var rnd = new Random(int.Parse(jitter));
+                foreach (var n in allNotes) n.time += (float)(rnd.NextDouble() - 0.5) * 2e-5f;
+            }
             float rt = MotionGenerator.ReactionTime(map.njs, map.bpm, map.offset, out float jd);
             var motion = MotionGenerator.Generate(allNotes, bombs, map.obstacles, map.njs, rt, leftHanded, noArrows);
 
