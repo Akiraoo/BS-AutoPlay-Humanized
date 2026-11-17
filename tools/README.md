@@ -58,5 +58,11 @@ python eval_batch.py variants.json --maps 12 --before 2026-10-18
 輸出方向誤差 / >75° 比例 / 手的位置誤差 / 角速度與手速相對真人的倍數 / 收勢與預備最遠角度。
 `variants.json` 例：`[{"name": "old", "model": "舊模型"}, {"name": "new", "model": "新模型", "args": ["--no-arm"]}]`
 
+```bash
+python bomb_eval.py <譜面hash或資料夾> <難度> <回放.bsor> [更多回放]
+```
+每顆炸彈飛過時光劍離它最近的距離（真人 / 生成都能算）、近距離時光劍在炸彈的哪一側。幾何和生成器的躲炸彈一致
+（偏保守：炸彈緊貼方塊的譜，真人擦過也會被算成碰撞）。
+
 `generate` 的除錯選項：`--no-arm`（不用手臂模板）、`--arm-smooth 秒`、`--amp-knee 度`、`--blend-delay 比例`、
-`--order-from 回放`（照另一份回放的方塊順序）、`--jitter 種子`（方塊時間加極小擾動）
+`--bomb-safety 米`、`--bomb-span 秒`、`--up-margin 米`、`--order-from 回放`（照另一份回放的方塊順序）、`--jitter 種子`（方塊時間加極小擾動）

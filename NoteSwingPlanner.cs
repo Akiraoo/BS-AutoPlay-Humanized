@@ -632,7 +632,11 @@ namespace AutoReplay
     {
         // ================= 可调参数 =================
         public const float BombRadius = 0.20f;   // 炸弹半径 0.18 + 剑身半径 0.02
-        public const float Safety = 0.07f;       // 在判定半径之外再留的余量(米)
+        // 在判定半径之外再留的余量(米). 原本 0.07: 剑总是贴着炸弹过 (斯皮奇 Hard: 生成中位 0.54 m, 真人 0.90 m).
+        // 真人 40 份回放 / 5719 颗炸彈: 距离中位 1.00 m, P10 0.66 m, < 0.40 m 只有 3%
+        public static float Safety = 0.30f;
+        public static bool PreferUp = true;      // 躲避时优先把剑举起朝上 (真人 55~58%)
+        public static float UpMargin = 0.30f;    // 朝上时额外要求的余量 (最后的手臂动作会让手移动, 规划时的检查不够保守)
         public const float SaberStart = 0.30f;   // 剑身起点(离手腕)
         public const float SaberLen = 1.60f;     // 手腕(旋转中心) -> 剑尖. 真人 replay 实测: 命中时方块中心到控制器的距离 p99=1.57m, 再减去 pommel 0.20, 取 1.6 偏保守
         public const float BombHitZ = 0.72f;     // 炸弹在 note.time 时的真实 z (真人 replay 回归: z0=0.722). 注意不是 CutDistanceZ=1.5!
@@ -644,8 +648,8 @@ namespace AutoReplay
         public const float BombLayerGap = 0.02f; // 炸弹时间间隔 <= 此值算同一"层"(风格同 DotChainGap/ForceChainGap)
         public const float GridCenterX = 0f;      // 12 格(4列x3行)的中心: 6和7之间
         public static float GridCenterY => 1.25f + AutoReplayMath.NoteYOffset;   // 中间一行的高度
-        public const float ClusterGap = 0.5f;    // 相邻炸弹间隔 <= 此值(且中间没命中帧)算同一串, 整串期间剑保持躲避姿势
-        public const float MaxClusterSpan = 1.5f;// 一串炸弹最长跨度, 超过就拆开
+        public static float ClusterGap = 0.5f;    // 相邻炸弹间隔 <= 此值(且中间没命中帧)算同一串, 整串期间剑保持躲避姿势
+        public static float MaxClusterSpan = 0.6f;// 一串炸弹最长跨度, 超过就拆开 (原本 1.5: 整串一个姿势, 绕圈炸弹时剑僵住指着中间的洞; 真人会跟着炸弹顺序换姿势)
         public const float FadeOut = 0.12f;      // 炸弹过去后, 剑从躲避姿势淡回原轨迹的时长
         public const float MaxDodgeSpeed = 1800f; // 躲避入场/出场的平均角速度上限(度/秒); 平滑曲线峰值约 1.5 倍, 和挥刀的 MaxAvgSpeed 同量级
         public const float PreHold = 0.10f;      // 下一刀命中前这么久开始预挥, 淡出必须在这之前完成
@@ -925,6 +929,14 @@ namespace AutoReplay
         // ---------- 选点: 候选点里 "真的躲得开(按炸弹飞行轨迹检测)" 的, 离目标最近 ----------
         static Vector3 PickSafePoint(List<Vector3> cands, Bomb[] B, Vector3 wrist, float t0, float t1, Vector3 aim, Vector3 target)
         {
+            // 0) 真人的习惯: 炸弹飞过来、手上没有方块要切时, 剑多半直接举起朝上 (55~58%, 朝下 15~17%, 往前约 20%;
+            //    40 份回放 / 2700 次统计). 朝上躲得开就朝上 (剑尖稍微往前, 不会戳到头)
+            if (PreferUp)
+            {
+                Vector3 up = wrist + new Vector3(0f, 2.0f, 0.6f);
+                if (ClearanceConst(HumanModel.AimAt(s_isLeft, up), B, wrist, t0, t1) >= Safety + UpMargin) return up;
+            }
+
             // 1) 斜对角目标本身能躲开 -> 直接朝它
             Quaternion qt = HumanModel.AimAt(s_isLeft, target);
             if (ClearanceConst(qt, B, wrist, t0, t1) >= Safety + 0.02f) return target;

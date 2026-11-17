@@ -27,6 +27,13 @@ namespace AutoReplay.Tools
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug
             if (bd != null) NoteSwingPlanner.BlendDelay = float.Parse(bd, System.Globalization.CultureInfo.InvariantCulture);
+            if (Array.IndexOf(a, "--bomb-up") >= 0) BombAvoider.PreferUp = true;   // debug
+            string span = opt(a, "--bomb-span", null);   // debug: 一串炸弹最长跨度 (秒)
+            if (span != null) BombAvoider.MaxClusterSpan = float.Parse(span, System.Globalization.CultureInfo.InvariantCulture);
+            string upm = opt(a, "--up-margin", null);
+            if (upm != null) BombAvoider.UpMargin = float.Parse(upm, System.Globalization.CultureInfo.InvariantCulture);
+            string safety = opt(a, "--bomb-safety", null);   // debug: 炸弹安全余量 (米)
+            if (safety != null) BombAvoider.Safety = float.Parse(safety, System.Globalization.CultureInfo.InvariantCulture);
             string armSmooth = opt(a, "--arm-smooth", null);   // debug: 手臂跟随指向的平滑 (秒)
             if (armSmooth != null) PoseCalculator.ArmSmoothSigma = float.Parse(armSmooth, System.Globalization.CultureInfo.InvariantCulture);
 
