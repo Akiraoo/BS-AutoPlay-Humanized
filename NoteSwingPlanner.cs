@@ -531,6 +531,7 @@ namespace AutoReplay
         // 真人兩次都是每一刀往下砍再從上面繞回來 (炸彈重置), 原本的規劃照節奏上下交替, 往上揮時會從炸彈那排穿過去
         public static float DotBombApproach = 0.45f;   // 預揮 / 收勢時劍指向 方塊 ∓ 方向 * 這個距離 (米)
         public static float DotBombCost = 6f;          // 路上會撞到炸彈的代價 (要大過兩次同向重置 ~3.6: 寧可重置也不穿過炸彈)
+        public static float DotLayerPref = 0.6f;       // 點塊方向和所在排不符 (下排往上 / 上排往下) 的代價
         public static bool DebugDots = false;          // debug: 印出點塊各方向的炸彈代價
 
         static Vector3[] PlanDotDirections(List<NoteData> notes, bool isLeft, List<NoteData> bombs = null, Vector3 wrist = default)
@@ -551,6 +552,18 @@ namespace AutoReplay
                 { cand[i].Add(v); prior[i].Add(0.35f); }
                 foreach (var v in new[] { new Vector3(-dg, dg, 0f), new Vector3(dg, dg, 0f), new Vector3(-dg, -dg, 0f), new Vector3(dg, -dg, 0f) })
                 { cand[i].Add(v); prior[i].Add(0.25f); }
+
+                // 按所在的排偏好方向: 真人點塊 最下排 90% 往下揮 (上下交替的串 99%), 最上排 94% 往上, 中間排 75% 往上.
+                // 原本上下兩個方向代價一樣, 一整串只靠後面的箭頭決定起始方向, 會變成下排往上揮、上排往下揮
+                {
+                    int layer = (int)notes[i].noteLineLayer;
+                    for (int k = 0; k < cand[i].Count; k++)
+                    {
+                        float y = cand[i][k].y;
+                        float wrong = layer == 0 ? Mathf.Max(0f, y) : layer == 2 ? Mathf.Max(0f, -y) : 0.4f * Mathf.Max(0f, -y);
+                        prior[i][k] += DotLayerPref * wrong;
+                    }
+                }
 
                 if (bombs != null && bombs.Count > 0)
                 {
