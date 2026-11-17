@@ -1,61 +1,70 @@
-<vertical child-control-height='false' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'>
-
-  <tab-selector tab-tag='ap-tabs'/>
+<settings-container xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='https://monkeymanboy.github.io/BSML-Docs/BSMLSchema.xsd'>
+  <!-- 写法参考 bs-dglab: 单页可卷动; 文字都包在固定高度的 horizontal 里, 才不会被撑开 -->
 
   <!-- ===== 模型 ===== -->
-  <tab tags='ap-tabs' tab-name='模型'>
-    <modifier-container child-expand-width='true' horizontal-fit='PreferredSize'>
-      <dropdown-list-setting id='model-dropdown' text='使用中的模型' value='selected-model' choices='model-choices'
-                             apply-on-change='true' on-change='model-changed' hover-hint='UserData/AutoPlay/Models 裡的 .apmodel 和本機訓練的模型'/>
-      <text text='~model-status' font-size='3.2' color='#CCCCCC'/>
-      <text text='~model-info' font-size='2.6' color='#AAAAAA'/>
-      <horizontal pref-height='9'>
-        <button text='打包成 .apmodel' on-click='pack-click' interactable='~can-pack' pref-height='8'
-                hover-hint='把選中的本機模型 (未打包) 打包成單一 .apmodel 文件, 方便分享'/>
-        <button text='重新整理' on-click='refresh-click' pref-height='8'/>
-      </horizontal>
-      <text text='~pack-status' font-size='3' color='#FFD27F'/>
-    </modifier-container>
-  </tab>
+  <dropdown-list-setting id='model-dropdown' text='使用中的模型' value='selected-model' choices='model-choices'
+                         apply-on-change='true' on-change='model-changed' hover-hint='UserData/AutoPlay/Models 裡的 .apmodel 和本機訓練的模型'/>
+  <horizontal pref-height='7' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='~model-status' font-size='3' align='Center' color='#CCCCCC' pref-height='7'/>
+  </horizontal>
+  <horizontal pref-height='9' vertical-fit='PreferredSize'>
+    <button text='模型詳細資訊' click-event='show-info' on-click='info-click'/>
+    <button text='打包成 .apmodel' on-click='pack-click' interactable='~can-pack'
+            hover-hint='把選中的本機模型 (未打包) 打包成單一 .apmodel 文件, 方便分享'/>
+    <button text='重新整理' on-click='refresh-click'/>
+  </horizontal>
+  <horizontal pref-height='6' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='~pack-status' font-size='3' align='Center' color='#FFD27F' pref-height='6'/>
+  </horizontal>
 
   <!-- ===== 訓練 ===== -->
-  <tab tags='ap-tabs' tab-name='訓練'>
-    <modifier-container child-expand-width='true' horizontal-fit='PreferredSize'>
-      <slider-setting text='從' value='from-days' min='1' max='730' increment='1' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-from' hover-hint='使用這一天之後的回放. 拉到最右邊 = 不限日期'/>
-      <slider-setting text='到' value='to-days' min='0' max='729' increment='1' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-to' hover-hint='使用到這一天為止的回放 (自動訓練永遠用到最新)'/>
-      <slider-setting text='同一張譜最多' value='per-map' min='1' max='10' increment='1' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-count' hover-hint='同一張譜同一難度只取最新的幾份, 避免一直刷同一張譜讓模型只學到那幾張'/>
-      <slider-setting text='總數上限' value='max-replays' min='50' max='1000' increment='50' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-count' hover-hint='超過上限時在日期範圍內平均抽樣. 不影響模型大小, 只影響訓練時間'/>
-      <slider-setting text='最低 BL 星數' value='min-stars' min='0' max='14' increment='0.5' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-stars' hover-hint='BeatLeader 星數 (unranked 也有 AI 估計). 查不到星數的譜不受影響'/>
-      <bool-setting text='查詢 BL / SS 星數 (需要連網)' value='lookup-stars' apply-on-change='true'
-                    hover-hint='用公開 API 查詢, 結果快取在 UserData/AutoPlay/star-cache.json'/>
-      <bool-setting text='只用 ranked 譜' value='ranked-only' apply-on-change='true'
-                    hover-hint='只用 BeatLeader 或 ScoreSaber 上 ranked 的譜 (需要開啟星數查詢)'/>
-      <bool-setting text='acc 優先' value='prefer-acc' apply-on-change='true'
-                    hover-hint='同一張譜取分數最高的; 超過總數上限時取 acc 最高的, 而不是平均抽樣 (需要開啟星數查詢)'/>
-      <text text='~preview' font-size='2.8' color='#CCCCCC'/>
-      <horizontal pref-height='9'>
-        <button text='開始訓練' on-click='train-click' interactable='~can-train' pref-height='8'
-                hover-hint='只使用本人 (玩家 ID 相符) 的 BeatLeader 回放'/>
-      </horizontal>
-      <text text='~task-status' font-size='3' color='#FFD27F'/>
-    </modifier-container>
-  </tab>
+  <horizontal pref-height='7' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='用自己的回放訓練' font-size='4' align='Center' pref-height='7'/>
+  </horizontal>
+  <slider-setting text='從' value='from-days' min='1' max='730' increment='1' apply-on-change='true' bind-value='true'
+                  formatter='fmt-from' hover-hint='使用這一天之後的回放. 拉到最右邊 = 不限日期'/>
+  <slider-setting text='到' value='to-days' min='0' max='729' increment='1' apply-on-change='true' bind-value='true'
+                  formatter='fmt-to' hover-hint='使用到這一天為止的回放 (自動訓練永遠用到最新)'/>
+  <slider-setting text='同一張譜最多' value='per-map' min='1' max='10' increment='1' apply-on-change='true' bind-value='true'
+                  formatter='fmt-count' hover-hint='同一張譜同一難度只取最新的幾份 (acc 優先時取分數最高的)'/>
+  <slider-setting text='總數上限' value='max-replays' min='50' max='1000' increment='50' apply-on-change='true' bind-value='true'
+                  formatter='fmt-count' hover-hint='超過上限時在日期範圍內平均抽樣 (acc 優先時取 acc 最高的). 不影響模型大小'/>
+  <toggle-setting text='查詢 BL / SS 星數 (訓練時連網)' value='lookup-stars' apply-on-change='true' bind-value='true'
+                  hover-hint='用公開 API 查詢, 結果快取在 UserData/AutoPlay/star-cache.json. 星數 / ranked / acc 篩選都需要開啟'/>
+  <slider-setting text='最低 BL 星數' value='min-stars' min='0' max='14' increment='0.5' apply-on-change='true' bind-value='true'
+                  formatter='fmt-stars' hover-hint='BeatLeader 星數 (unranked 也有 AI 估計). 查不到星數的譜不受影響'/>
+  <toggle-setting text='只用 ranked 譜' value='ranked-only' apply-on-change='true' bind-value='true'
+                  hover-hint='只用 BeatLeader 或 ScoreSaber 上 ranked 的譜'/>
+  <toggle-setting text='acc 優先' value='prefer-acc' apply-on-change='true' bind-value='true'
+                  hover-hint='同一張譜取分數最高的; 超過總數上限時取 acc 最高的'/>
+  <horizontal pref-height='9' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='~preview' font-size='2.6' align='Center' color='#CCCCCC' pref-height='9'/>
+  </horizontal>
+  <button text='開始訓練' on-click='train-click' interactable='~can-train'
+          hover-hint='只使用本人 (玩家 ID 相符) 的 BeatLeader 回放. 身高設定和多數回放差 10 cm 以上的會自動排除'/>
+  <horizontal pref-height='8' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='~task-status' font-size='2.8' align='Center' color='#FFD27F' pref-height='8'/>
+  </horizontal>
 
-  <!-- ===== 自動 ===== -->
-  <tab tags='ap-tabs' tab-name='自動訓練'>
-    <modifier-container child-expand-width='true' horizontal-fit='PreferredSize'>
-      <bool-setting text='持續追蹤最新回放' value='auto-follow' apply-on-change='true'
-                    hover-hint='在選單閒置時自動重新訓練 Models/my-auto/. 開始打歌會暫停'/>
-      <slider-setting text='每多幾份新回放重訓' value='auto-every' min='1' max='50' increment='1' show-buttons='true' apply-on-change='true'
-                      formatter='fmt-count'/>
-      <text text='使用「訓練」頁的「從」作為滾動範圍 (例如最近 30 天), 其他條件也相同' font-size='2.8' color='#AAAAAA'/>
-      <text text='只有正在使用 my-auto 模型時才會自動切換到新版本, 舊版保留在 my-auto.bak' font-size='2.8' color='#AAAAAA'/>
-      <text text='~auto-status' font-size='3' color='#FFD27F'/>
-    </modifier-container>
-  </tab>
-</vertical>
+  <!-- ===== 自動訓練 ===== -->
+  <horizontal pref-height='7' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='自動訓練' font-size='4' align='Center' pref-height='7'/>
+  </horizontal>
+  <toggle-setting text='持續追蹤最新回放' value='auto-follow' apply-on-change='true' bind-value='true'
+                  hover-hint='在選單閒置時自動重新訓練 Models/my-auto/ (滾動範圍 = 上面的「從」, 篩選條件相同). 開始打歌會暫停. 正在用 my-auto 時才自動切換, 舊版留在 my-auto.bak'/>
+  <slider-setting text='每多幾份新回放重訓' value='auto-every' min='1' max='50' increment='1' apply-on-change='true' bind-value='true'
+                  formatter='fmt-count'/>
+  <horizontal pref-height='6' horizontal-fit='PreferredSize' vertical-fit='PreferredSize'>
+    <text text='~auto-status' font-size='2.8' align='Center' color='#FFD27F' pref-height='6'/>
+  </horizontal>
+
+  <!-- ===== 模型詳細資訊 (彈窗) ===== -->
+  <modal show-event='show-info' hide-event='hide-info' click-off-closes='true' move-to-center='true'
+         size-delta-x='130' size-delta-y='66'>
+    <vertical child-control-height='true' child-expand-height='false' child-align='UpperCenter' spacing='1' pad='3'>
+      <text text='模型詳細資訊' font-size='4' align='Center'/>
+      <text text='~model-info' font-size='2.5' align='Left' color='#DDDDDD'/>
+      <button text='關閉' click-event='hide-info'/>
+    </vertical>
+  </modal>
+</settings-container>

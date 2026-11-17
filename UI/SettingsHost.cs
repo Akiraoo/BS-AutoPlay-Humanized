@@ -99,6 +99,9 @@ namespace AutoReplay.UI
 
         [UIValue("pack-status")] public string PackStatus => _packStatus;
 
+        [UIAction("info-click")]
+        private void OnInfo() => Notify(nameof(ModelInfo));
+
         [UIValue("can-pack")]
         public bool CanPack => !TrainingService.Busy && ModelManager.Entries.Any(x => x.id == ModelManager.CurrentId && !x.packed);
 
@@ -213,7 +216,7 @@ namespace AutoReplay.UI
                 SetPreview("計算中…");
                 var r = await Task.Run(() => ReplaySelector.Select(opts, stars, false));
                 if (v != _previewVersion) return;
-                string s = r.Summary();
+                string s = r.Summary().Replace(" → 去重複後", "\n→ 去重複後");
                 bool needStars = T.minStars > 0 || T.rankedOnly || T.preferAcc;
                 if (needStars && !T.lookupStars) s += "\n(沒有開啟星數查詢, 星數 / ranked / acc 篩選不會生效)";
                 else if (needStars) s += "\n(預覽只用快取, 實際數量以訓練時查詢為準)";
@@ -227,10 +230,13 @@ namespace AutoReplay.UI
 
         void OnTrainingState()
         {
-            if (TrainingService.Busy) SetTask(TrainingService.Progress);
+            if (TrainingService.Busy) SetTask(Short(TrainingService.Progress));
             Notify(nameof(CanTrain));
             Notify(nameof(CanPack));
         }
+
+        // 进度讯息可能带很长的文件名, 截短免得超出版面
+        static string Short(string s) => s == null || s.Length <= 60 ? s : s.Substring(0, 57) + "…";
 
         void SetPack(string s) { _packStatus = s ?? ""; Notify(nameof(PackStatus)); }
         void SetTask(string s) { _taskStatus = s ?? ""; Notify(nameof(TaskStatus)); }
