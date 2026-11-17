@@ -120,6 +120,9 @@ namespace AutoReplay
                 Vector3 hc = m.headPos[i] - m.headRot[i] * new Vector3(0f, 0f, HeadCenterBack);
                 m.leftRot[i] = AvoidHead(m.leftPos[i], m.leftRot[i], hc);
                 m.rightRot[i] = AvoidHead(m.rightPos[i], m.rightRot[i], hc);
+                // 劍柄別插進眼睛: 劍柄 (手腕 ~ 控制器前 5 cm) 離頭顯太近時, 把整隻手往外推
+                m.leftPos[i] = AvoidEyes(m.leftPos[i], m.leftRot[i], m.headPos[i]);
+                m.rightPos[i] = AvoidEyes(m.rightPos[i], m.rightRot[i], m.headPos[i]);
             }
 
             // 回放記錄的是手柄位置: 手腕往劍的方向前移 PommelOffset
@@ -136,6 +139,27 @@ namespace AutoReplay
         public static float HeadClear = 0.20f;       // 劍身離頭心至少這麼遠 (頭半徑約 0.1 m; 真人上揮收勢時最近的 10% 約 21.6 cm)
         public static float HeadClearSoft = 0.06f;   // 從 HeadClear + 這個 開始平滑地推開
         const float BladeLen = 1.6f;                 // 手腕到劍尖
+
+        public static float EyeClear = 0.19f;       // 劍柄離眼睛 (頭顯位置) 至少這麼遠 (生成的上揮收勢劍柄會停在臉正前方; 真人靠近時是在頭的旁邊)
+        public static float EyeClearSoft = 0.05f;
+        const float HiltFront = 0.05f;               // 劍柄算到控制器前方多遠
+
+        static Vector3 AvoidEyes(Vector3 wrist, Quaternion rot, Vector3 eye)
+        {
+            Vector3 f = rot * Vector3.forward;
+            Vector3 ab = f * (HumanModel.PommelOffset + HiltFront);
+            for (int it = 0; it < 2; it++)
+            {
+                float s = Mathf.Clamp01(Vector3.Dot(eye - wrist, ab) / ab.sqrMagnitude);
+                Vector3 v = wrist + ab * s - eye;
+                float d = v.magnitude, c = EyeClear, z = EyeClearSoft;
+                if (d >= c + z) break;
+                float want = c + z * Mathf.Exp((d - c) / z - 1f);
+                Vector3 dir = d > 1e-4f ? v / d : Vector3.down;
+                wrist += dir * (want - d);
+            }
+            return wrist;
+        }
 
         static Quaternion AvoidHead(Vector3 wrist, Quaternion rot, Vector3 hc)
         {

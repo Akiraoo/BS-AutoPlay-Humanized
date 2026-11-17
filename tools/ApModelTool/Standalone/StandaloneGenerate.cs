@@ -28,6 +28,7 @@ namespace AutoReplay.Tools
             string lov = opt(a, "--lim-over", null); if (lov != null) HumanModel.LimitOver = float.Parse(lov, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string hcl = opt(a, "--head-clear", null); if (hcl != null) MotionGenerator.HeadClear = float.Parse(hcl, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string hcs = opt(a, "--head-soft", null); if (hcs != null) MotionGenerator.HeadClearSoft = float.Parse(hcs, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string ec = opt(a, "--eye-clear", null); if (ec != null) MotionGenerator.EyeClear = float.Parse(ec, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string knee = opt(a, "--amp-knee", null);   // debug: 揮動幅度壓縮的起點 (度)
             if (knee != null) SwingTemplates.AmplitudeKnee = float.Parse(knee, System.Globalization.CultureInfo.InvariantCulture);
             string bd = opt(a, "--blend-delay", null);   // debug
