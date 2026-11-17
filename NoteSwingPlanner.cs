@@ -117,7 +117,7 @@ namespace AutoReplay
 
             // ---------- 1. 决定每一刀的方向, 以及是否和上一刀合并成一刀 ----------
             // 点块(无箭头)的方向不再只看上一刀, 而是对整串音符做全局规划 (见 PlanDotDirections)
-            Vector3[] dotDir = noArrows ? null : PlanDotDirections(notes, isLeft);
+            Vector3[] dotDir = noArrows ? null : PlanDotDirections(notes, isLeft, bombs, wristPos);
             for (int i = 0; i < n; i++)
             {
                 var note = notes[i];
@@ -526,7 +526,14 @@ namespace AutoReplay
         //   相邻两刀: 反向(来回挥) 代价 0; 同向需要复位, 间隔越短代价越高 (ResetScale/ResetTau/ResetBase);
         //   叠块/滑块(间隔极短或沿上一刀方向排列) 同向代价 0.
         // 这样一整串点块会从后面的箭头倒推起始方向, 必要时在长间隔处复位 —— 和真人一样.
-        static Vector3[] PlanDotDirections(List<NoteData> notes, bool isLeft)
+        // 点块方向要看炸弹: 预挥从反方向过来、收势往挥的方向走, 路上有炸弹就不选这个方向.
+        // 例: Extra Credit on the Chromosome Test! (Hard 113s) 左手点块在最下排两侧轮流, 中间夹着下排炸弹:
+        // 真人两次都是每一刀往下砍再从上面绕回来 (炸弹重置), 原本的规划照节奏上下交替, 往上挥时会从炸弹那排穿过去
+        public static float DotBombApproach = 0.45f;   // 预挥 / 收势时剑指向 方块 ∓ 方向 * 这个距离 (米)
+        public static float DotBombCost = 6f;          // 路上会撞到炸弹的代价 (要大过两次同向重置 ~3.6: 宁可重置也不穿过炸弹)
+        public static bool DebugDots = false;          // debug: 印出点块各方向的炸弹代价
+
+        static Vector3[] PlanDotDirections(List<NoteData> notes, bool isLeft, List<NoteData> bombs = null, Vector3 wrist = default)
         {
             int n = notes.Count;
             var cand = new List<Vector3>[n];
@@ -544,6 +551,24 @@ namespace AutoReplay
                 { cand[i].Add(v); prior[i].Add(0.35f); }
                 foreach (var v in new[] { new Vector3(-dg, dg, 0f), new Vector3(dg, dg, 0f), new Vector3(-dg, -dg, 0f), new Vector3(dg, -dg, 0f) })
                 { cand[i].Add(v); prior[i].Add(0.25f); }
+
+                if (bombs != null && bombs.Count > 0)
+                {
+                    Vector3 p = AutoReplayMath.GetNotePos(notes[i]);
+                    float tPrev = i > 0 ? notes[i - 1].time : notes[i].time - 1f;
+                    float tNext = i + 1 < n ? notes[i + 1].time : notes[i].time + 1f;
+                    float a0 = Mathf.Max(tPrev + 0.05f, notes[i].time - 0.25f), a1 = notes[i].time - 0.03f;
+                    float b0 = notes[i].time + 0.03f, b1 = Mathf.Min(tNext - 0.05f, notes[i].time + 0.20f);
+                    for (int k = 0; k < cand[i].Count; k++)
+                    {
+                        Vector3 d = cand[i][k];
+                        float pen = 0f;
+                        if (a1 > a0) pen += BombAvoider.PoseBombCost(bombs, wrist, isLeft, p - d * DotBombApproach, a0, a1);
+                        if (b1 > b0) pen += 0.5f * BombAvoider.PoseBombCost(bombs, wrist, isLeft, p + d * DotBombApproach, b0, b1);
+                        prior[i][k] += DotBombCost * pen * pen;   // 平方: 稍微靠近几乎不扣, 真的会撞才重扣
+                        if (DebugDots && notes[i].time > 113f && notes[i].time < 115.5f && k < 2) Plugin.Log?.Info($"dot t={notes[i].time:F2} x={notes[i].lineIndex} cand={(k == 0 ? "down" : "up")} pen={pen:F2}");
+                    }
+                }
             }
 
             var cost = new float[n][];
@@ -960,6 +985,28 @@ namespace AutoReplay
         }
 
         // 剑保持固定朝向 q 时, 窗口内离炸弹的最小间隙
+        static List<NoteData> _poseCacheSrc;
+        static Bomb[] _poseCache;
+
+        /// <summary>
+        /// 剑固定指向 aimPoint 时, [t0, t1] 内离炸弹多近: 0 = 够远 (>= Safety), 1 = 碰到, 中间线性.
+        /// 点块方向规划用 (预挥 / 收势的路上有没有炸弹)
+        /// </summary>
+        public static float PoseBombCost(List<NoteData> bombs, Vector3 wrist, bool isLeft, Vector3 aimPoint, float t0, float t1)
+        {
+            if (bombs == null || bombs.Count == 0) return 0f;
+            if (!ReferenceEquals(_poseCacheSrc, bombs))
+            {
+                var bl = new List<Bomb>(bombs.Count);
+                foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
+                bl.Sort((x, y) => x.t.CompareTo(y.t));
+                _poseCache = bl.ToArray(); _poseCacheSrc = bombs;
+            }
+            Configure(wrist, isLeft);
+            float c = ClearanceConst(HumanModel.AimAt(isLeft, aimPoint), _poseCache, wrist, t0, t1);
+            return c >= Safety ? 0f : Mathf.Clamp01(1f - c / Safety);
+        }
+
         static float ClearanceConst(Quaternion q, Bomb[] B, Vector3 wrist, float t0, float t1)
         {
             int lo = LowerBoundBomb(B, t0 - After), hi = LowerBoundBomb(B, t1 + Before);

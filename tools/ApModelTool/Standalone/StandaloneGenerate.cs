@@ -30,6 +30,9 @@ namespace AutoReplay.Tools
             if (Array.IndexOf(a, "--bomb-up") >= 0) BombAvoider.PreferUp = true;   // debug
             string span = opt(a, "--bomb-span", null);   // debug: 一串炸弹最长跨度 (秒)
             if (span != null) BombAvoider.MaxClusterSpan = float.Parse(span, System.Globalization.CultureInfo.InvariantCulture);
+            NoteSwingPlanner.DebugDots = Array.IndexOf(a, "--debug-dots") >= 0;
+            string dbc = opt(a, "--dot-bomb-cost", null);   // debug: 点块方向规划里炸弹的代价 (0 = 不看炸弹)
+            if (dbc != null) NoteSwingPlanner.DotBombCost = float.Parse(dbc, System.Globalization.CultureInfo.InvariantCulture);
             string upm = opt(a, "--up-margin", null);
             if (upm != null) BombAvoider.UpMargin = float.Parse(upm, System.Globalization.CultureInfo.InvariantCulture);
             string safety = opt(a, "--bomb-safety", null);   // debug: 炸弹安全余量 (米)
