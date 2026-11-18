@@ -13,7 +13,7 @@ using BeatSaberMarkupLanguage.Util;
 
 namespace AutoReplay.UI
 {
-    /// <summary>設定 > 模組設定 > AutoPlay: 三個分頁 (模型 / 訓練 / 自動訓練)</summary>
+    /// <summary>設定 > 模組設定 > BotPlay: 三個分頁 (模型 / 訓練 / 自動訓練)</summary>
     public class SettingsHost : INotifyPropertyChanged
     {
         public static readonly SettingsHost Instance = new SettingsHost();
@@ -27,7 +27,7 @@ namespace AutoReplay.UI
             _registered = true;
             MainMenuAwaiter.MainMenuInitializing += () =>
             {
-                try { BSMLSettings.Instance.AddSettingsMenu("AutoPlay", "AutoReplay.UI.Settings.bsml", Instance); }
+                try { BSMLSettings.Instance.AddSettingsMenu("BotPlay", "AutoReplay.UI.Settings.bsml", Instance); }
                 catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] Settings menu failed: {ex}"); }
                 try { AutoTrainer.Ensure(); } catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] AutoTrainer failed: {ex}"); }
                 Instance.SchedulePreview();

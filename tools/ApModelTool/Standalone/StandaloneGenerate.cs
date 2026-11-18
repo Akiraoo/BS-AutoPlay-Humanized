@@ -187,7 +187,7 @@ namespace AutoReplay.Tools
             w.Write((byte)7);                                                           // custom data: 浮水印
             var mark = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(new
             {
-                generator = "AutoPlay-unofficial (standalone)",
+                generator = "BS-BotPlay-Humanized (standalone)",
                 version = Plugin.Version,
                 model = ModelManager.CurrentId,
                 modelName = ModelManager.Current?.meta?.name,

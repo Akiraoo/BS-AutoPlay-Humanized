@@ -1,11 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/bsmg/BSIPA-ModList/master/PluginInfo.schema.json",
-  "name": "AutoReplay",
+  "name": "BS-BotPlay-Humanized",
   "id": "AutoReplay",
   "version": "1.2.0",
   "gameVersion": "1.40.8",
-  "author": "AutoReplay",
-  "description": "Auto Play Replay Generator for BeatLeader",
+  "author": "Akiraoo",
+  "description": "Humanized bot-play replay generator for BeatLeader",
   "dependsOn": {
     "BSIPA": "^4.3.0",
     "BeatLeader": "^0.10.666",

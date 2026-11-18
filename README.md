@@ -1,4 +1,4 @@
-# BS-AutoPlay-Humanized
+# BS-BotPlay-Humanized
 
 [English](README_EN.md) | [中文](README.md)
 
@@ -52,11 +52,11 @@
 2. 按歌單和排行榜中間的 **PEPE 蛙按鈕**，生成 `.bsor` 回放
 3. 模組會自動用 BeatLeader 回放器播放
 
-### 模型設定（設定 → 模組設定 → AutoPlay）
+### 模型設定（設定 → 模組設定 → BotPlay）
 
 **「模型」頁**
 - 切換 `Models/` 裡的模型，顯示簽章狀態、指紋和**模型資訊**：
-  - 訓練器與 AutoPlay 版本、玩家名稱、裝置、遊戲 / BeatLeader 版本
+  - 訓練器與 BotPlay 版本、玩家名稱、裝置、遊戲 / BeatLeader 版本
   - 日期範圍與篩選條件、每一步篩完剩幾份、採用的回放期間、譜面數、揮刀數
   - NPS、BeatLeader 星數分佈（unranked 也有 AI 估計）與 tech / pass / acc 分項、ScoreSaber ranked 份數與星數
   - **不存任何玩家 ID**。未簽名的模型資訊僅供參考
@@ -97,8 +97,8 @@
 ## 👨‍💻 從原始碼建置
 
 ```bash
-git clone https://github.com/Akiraoo/BS-AutoPlay-Humanized.git
-cd BS-AutoPlay-Humanized
+git clone https://github.com/Akiraoo/BS-BotPlay-Humanized.git
+cd BS-BotPlay-Humanized
 dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="你的BeatSaber路徑"
 ```
 

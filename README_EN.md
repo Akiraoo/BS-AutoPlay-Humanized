@@ -1,4 +1,4 @@
-# BS-AutoPlay-Humanized
+# BS-BotPlay-Humanized
 
 [English](README_EN.md) | [中文](README.md)
 
@@ -52,11 +52,11 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 2. Press the **PEPE frog button** between the song list and the leaderboard to generate a `.bsor`
 3. The mod plays it in BeatLeader's replayer automatically
 
-### Model settings (Settings → Mod Settings → AutoPlay)
+### Model settings (Settings → Mod Settings → BotPlay)
 
 **Model tab**
 - Switch between models in `Models/`; shows signature status, fingerprint and **model info**:
-  - trainer and AutoPlay version, player name, device, game / BeatLeader version
+  - trainer and BotPlay version, player name, device, game / BeatLeader version
   - date range and filters, how many replays survive each step, data period, map count, swing count
   - NPS, BeatLeader star distribution (unranked maps have AI estimates too) with tech / pass / acc ratings, ScoreSaber ranked count and stars
   - **No player ID is stored.** Info in unsigned models is for reference only
@@ -97,8 +97,8 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 ## 👨‍💻 Building from source
 
 ```bash
-git clone https://github.com/Akiraoo/BS-AutoPlay-Humanized.git
-cd BS-AutoPlay-Humanized
+git clone https://github.com/Akiraoo/BS-BotPlay-Humanized.git
+cd BS-BotPlay-Humanized
 dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="path/to/Beat Saber"
 ```
 

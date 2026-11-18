@@ -239,7 +239,7 @@ namespace AutoReplay
             {
                 ["AutoPlay"] = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new
                 {
-                    generator = "AutoPlay-unofficial",
+                    generator = "BS-BotPlay-Humanized",
                     version = Plugin.Version,
                     model = ModelManager.CurrentId,
                     modelName = ModelManager.Current?.meta?.name,

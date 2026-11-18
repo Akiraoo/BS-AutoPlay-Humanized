@@ -27,7 +27,7 @@ namespace AutoReplay.Core
     /// </summary>
     public sealed class StarService
     {
-        const string UserAgent = "BS-AutoPlay-Humanized";
+        const string UserAgent = "BS-BotPlay-Humanized";
         const int BlIntervalMs = 260, SsIntervalMs = 140, CacheDays = 30;
         static readonly Dictionary<string, int> SsDiff = new Dictionary<string, int>
         {
