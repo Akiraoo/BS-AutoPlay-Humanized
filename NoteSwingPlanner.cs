@@ -171,6 +171,7 @@ namespace AutoReplay
                 i = e + 1;
             }
             int m = strokes.Count;
+            if (DebugKeysTo > DebugKeysFrom) foreach (var st in strokes) if (st[1] - st[0] >= 3 && notes[st[0]].time >= DebugKeysFrom && notes[st[0]].time <= DebugKeysTo) Plugin.Log?.Info($"stroke {(isLeft ? "L" : "R")} {notes[st[0]].time:F3}-{notes[st[1]].time:F3} n={st[1] - st[0] + 1} dur={notes[st[1]].time - notes[st[0]].time:F3}");
 
             // ---------- 3. 每個筆畫和前後筆畫的關係 (間隔, 是否來回反向) ----------
             // 命中姿態統一用 HumanModel.Compose 的滾轉約定 (只有指向重要, 滾轉之後會換成真人模型)
@@ -233,15 +234,21 @@ namespace AutoReplay
                 float a = alpha * Mathf.Deg2Rad, b = beta * side * Mathf.Deg2Rad;
                 return (Mathf.Cos(b) * (Mathf.Cos(a) * fc + Mathf.Sin(a) * d3) + Mathf.Sin(b) * nn).normalized;
             }
+            // 長串 (Noodle 長條 / 長鏈條, 見 HandMotionContext.StripMinNotes): 真人是慢慢切進去、沿路拖、再慢慢收,
+            // 進出的劍速只有 6~10 m/s; 套一般的預揮 / 收勢模板會在頭尾猛甩一下 (30~40 m/s). 頭尾的幅度縮小
+            // (一般的鏈條也是好幾個方塊一刀, 但那是 1 個鏈條頭 + 切片, 真人照樣大力揮: 只數普通方塊)
+            float Amp(int k) => IsStrip(notes, strokes[k][0], strokes[k][1]) ? StripSwingAmp : 1f;
             void PreAB(int k, float t, out float a, out float b)
             {
                 int i = strokes[k][0];
                 SwingTemplates.Eval(relPrev[k], SwingTemplates.DirClass(dir[i]), gapPrev[k], (t - sStart[k]) * preScale[k], out a, out b);
+                float g = Amp(k); a *= g; b *= g;
             }
             void PostAB(int k, float t, out float a, out float b)
             {
                 int i = strokes[k][1];
                 SwingTemplates.Eval(relNext[k], SwingTemplates.DirClass(dir[i]), gapNext[k], t - sEnd[k], out a, out b);
+                float g = Amp(k); a *= g; b *= g;
             }
             // 預揮視窗: 從最遠點再往前留一點準備時間
             float PreWindow(int k) => Mathf.Min(0.75f, SwingTemplates.PreExtremeLead(relPrev[k], SwingTemplates.DirClass(dir[strokes[k][0]]), gapPrev[k]) / preScale[k] + 0.15f);
@@ -445,6 +452,14 @@ namespace AutoReplay
 
         // ================= 工具 =================
 
+        /// <summary>notes[i0..i1] (同一刀) 算不算長串: 普通方塊 (不含鏈條切片) 至少 HandMotionContext.StripMinNotes 個</summary>
+        internal static bool IsStrip(List<NoteData> notes, int i0, int i1)
+        {
+            int c = 0;
+            for (int i = i0; i <= i1; i++) if (notes[i].gameplayType != NoteData.GameplayType.BurstSliderElement) c++;
+            return c >= HandMotionContext.StripMinNotes;
+        }
+
         /// <summary>
         /// 方向的球面插值, 但兩端幾乎相反時固定從 hint (朝方塊的方向, 也就是身體前方) 那側繞過去.
         /// 直接 Slerp 在兩端接近 180° 時, 路徑平面由叉積決定, 兩端稍微動一下平面就整個翻過去,
@@ -476,6 +491,7 @@ namespace AutoReplay
         }
         const float ViaDotStart = -0.5f;   // 夾角超過 120° 才開始偏向 hint 那側
         public static int Legacy = 0;   // debug: 位元 1 = 關鍵幀用 Quaternion.Slerp, 2 = 躲炸彈過渡不繞前方, 4 = 收勢->預揮 直接 Slerp
+        public static float StripSwingAmp = 0.3f;   // 長串頭尾的預揮 / 收勢幅度 (相對一般模板)
         public static float RouteTurnRate = 900f;   // 收勢 -> 預揮 插值的中間點每秒最多轉幾度
 
         static PoseKey HitKey(NoteSwingData s)

@@ -45,6 +45,7 @@ namespace AutoReplay.Tools
             string ptr = opt(a, "--push-turn", null); if (ptr != null) MotionGenerator.PushTurnRate = float.Parse(ptr, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string lg = opt(a, "--legacy", null); if (lg != null) NoteSwingPlanner.Legacy = int.Parse(lg);   // debug
             string lsr = opt(a, "--limit-side-rate", null); if (lsr != null) HumanModel.LimitSideTurnRate = float.Parse(lsr, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string ssa = opt(a, "--strip-amp", null); if (ssa != null) NoteSwingPlanner.StripSwingAmp = float.Parse(ssa, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string dk = opt(a, "--debug-keys", null);   // debug: "起,迄" 秒, 印出這段的關鍵幀指向
             if (dk != null) { var p = dk.Split(','); NoteSwingPlanner.DebugKeysFrom = float.Parse(p[0], System.Globalization.CultureInfo.InvariantCulture); NoteSwingPlanner.DebugKeysTo = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture); }
             NoteSwingPlanner.DebugDots =Array.IndexOf(a, "--debug-dots") >= 0;
