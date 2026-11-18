@@ -1,6 +1,6 @@
 """Offline check of NoteSwingPlanner.PlanDotDirections (Python port) against human dot choices.
-Notes are read from the AutoPlay replay's note events; human swing directions from real replays of the same map.
-usage: dot_dp_check.py <autoplay.bsor> <real.bsor ...>
+Notes are read from the BotPlay replay's note events; human swing directions from real replays of the same map.
+usage: dot_dp_check.py <botplay.bsor> <real.bsor ...>
 """
 import sys, os, math
 import numpy as np

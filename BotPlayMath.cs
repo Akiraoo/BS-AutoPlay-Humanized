@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
-#if !AUTOPLAY_STANDALONE
+#if !BOTPLAY_STANDALONE
 using BLVector3 = BeatLeader.Models.Replay.Vector3;
 using BLQuaternion = BeatLeader.Models.Replay.Quaternion;
 #endif
 
-namespace AutoReplay
+namespace BotPlay
 {
-    public static class AutoReplayMath
+    public static class BotPlayMath
     {
         public const float BaseHeadHeight = 1.50f;   // 舊模型 (沒有身高資料) 的預設值, 也是下面方塊高度的基準身高
         public const float DuckHeadHeight = 1.00f;
@@ -256,7 +256,7 @@ namespace AutoReplay
             return defaultRest;
         }
 
-#if !AUTOPLAY_STANDALONE  // 遊戲外的工具 (tools/ApModelTool) 沒有 BeatLeader / 遊戲的修飾符型別
+#if !BOTPLAY_STANDALONE  // 遊戲外的工具 (tools/ApModelTool) 沒有 BeatLeader / 遊戲的修飾符型別
         // 修飾符程式碼必須和 BeatLeader 的解析一致 (MapEnhancer 寫入 / ReplayDataUtils.GetModifiersFromReplay 讀取):
         //   SS=慢速  FS=快速  SF=超快  SA=嚴格角度  SC=小方塊  CS=劍碰撞失敗  NA=無箭頭  NB=無炸彈  NO=無牆
         //   DA=消失箭頭  GN=幽靈音符  PM=專業模式  NF=0能量不失敗  IF=一擊即死  BE=電池能量

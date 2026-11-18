@@ -1,7 +1,7 @@
-"""Compare an AutoPlay replay with real replays of the same map.
-  - per-note swing direction at the cut (AutoPlay vs. what the human did), dots (no arrow) listed separately
-  - stretches where AutoPlay's saber points somewhere very different from every human replay
-usage: compare_map.py <autoplay.bsor> <real1.bsor> [real2.bsor ...]
+"""Compare an BotPlay replay with real replays of the same map.
+  - per-note swing direction at the cut (BotPlay vs. what the human did), dots (no arrow) listed separately
+  - stretches where BotPlay's saber points somewhere very different from every human replay
+usage: compare_map.py <botplay.bsor> <real1.bsor> [real2.bsor ...]
 """
 import sys, os
 import numpy as np
@@ -41,7 +41,7 @@ def label(v):
 def main():
     auto = prep(sys.argv[1]); reals = [prep(p) for p in sys.argv[2:]]
     _, ta, Fa, eva = auto
-    print('AutoPlay notes', len(eva), '| real replays', len(reals))
+    print('BotPlay notes', len(eva), '| real replays', len(reals))
 
     rows = []
     for nid, te in eva:
@@ -60,14 +60,14 @@ def main():
     def report(sel, title):
         if not sel: return
         dots = np.array([np.dot(r[3], r[4]) for r in sel])
-        print(f'\n== {title}: {len(sel)} notes | AutoPlay vs human swing direction: same(<45°) {np.mean(dots > 0.707):.0%}  opposite(>135°) {np.mean(dots < -0.707):.0%}')
+        print(f'\n== {title}: {len(sel)} notes | BotPlay vs human swing direction: same(<45°) {np.mean(dots > 0.707):.0%}  opposite(>135°) {np.mean(dots < -0.707):.0%}')
         return dots
 
     report([r for r in rows if r[2] != 8], 'arrow notes')
     dsel = [r for r in rows if r[2] == 8]
     dd = report(dsel, 'dot notes')
     if dsel:
-        print('   dot notes where AutoPlay disagrees with a consistent human choice (first 25):')
+        print('   dot notes where BotPlay disagrees with a consistent human choice (first 25):')
         k = 0
         for r, d in zip(dsel, dd):
             if d < 0.3 and r[5] > 0.7:
@@ -81,7 +81,7 @@ def main():
                 if k >= 25: break
 
     # ---- divergence of saber pointing direction over time ----
-    print('\n== stretches where AutoPlay points >75° away from every human replay for >0.25s')
+    print('\n== stretches where BotPlay points >75° away from every human replay for >0.25s')
     grid = np.arange(max(ta[0], max(r[1][0] for r in reals)), min(ta[-1], min(r[1][-1] for r in reals)), 0.01)
     for hand in ('L', 'R'):
         fa = fat(ta, Fa[hand], grid)

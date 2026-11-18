@@ -4,7 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using BeatLeader.Models.Replay;
 
-namespace AutoReplay
+namespace BotPlay
 {
     public static class ReplayFileSaver
     {
@@ -20,7 +20,7 @@ namespace AutoReplay
                 string safeHash = Safe(hash);
                 // 只用目前選中的模型生成一份; 檔名帶上模型名稱和生成時間, 每次生成都是新檔案, 不會互相覆蓋
                 string model = Safe(Path.GetFileNameWithoutExtension((ModelManager.CurrentId ?? "no-model").TrimEnd('/')));
-                string file = Path.Combine(folder, $"AutoPlay_{safeHash}_{diff}_{model}_{DateTime.Now:yyyyMMdd-HHmmss}.bsor");
+                string file = Path.Combine(folder, $"BotPlay_{safeHash}_{diff}_{model}_{DateTime.Now:yyyyMMdd-HHmmss}.bsor");
 
                 var encoderType = AccessTools.TypeByName("BeatLeader.Models.Replay.ReplayEncoder");
                 var encodeMethod = encoderType?.GetMethod("Encode", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
@@ -32,7 +32,7 @@ namespace AutoReplay
                     {
                         encodeMethod.Invoke(null, new object[] { replay, bw });
                     }
-                    Plugin.Log?.Info($"Saved AutoPlay replay to: {file}");
+                    Plugin.Log?.Info($"Saved BotPlay replay to: {file}");
                 }
             }
             catch (Exception ex)

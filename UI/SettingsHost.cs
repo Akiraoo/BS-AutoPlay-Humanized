@@ -5,13 +5,13 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoReplay.Core;
+using BotPlay.Core;
 using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components.Settings;
 using BeatSaberMarkupLanguage.Settings;
 using BeatSaberMarkupLanguage.Util;
 
-namespace AutoReplay.UI
+namespace BotPlay.UI
 {
     /// <summary>設定 > 模組設定 > BotPlay: 三個分頁 (模型 / 訓練 / 自動訓練)</summary>
     public class SettingsHost : INotifyPropertyChanged
@@ -27,9 +27,9 @@ namespace AutoReplay.UI
             _registered = true;
             MainMenuAwaiter.MainMenuInitializing += () =>
             {
-                try { BSMLSettings.Instance.AddSettingsMenu("BotPlay", "AutoReplay.UI.Settings.bsml", Instance); }
-                catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] Settings menu failed: {ex}"); }
-                try { AutoTrainer.Ensure(); } catch (Exception ex) { Plugin.Log?.Error($"[AutoPlay] AutoTrainer failed: {ex}"); }
+                try { BSMLSettings.Instance.AddSettingsMenu("BotPlay", "BotPlay.UI.Settings.bsml", Instance); }
+                catch (Exception ex) { Plugin.Log?.Error($"[BotPlay] Settings menu failed: {ex}"); }
+                try { AutoTrainer.Ensure(); } catch (Exception ex) { Plugin.Log?.Error($"[BotPlay] AutoTrainer failed: {ex}"); }
                 Instance.SchedulePreview();
             };
             ModelManager.Changed += () => Instance.RefreshAll();
@@ -253,7 +253,7 @@ namespace AutoReplay.UI
                     _dropdown.Value = SelectedModel;
                 }
             }
-            catch (Exception ex) { Plugin.Log?.Warn($"[AutoPlay] Dropdown refresh failed: {ex.Message}"); }
+            catch (Exception ex) { Plugin.Log?.Warn($"[BotPlay] Dropdown refresh failed: {ex.Message}"); }
             Notify(nameof(ModelStatus));
             Notify(nameof(ModelInfo));
             Notify(nameof(CanTrain));

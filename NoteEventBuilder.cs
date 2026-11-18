@@ -4,13 +4,13 @@ using BeatLeader.Utils;
 using Vector3 = UnityEngine.Vector3;
 using BLNoteCutInfo = BeatLeader.Models.Replay.NoteCutInfo;
 
-namespace AutoReplay
+namespace BotPlay
 {
     public static class NoteEventBuilder
     {
         public static NoteEvent Create115NoteEvent(NoteData note, bool noArrows = false)
         {
-            Vector3 notePos = AutoReplayMath.GetNotePos(note);
+            Vector3 notePos = BotPlayMath.GetNotePos(note);
 
             Vector3 cutDir = Vector3.down;
             Vector3 cutNormal = Vector3.right;
@@ -43,9 +43,9 @@ namespace AutoReplay
                 saberType = (int)note.colorType,
                 timeDeviation = 0.0f,
                 cutAngle = 0.0f,
-                cutPoint = AutoReplayMath.ToBLVector(notePos),
-                cutNormal = AutoReplayMath.ToBLVector(cutNormal),
-                saberDir = AutoReplayMath.ToBLVector(cutDir)
+                cutPoint = BotPlayMath.ToBLVector(notePos),
+                cutNormal = BotPlayMath.ToBLVector(cutNormal),
+                saberDir = BotPlayMath.ToBLVector(cutDir)
             };
 
             int noteId = ReplayDataUtils.ComputeNoteId(note, false, false, false);

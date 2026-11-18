@@ -27,19 +27,19 @@
 - **遊戲內訓練**：選日期範圍，用你自己的本機回放訓練出你的動作風格（會驗證玩家 ID，只用你本人的回放）；可以開啟持續追蹤，在背景自動重訓
 - **模型資訊**：訓練版本、日期範圍、篩選條件、BeatLeader / ScoreSaber 星數分佈等，不含任何玩家 ID
 - **簽章**：作者發布的模型有 RSA 簽名，遊戲內會顯示「官方 ✓」；被改過的模型會被標示出來
-- **浮水印**：生成的 `.bsor` 會在 `customData["AutoPlay"]` 記錄產生器版本、模型名稱與指紋
+- **浮水印**：生成的 `.bsor` 會在 `customData["BotPlay"]` 記錄產生器版本、模型名稱與指紋
 
 ## ⚖️ 免責聲明
 
 - 本模組僅用於**譜面演示、回放觀賞、演算法學習與研究**。
-- 生成的 `.bsor` 回放，玩家都會被標記為 "Auto Play"，並帶有上述浮水印。
+- 生成的 `.bsor` 回放，玩家都會被標記為 "Bot Play"，並帶有上述浮水印。
 - 請勿用於任何破壞排行榜或多人對戰公平性的行為，尊重 BeatLeader 與 Beat Saber 社群規範。
 
 ## 🚀 安裝
 
 1. 先裝好前置模組：**BSIPA**、**BeatLeader 0.10.666+**、**BeatSaberMarkupLanguage (BSML)**
-2. 把 `auto_replay.dll` 放進 `Beat Saber/Plugins/`（從 [Releases](../../releases) 下載，或自己從原始碼建置）
-3. 放一個模型到 `Beat Saber/UserData/AutoPlay/Models/`：
+2. 把 `BotPlay.dll` 放進 `Beat Saber/Plugins/`（從 [Releases](../../releases) 下載，或自己從原始碼建置）。舊版的 `auto_replay.dll` 要刪掉
+3. 放一個模型到 `Beat Saber/UserData/BotPlay/Models/`：
    - 直接用作者的範例模型：[`sample-model/Akiraoo-ranked30-acc-v3.apmodel`](sample-model/Akiraoo-ranked30-acc-v3.apmodel)
    - 或是進遊戲後用自己的回放訓練（見下方）
 4. 啟動遊戲
@@ -69,7 +69,7 @@
 | 同一張譜最多 | 同譜同難度只取最新幾份，避免刷同一張譜讓模型只學到那幾張（預設 3） |
 | 總數上限 | 超過時在日期範圍內**平均抽樣**（預設 300）。不影響模型大小，只影響訓練時間 |
 | 最低 BL 星數 | 依 BeatLeader 星數篩選（查不到星數的譜不受影響） |
-| 查詢 BL / SS 星數 | 用公開 API 查詢（不需要帳號），快取在 `UserData/AutoPlay/star-cache.json`；只在訓練時連網 |
+| 查詢 BL / SS 星數 | 用公開 API 查詢（不需要帳號），快取在 `UserData/BotPlay/star-cache.json`；只在訓練時連網 |
 | 只用 ranked 譜 | 只用 BeatLeader 或 ScoreSaber 上 ranked 的譜 |
 | acc 優先 | 同一張譜取分數最高的；超過總數上限時取 acc 最高的（acc = 分數 / BL 記錄的滿分） |
 
@@ -99,7 +99,7 @@
 ```bash
 git clone https://github.com/Akiraoo/BS-BotPlay-Humanized.git
 cd BS-BotPlay-Humanized
-dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="你的BeatSaber路徑"
+dotnet build BotPlay.csproj -c Release -p:BeatSaberDir="你的BeatSaber路徑"
 ```
 
 - 預設會把 dll 複製到遊戲的 `Plugins/`；加 `-p:CopyToGame=false` 可以關掉
@@ -111,8 +111,8 @@ dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="你的BeatSaber路�
 ```
 ├── Core/                     # 不依賴 Unity：模型格式、.apmodel 打包/簽章、bsor 讀取、訓練器
 ├── UI/                       # BSML 設定頁
-├── AutoReplayGenerator.cs    # 回放生成核心（含浮水印）
-├── AutoReplayManager.cs      # 取得選定譜面並驅動生成與播放
+├── BotPlayGenerator.cs    # 回放生成核心（含浮水印）
+├── BotPlayManager.cs      # 取得選定譜面並驅動生成與播放
 ├── NoteSwingPlanner.cs       # 揮刀規劃：模板、無方向方塊 DP、躲炸彈
 ├── PoseCalculator.cs         # 頭部躲牆、手部軌跡（扭轉彈簧、反手、手臂延遲、停頓晃動）
 ├── HumanModel.cs             # 手部位置 / 扭轉 / 限位模型

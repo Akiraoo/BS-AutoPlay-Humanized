@@ -8,17 +8,17 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
     /// 把 Pepe 按鈕放在世界座標 (2.1, 0.6, 3.2), 也就是歌曲列表和排行榜之間, 並朝向玩家。
     /// 用 BSML 的 FloatingScreen 承載 (自帶射線檢測), 按鈕本體是自己建的 Image + Button,
     /// 使用遊戲的 UINoGlow 材質, 所以不發光。
-    /// GIF 首次執行時從 GifUrl 下載並快取到 UserData/AutoReplay/bs-pepe.gif。
+    /// GIF 首次執行時從 GifUrl 下載並快取到 UserData/BotPlay/bs-pepe.gif。
     /// </summary>
     public static class PepeButtonController
     {
-        private const string ScreenName = "AutoReplayPepeScreen";
+        private const string ScreenName = "BotPlayPepeScreen";
         private const string GifUrl = "https://beatleader.com/assets/bs-pepe.gif";
 
         // ===== 可調引數 =====
@@ -96,11 +96,11 @@ namespace AutoReplay
                 Plugin.Log?.Info("[PepeButton] Clicked.");
                 try
                 {
-                    AutoReplayManager.Instance.StartAutoPlay();
+                    BotPlayManager.Instance.StartBotPlay();
                 }
                 catch (Exception ex)
                 {
-                    Plugin.Log?.Error($"[PepeButton] StartAutoPlay failed: {ex}");
+                    Plugin.Log?.Error($"[PepeButton] StartBotPlay failed: {ex}");
                 }
             });
 
@@ -191,7 +191,7 @@ namespace AutoReplay
 
             using (var wc = new WebClient())
             {
-                wc.Headers[HttpRequestHeader.UserAgent] = "AutoReplay/1.0 (BeatSaber mod)";
+                wc.Headers[HttpRequestHeader.UserAgent] = "BotPlay/1.0 (BeatSaber mod)";
                 byte[] bytes = await wc.DownloadDataTaskAsync(GifUrl);
 
                 if (!IsGif(bytes))
@@ -217,7 +217,7 @@ namespace AutoReplay
                     _loading = true;
                     try
                     {
-                        string gifPath = Path.Combine(Environment.CurrentDirectory, "UserData", "AutoReplay", "bs-pepe.gif");
+                        string gifPath = Path.Combine(Environment.CurrentDirectory, "UserData", "BotPlay", "bs-pepe.gif");
 
                         byte[] bytes = await GetGifBytesAsync(gifPath);
                         if (bytes == null)
@@ -243,7 +243,7 @@ namespace AutoReplay
                             return;
                         }
 
-                        _pepeAnimData = AnimationController.Instance.Register("AutoPlay_Pepe", data);
+                        _pepeAnimData = AnimationController.Instance.Register("BotPlay_Pepe", data);
                     }
                     finally
                     {

@@ -1,4 +1,4 @@
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>
     /// 官方模型的簽名公鑰 (RSA-2048). 私鑰只在作者本機, 不進 repo.

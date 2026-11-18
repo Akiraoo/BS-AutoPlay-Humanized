@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
-using AutoReplay.Core;
+using BotPlay.Core;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
     /// 手臂位置模板 (模型的 arm): 手腕之外, 手臂在一次揮刀裡多揮的位移.
@@ -11,7 +11,7 @@ namespace AutoReplay
     /// </summary>
     public static class ArmTemplates
     {
-        static AutoPlayModel _builtFor;
+        static BotPlayModel _builtFor;
         static List<ArmTemplateData>[] _byDir;
         static float _tauStart, _tauStep;
 

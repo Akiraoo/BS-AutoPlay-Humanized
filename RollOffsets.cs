@@ -1,7 +1,7 @@
 using UnityEngine;
-using AutoReplay.Core;
+using BotPlay.Core;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
     /// 反手 / 手腕翻轉: 切橫向、斜向方塊時, 真人的前臂會在切到的那一瞬間大幅旋轉 (例如右手往外切 R 約 -60°),
@@ -20,7 +20,7 @@ namespace AutoReplay
             if (u <= 0f || u >= v.Length - 1) return 0f;
             int i = (int)u;
             // 視窗兩端淡出, 避免在 ±0.2s 處突然跳回 0
-            float taper = AutoReplayMath.SmoothStep((Window - Mathf.Abs(tau)) / 0.06f);
+            float taper = BotPlayMath.SmoothStep((Window - Mathf.Abs(tau)) / 0.06f);
             return Mathf.Lerp(v[i], v[i + 1], u - i) * taper;
         }
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>精簡版 .bsor 讀取器: 只讀訓練要用的 info / frames / notes. 不依賴 BeatLeader 和 Unity.</summary>
     public sealed class BsorReplay

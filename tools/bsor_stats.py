@@ -1,4 +1,4 @@
-"""Minimal .bsor reader + motion statistics, for comparing AutoPlay replays with real ones."""
+"""Minimal .bsor reader + motion statistics, for comparing BotPlay replays with real ones."""
 import struct, sys, math, glob, os
 import numpy as np
 

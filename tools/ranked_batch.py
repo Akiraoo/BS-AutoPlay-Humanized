@@ -19,7 +19,7 @@ JOKE = {'6C9D463C1CF556246CF60BFAEF75FC4F8EA3053F', '875F9F57103004ACA7C4BFAC576
 
 
 def pick(before):
-    sc = json.load(open(os.path.join(GAME, 'UserData', 'AutoPlay', 'star-cache.json'), encoding='utf-8'))
+    sc = json.load(open(os.path.join(GAME, 'UserData', 'BotPlay', 'star-cache.json'), encoding='utf-8'))
     hd = json.load(open(os.path.join(GAME, 'UserData', 'SongCore', 'SongHashData.dat'), encoding='utf-8'))
     have = {v['songHash'].upper() for v in hd.values()}
     cut = datetime.datetime.strptime(before, '%Y-%m-%d').timestamp()

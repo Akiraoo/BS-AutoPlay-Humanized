@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>
     /// 個人習慣 (StyleParams) 的統計. 和 tools/ 下的分析指令碼同一套方法:

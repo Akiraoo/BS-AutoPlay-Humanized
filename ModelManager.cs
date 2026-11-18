@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using AutoReplay.Core;
+using BotPlay.Core;
 using Newtonsoft.Json;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
-    /// 模型管理: UserData/AutoPlay/Models 下
+    /// 模型管理: UserData/BotPlay/Models 下
     ///   *.apmodel           打包好的單檔 (混淆 + 可選作者簽名), 可以分享
     ///   &lt;名稱&gt;/model.json  本機訓練輸出的未打包模型 (可讀)
-    /// 選中的模型記在 UserData/AutoPlay/settings.json.
+    /// 選中的模型記在 UserData/BotPlay/settings.json.
     /// </summary>
     public static class ModelManager
     {
@@ -30,10 +30,10 @@ namespace AutoReplay
             public BotProfile bot;
         }
 
-        /// <summary>回放器裡 bot 顯示的名字 / 頭像 / 地區 (只影響畫面, id 固定 "Auto Play", 不會被當成玩家本人的紀錄)</summary>
+        /// <summary>回放器裡 bot 顯示的名字 / 頭像 / 地區 (只影響畫面, id 固定 "Bot Play", 不會被當成玩家本人的紀錄)</summary>
         public sealed class BotProfile
         {
-            public string name = "Auto Play";
+            public string name = "Bot Play";
             public string avatar = "https://stickershop.line-scdn.net/stickershop/v1/product/28887845/LINEStorePC/main.png?v=1";
             public string country = "TW";      // ISO 3166-1 alpha-2
         }
@@ -60,12 +60,12 @@ namespace AutoReplay
         static StarService _stars;
         public static StarService Stars => _stars ?? (_stars = new StarService(StarCachePath));
 
-        public static string RootDir => Path.Combine(Environment.CurrentDirectory, "UserData", "AutoPlay");
+        public static string RootDir => Path.Combine(Environment.CurrentDirectory, "UserData", "BotPlay");
         public static string ModelsDir => Path.Combine(RootDir, "Models");
         static string SettingsPath => Path.Combine(RootDir, "settings.json");
         public static string ReplaysDir => Path.Combine(Environment.CurrentDirectory, "UserData", "BeatLeader", "Replays");
 
-        public static AutoPlayModel Current { get; private set; }
+        public static BotPlayModel Current { get; private set; }
         public static ModelTrust CurrentTrust { get; private set; }
         public static string CurrentId { get; private set; }
         public static string CurrentFingerprint { get; private set; }
@@ -75,10 +75,10 @@ namespace AutoReplay
         public static List<Entry> Entries { get; private set; } = new List<Entry>();
 
         /// <summary>生成回放時用: 沒有模型就拋異常 (呼叫前應先檢查 Current)</summary>
-        public static AutoPlayModel Require()
+        public static BotPlayModel Require()
         {
             var m = Current;
-            if (m == null) throw new InvalidOperationException("尚未載入 AutoPlay 模型");
+            if (m == null) throw new InvalidOperationException("尚未載入 BotPlay 模型");
             return m;
         }
 
@@ -94,13 +94,13 @@ namespace AutoReplay
                 else
                 {
                     LastError = "Models 資料夾裡沒有模型: 請在設定裡用自己的回放訓練, 或下載作者的 .apmodel 放進 " + ModelsDir;
-                    Plugin.Log?.Warn("[AutoPlay] " + LastError);
+                    Plugin.Log?.Warn("[BotPlay] " + LastError);
                 }
             }
             catch (Exception ex)
             {
                 LastError = ex.Message;
-                Plugin.Log?.Error($"[AutoPlay] ModelManager init failed: {ex}");
+                Plugin.Log?.Error($"[BotPlay] ModelManager init failed: {ex}");
             }
         }
 
@@ -132,7 +132,7 @@ namespace AutoReplay
                 ModelTrust trust;
                 if (e.packed) json = ApModelFile.Unpack(File.ReadAllBytes(e.path), out trust);
                 else { json = File.ReadAllText(e.path); trust = ModelTrust.Unpacked; }
-                var model = JsonConvert.DeserializeObject<AutoPlayModel>(json);
+                var model = JsonConvert.DeserializeObject<BotPlayModel>(json);
                 string err = model == null ? "模型文件是空的" : model.Validate();
                 if (err != null) throw new InvalidDataException(err);
 
@@ -143,21 +143,21 @@ namespace AutoReplay
                 LastError = null;
                 Cfg.selectedModel = e.id;
                 SaveSettings(Cfg);
-                Plugin.Log?.Info($"[AutoPlay] Model loaded: {e.id} ({trust}, {model.meta.replayCount} replays, {model.templates.groups.Count} templates, fp {CurrentFingerprint})");
-                if (trust == ModelTrust.BadSignature) Plugin.Log?.Warn("[AutoPlay] 這個模型的簽名驗證失敗 (被修改過, 或不是作者簽的)");
+                Plugin.Log?.Info($"[BotPlay] Model loaded: {e.id} ({trust}, {model.meta.replayCount} replays, {model.templates.groups.Count} templates, fp {CurrentFingerprint})");
+                if (trust == ModelTrust.BadSignature) Plugin.Log?.Warn("[BotPlay] 這個模型的簽名驗證失敗 (被修改過, 或不是作者簽的)");
                 Changed?.Invoke();
                 return true;
             }
             catch (Exception ex)
             {
                 LastError = $"載入模型失敗 ({e.id}): {ex.Message}";
-                Plugin.Log?.Error("[AutoPlay] " + LastError);
+                Plugin.Log?.Error("[BotPlay] " + LastError);
                 return false;
             }
         }
 
         /// <summary>儲存本機訓練結果 (未打包), 返回 id</summary>
-        public static string SaveUnpacked(AutoPlayModel model, string report)
+        public static string SaveUnpacked(BotPlayModel model, string report)
         {
             string name = SafeName(model.meta.name);
             string dir = Path.Combine(ModelsDir, name);
@@ -170,7 +170,7 @@ namespace AutoReplay
         }
 
         /// <summary>自動訓練: 覆蓋固定的 my-auto/ 資料夾, 舊的留一份 my-auto.bak/</summary>
-        public static string SaveAuto(AutoPlayModel model, string report)
+        public static string SaveAuto(BotPlayModel model, string report)
         {
             string dir = Path.Combine(ModelsDir, AutoModelName);
             string bak = Path.Combine(ModelsDir, AutoModelName + ".bak");
@@ -195,7 +195,7 @@ namespace AutoReplay
             if (e == null) throw new InvalidOperationException("找不到模型: " + id);
             if (e.packed) throw new InvalidOperationException("這個模型已經是 .apmodel 了");
             string json = File.ReadAllText(e.path);
-            var model = JsonConvert.DeserializeObject<AutoPlayModel>(json);
+            var model = JsonConvert.DeserializeObject<BotPlayModel>(json);
             string err = model == null ? "模型文件是空的" : model.Validate();
             if (err != null) throw new InvalidDataException(err);
             string name = SafeName(id.TrimEnd('/'));
@@ -235,7 +235,7 @@ namespace AutoReplay
         static void SaveSettings(Settings s)
         {
             try { Directory.CreateDirectory(RootDir); File.WriteAllText(SettingsPath, JsonConvert.SerializeObject(s, Formatting.Indented)); }
-            catch (Exception ex) { Plugin.Log?.Warn($"[AutoPlay] Failed to save settings: {ex.Message}"); }
+            catch (Exception ex) { Plugin.Log?.Warn($"[BotPlay] Failed to save settings: {ex.Message}"); }
         }
     }
 }

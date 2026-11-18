@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>訓練用的譜面資料: 只要牆、炸彈、NJS (時間已換成秒)</summary>
     public sealed class MapObjects

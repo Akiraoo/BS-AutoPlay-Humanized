@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace AutoReplay
+namespace BotPlay
 {
     public struct PoseKey
     {
@@ -65,7 +65,7 @@ namespace AutoReplay
         // 長間隔: 超過這麼久, 後揮完就停在原地, 到預揮視窗才開始下一刀 (不再按來回揮的模板硬插值)
         public const float RestGap = 1.2f;
         public static float BlendDelay = 0f;     // 收勢 -> 下一刀預揮 的交接從間隔的這個比例才開始 (試過 0.15/0.3: 收勢多 2~4° 但誤差變大, 所以維持 0)
-        public const float RestFade = 0.35f;    // 方塊從出現到被切的時間(RT), 由 AutoReplayGenerator 按 NJS/JD 設定
+        public const float RestFade = 0.35f;    // 方塊從出現到被切的時間(RT), 由 BotPlayGenerator 按 NJS/JD 設定
 
         // ================= 規劃 =================
         // noArrows = true (NA 無箭頭模式): 所有方塊一律當點塊處理, 完全不看譜面裡的切割方向(tech 之類的方向設計都不管),
@@ -85,7 +85,7 @@ namespace AutoReplay
                 for (int k = i; k <= e; k++) group.Add(notes[k]);
                 Vector3 d = Vector3.zero;
                 foreach (var g in group) if (HasDirection(g)) { d = CutDir(g); break; }
-                float Key(NoteData x) { var p = AutoReplayMath.GetNotePos(x); return Vector3.Dot(p, d); }
+                float Key(NoteData x) { var p = BotPlayMath.GetNotePos(x); return Vector3.Dot(p, d); }
                 group.Sort((a, b) =>
                 {
                     int c = HasDirection(a).CompareTo(HasDirection(b));                 // 點塊在前
@@ -122,7 +122,7 @@ namespace AutoReplay
             {
                 var note = notes[i];
                 // 手腕會跟著劍的指向移動, 所以命中姿態要用不動點求解, 保證劍尖仍然正好穿過方塊中心
-                hitQ[i] = HumanModel.AimAt(isLeft, AutoReplayMath.GetNotePos(note));
+                hitQ[i] = HumanModel.AimAt(isLeft, BotPlayMath.GetNotePos(note));
                 v[i] = hitQ[i] * Vector3.forward;
 
                 float gap = (i > 0) ? note.time - notes[i - 1].time : float.MaxValue;
@@ -205,7 +205,7 @@ namespace AutoReplay
                 }
 
                 // 反應時間限制: 方塊出現後還要一點時間才看得到/反應過來, 預揮最遠點不能比這更早.
-                // 太早的話把模板的預揮部分在時間上壓縮 (RT 由 NJS / JD 算出, 見 AutoReplayGenerator)
+                // 太早的話把模板的預揮部分在時間上壓縮 (RT 由 NJS / JD 算出, 見 BotPlayGenerator)
                 int s0 = strokes[k][0];
                 float lead = SwingTemplates.PreExtremeLead(relPrev[k], SwingTemplates.DirClass(dir[s0]), gapPrev[k]);
                 float maxLead = Mathf.Max(MinPreLead, ReactionTime - PerceptionDelay);
@@ -261,7 +261,7 @@ namespace AutoReplay
                 Vector3 f = kPost >= 0 ? PostDir(kPost, t) : PreDir(kPre, t);
                 if (kPre >= 0)
                 {
-                    float wPre = AutoReplayMath.SmoothStep((t - (sStart[kPre] - PreWindow(kPre) - RestFade)) / RestFade);
+                    float wPre = BotPlayMath.SmoothStep((t - (sStart[kPre] - PreWindow(kPre) - RestFade)) / RestFade);
                     if (wPre > 0f) f = SlerpVia(f, PreDir(kPre, t), wPre, v[strokes[kPre][0]]);
                 }
                 return f.normalized;
@@ -282,7 +282,7 @@ namespace AutoReplay
                 // (離線對比真人 replay: 原本在下一筆座標系裡對角度插值, tech 常見的 90° 轉向在中段會偏 89°;
                 //  直接球面插值後中段誤差降到約 30°, 和真人自己兩次遊玩之間的差異相當)
                 float u = (t - sEnd[k]) / Mathf.Max(1e-4f, sStart[k + 1] - sEnd[k]);
-                float w = AutoReplayMath.SmoothStep((u - BlendDelay) / (1f - BlendDelay));
+                float w = BotPlayMath.SmoothStep((u - BlendDelay) / (1f - BlendDelay));
                 // 收勢和預揮的夾角在間隔中途可能跨過 180° (例如連續下切: 收勢朝後下方, 預揮從後上方來),
                 // 最短弧的中點會一下從前方換到後方, 劍一幀內翻過去 (ranked 批次: 一幀 25~30 m/s).
                 // 所以插值經過的中間點 (控制點) 跨關鍵幀記住, 每秒最多轉 RouteTurnRate 度, 換邊時是平滑地繞過去.
@@ -408,7 +408,7 @@ namespace AutoReplay
                     hitPose = hitQ[i],
                     endPose = endQ[i],
                     isChainedWithPrev = chained[i],
-                    target = AutoReplayMath.GetNotePos(notes[i]),
+                    target = BotPlayMath.GetNotePos(notes[i]),
                     cutDirection = noArrows ? (int)NoteCutDirection.Any : (int)notes[i].cutDirection,
                     swingDir = (dir[i] - v[i] * Vector3.Dot(dir[i], v[i])).normalized,
                     keys = keys,
@@ -428,7 +428,7 @@ namespace AutoReplay
         // ================= 取樣 =================
         public static Quaternion SampleHandRotation(float t, List<NoteSwingData> swings, List<NoteData> bombs, bool isLeft)
         {
-            if (swings == null || swings.Count == 0) return AutoReplayMath.PoseUp;
+            if (swings == null || swings.Count == 0) return BotPlayMath.PoseUp;
 
             // 二分: 第一個 命中時刻 >= t 的音符
             int lo = 0, hi = swings.Count - 1, idx = swings.Count;
@@ -478,7 +478,7 @@ namespace AutoReplay
         {
             c = Vector3.zero;
             float dot = Vector3.Dot(a, b);
-            float g = AutoReplayMath.SmoothStep((ViaDotStart - dot) / (ViaDotStart + 1f));   // dot >= ViaDotStart 時 0, dot = -1 時 1
+            float g = BotPlayMath.SmoothStep((ViaDotStart - dot) / (ViaDotStart + 1f));   // dot >= ViaDotStart 時 0, dot = -1 時 1
             if (g <= 0f) return false;
             Vector3 ab = a - b;
             Vector3 h = hint;
@@ -574,7 +574,7 @@ namespace AutoReplay
             for (int j = 1; j < steps; j++)
             {
                 float u = j / (float)steps;
-                Add(tr, t0 + dur * u, BombAvoider.AimSlerp(from.q, target, AutoReplayMath.SmoothStep(u)));
+                Add(tr, t0 + dur * u, BombAvoider.AimSlerp(from.q, target, BotPlayMath.SmoothStep(u)));
             }
         }
 
@@ -603,7 +603,7 @@ namespace AutoReplay
                     if (gap <= ForceChainGap || gap <= DotChainGap) join = true;
                     else if (gap <= ChainGap)
                     {
-                        Vector3 delta = AutoReplayMath.GetNotePos(notes[e + 1]) - AutoReplayMath.GetNotePos(notes[e]);
+                        Vector3 delta = BotPlayMath.GetNotePos(notes[e + 1]) - BotPlayMath.GetNotePos(notes[e]);
                         delta.z = 0f;
                         float dist = delta.magnitude;
                         join = dist >= 0.05f && Vector3.Dot(d, delta / dist) >= ChainAlign;
@@ -663,7 +663,7 @@ namespace AutoReplay
         static float DotFlowAngle(List<NoteData> notes, int i, bool up, bool isLeft)
         {
             float m = isLeft ? -1f : 1f;
-            Vector2 P(NoteData n) { Vector2 g = AutoReplayMath.NoteGrid(n); return new Vector2(m * (g.x - 1.5f) * 0.6f, g.y * 0.53f); }
+            Vector2 P(NoteData n) { Vector2 g = BotPlayMath.NoteGrid(n); return new Vector2(m * (g.x - 1.5f) * 0.6f, g.y * 0.53f); }
             Vector2 p1 = P(notes[i]);
             Vector2 dp = i > 0 ? p1 - P(notes[i - 1]) : Vector2.zero;
             Vector2 dn = i + 1 < notes.Count ? P(notes[i + 1]) - p1 : Vector2.zero;
@@ -708,14 +708,14 @@ namespace AutoReplay
                 // 按所在的排偏好方向: 真人點塊 最下排 90% 往下揮 (上下交替的串 99%), 最上排 94% 往上, 中間排 75% 往上.
                 // 原本上下兩個方向代價一樣, 一整串只靠後面的箭頭決定起始方向, 會變成下排往上揮、上排往下揮
                 {
-                    int layer = Mathf.Clamp(Mathf.RoundToInt(AutoReplayMath.NoteGrid(notes[i]).y), 0, 2);
+                    int layer = Mathf.Clamp(Mathf.RoundToInt(BotPlayMath.NoteGrid(notes[i]).y), 0, 2);
                     for (int k = 0; k < cand[i].Count; k++)
                         prior[i][k] += DotLayerPenalty(layer, cand[i][k].y);
                 }
 
                 if (bombs != null && bombs.Count > 0)
                 {
-                    Vector3 p = AutoReplayMath.GetNotePos(notes[i]);
+                    Vector3 p = BotPlayMath.GetNotePos(notes[i]);
                     float tPrev = i > 0 ? notes[i - 1].time : notes[i].time - 1f;
                     float tNext = i + 1 < n ? notes[i + 1].time : notes[i].time + 1f;
                     float a0 = Mathf.Max(tPrev + 0.05f, notes[i].time - 0.25f), a1 = notes[i].time - 0.03f;
@@ -784,7 +784,7 @@ namespace AutoReplay
         {
             if (gap > ChainGap) return false;
 
-            Vector3 delta = AutoReplayMath.GetNotePos(note) - AutoReplayMath.GetNotePos(prev);
+            Vector3 delta = BotPlayMath.GetNotePos(note) - BotPlayMath.GetNotePos(prev);
             delta.z = 0f;
             float dist = delta.magnitude;
             if (dist < 0.05f) return false;
@@ -799,10 +799,10 @@ namespace AutoReplay
             return note.cutDirection != NoteCutDirection.Any && note.cutDirection != NoteCutDirection.None;
         }
 
-        // 角度: 0=上, 90=右, 180=下, 270=左 (和 AutoReplayMath.GetCutAngle 一致)
+        // 角度: 0=上, 90=右, 180=下, 270=左 (和 BotPlayMath.GetCutAngle 一致)
         static Vector3 CutDir(NoteData note)
         {
-            float a = AutoReplayMath.GetCutAngle(note) * Mathf.Deg2Rad;
+            float a = BotPlayMath.GetCutAngle(note) * Mathf.Deg2Rad;
             return new Vector3(Mathf.Sin(a), Mathf.Cos(a), 0f).normalized;
         }
     }
@@ -838,7 +838,7 @@ namespace AutoReplay
         public const float EvalDt = 1f / 120f;   // 檢測取樣間隔
         public const float BombLayerGap = 0.02f; // 炸彈時間間隔 <= 此值算同一"層"(風格同 DotChainGap/ForceChainGap)
         public const float GridCenterX = 0f;      // 12 格(4列x3行)的中心: 6和7之間
-        public static float GridCenterY => 1.25f + AutoReplayMath.NoteYOffset;   // 中間一行的高度
+        public static float GridCenterY => 1.25f + BotPlayMath.NoteYOffset;   // 中間一行的高度
         public static float ClusterGap = 0.5f;    // 相鄰炸彈間隔 <= 此值(且中間沒命中幀)算同一串, 整串期間劍保持躲避姿勢
         public static float MaxClusterSpan = 0.6f;// 一串炸彈最長跨度, 超過就拆開 (原本 1.5: 整串一個姿勢, 繞圈炸彈時劍僵住指著中間的洞; 真人會跟著炸彈順序換姿勢)
         public const float FadeOut = 0.12f;      // 炸彈過去後, 劍從躲避姿勢淡回原軌跡的時長
@@ -871,7 +871,7 @@ namespace AutoReplay
             Configure(wrist, isLeft);
 
             var bl = new List<Bomb>(bombs.Count);
-            foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
+            foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = BotPlayMath.GetNotePos(b) });
             bl.Sort((x, y) => x.t.CompareTo(y.t));
             Bomb[] B = bl.ToArray();
             List<Vector3> cands = BuildCandidates(notes, bombs);
@@ -1042,7 +1042,7 @@ namespace AutoReplay
             hit = 0; near = 0;
             Configure(wrist, isLeft);
             var bl = new List<Bomb>(bombs.Count);
-            foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
+            foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = BotPlayMath.GetNotePos(b) });
             bl.Sort((x, y) => x.t.CompareTo(y.t));
             Bomb[] B = bl.ToArray();
             int logged = 0;
@@ -1062,7 +1062,7 @@ namespace AutoReplay
         {
             // 格子編號 1..12 (左上=1, 右下=12)
             int col = Mathf.Clamp(Mathf.RoundToInt(B[i].p.x / 0.6f + 1.5f), 0, 3);
-            int row = Mathf.Clamp(Mathf.RoundToInt((B[i].p.y - 0.72f - AutoReplayMath.NoteYOffset) / 0.53f), 0, 2);
+            int row = Mathf.Clamp(Mathf.RoundToInt((B[i].p.y - 0.72f - BotPlayMath.NoteYOffset) / 0.53f), 0, 2);
             int cell = (2 - row) * 4 + col + 1;
 
             // 這顆炸彈自己的視窗裡, 最近的時刻 / 距離最近命中幀(tag==1)多遠 / 是否在軌道範圍外
@@ -1085,7 +1085,7 @@ namespace AutoReplay
             {
                 if (Mathf.Abs(B[j].t - B[i].t) > 0.1f) continue;
                 int cc = Mathf.Clamp(Mathf.RoundToInt(B[j].p.x / 0.6f + 1.5f), 0, 3);
-                int rr = Mathf.Clamp(Mathf.RoundToInt((B[j].p.y - 0.72f - AutoReplayMath.NoteYOffset) / 0.53f), 0, 2);
+                int rr = Mathf.Clamp(Mathf.RoundToInt((B[j].p.y - 0.72f - BotPlayMath.NoteYOffset) / 0.53f), 0, 2);
                 near.Append((2 - rr) * 4 + cc + 1).Append(' ');
             }
             Plugin.Log?.Info(string.Format(
@@ -1131,8 +1131,8 @@ namespace AutoReplay
                 }
                 if (cnt > 0) { sx += lx / cnt; sy += ly / cnt; layers++; }
             }
-            if (layers == 0) return new Vector3(GridCenterX, GridCenterY, AutoReplayMath.CutDistanceZ);
-            return new Vector3(sx / layers, sy / layers, AutoReplayMath.CutDistanceZ);
+            if (layers == 0) return new Vector3(GridCenterX, GridCenterY, BotPlayMath.CutDistanceZ);
+            return new Vector3(sx / layers, sy / layers, BotPlayMath.CutDistanceZ);
         }
 
         // ---------- 選點: 候選點裡 "真的躲得開(按炸彈飛行軌跡檢測)" 的, 離目標最近 ----------
@@ -1182,7 +1182,7 @@ namespace AutoReplay
             if (!ReferenceEquals(_poseCacheSrc, bombs))
             {
                 var bl = new List<Bomb>(bombs.Count);
-                foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = AutoReplayMath.GetNotePos(b) });
+                foreach (var b in bombs) bl.Add(new Bomb { t = b.time, p = BotPlayMath.GetNotePos(b) });
                 bl.Sort((x, y) => x.t.CompareTo(y.t));
                 _poseCache = bl.ToArray(); _poseCacheSrc = bombs;
             }
@@ -1215,7 +1215,7 @@ namespace AutoReplay
             List<Vector3> all = BuildGrid(notes, bombs);
             for (float x = -1.05f; x <= 1.051f; x += 0.15f)
                 for (float y = 0.55f; y <= 1.951f; y += 0.15f)
-                    AddUnique(all, new Vector3(x, y, AutoReplayMath.CutDistanceZ));
+                    AddUnique(all, new Vector3(x, y, BotPlayMath.CutDistanceZ));
             return all;
         }
 
@@ -1224,8 +1224,8 @@ namespace AutoReplay
         static List<Vector3> BuildGrid(List<NoteData> notes, List<NoteData> bombs)
         {
             var basePts = new List<Vector3>();
-            if (notes != null) foreach (var n in notes) AddUnique(basePts, AutoReplayMath.GetNotePos(n));
-            foreach (var b in bombs) AddUnique(basePts, AutoReplayMath.GetNotePos(b));
+            if (notes != null) foreach (var n in notes) AddUnique(basePts, BotPlayMath.GetNotePos(n));
+            foreach (var b in bombs) AddUnique(basePts, BotPlayMath.GetNotePos(b));
             var all = new List<Vector3>(basePts);
             for (int i = 0; i < basePts.Count; i++)
                 for (int j = i + 1; j < basePts.Count; j++)

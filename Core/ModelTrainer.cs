@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     public sealed class TrainOptions
     {
@@ -23,13 +23,13 @@ namespace AutoReplay.Core
     }
 
     /// <summary>
-    /// 從本機 BeatLeader replay 訓練 AutoPlay 模型. 演演算法和 tools/ 下的 Python 指令碼一致:
+    /// 從本機 BeatLeader replay 訓練 BotPlay 模型. 演演算法和 tools/ 下的 Python 指令碼一致:
     ///   wrist_fit.py (手的位置/扭轉/限位), tech_templates.py (按轉向角度分組的揮刀模板), roll_offset_templates.py (反手扭轉)
     /// 純 C#, 不依賴 Unity, 可以在後臺執行緒跑.
     /// </summary>
     public static partial class ModelTrainer
     {
-        public const string TrainerVersion = "AutoPlay-trainer/1";
+        public const string TrainerVersion = "BotPlay-trainer/1";
 
         // ---- 和 Python 版一致的常量 ----
         const double MergeGap = 0.06;                                    // 0.06s 內的切塊算同一刀
@@ -40,7 +40,7 @@ namespace AutoReplay.Core
 
         sealed class Row { public int rel, dir; public double gap; public float[] alpha, beta; }
 
-        public static AutoPlayModel Train(TrainOptions o, out string report)
+        public static BotPlayModel Train(TrainOptions o, out string report)
         {
             var log = new System.Text.StringBuilder();
             void P(string s) { log.AppendLine(s); o.progress?.Invoke(s); }
@@ -82,7 +82,7 @@ namespace AutoReplay.Core
             if (files.Count < o.minReplays)
                 throw new InvalidOperationException($"可用的 replay 只有 {files.Count} 份, 至少需要 {o.minReplays} 份");
 
-            var model = new AutoPlayModel();
+            var model = new BotPlayModel();
             model.left = hand[0].Solve();
             model.right = hand[1].Solve();
             int minCount = Math.Max(30, Math.Min(80, rows.Count / 500));
@@ -487,7 +487,7 @@ namespace AutoReplay.Core
             return v[i - 1] * (1 - w) + v[i] * w;
         }
 
-        static void CollectArm(Frames fr, BsorReplay rep, AutoPlayModel model, List<ArmRow> rows)
+        static void CollectArm(Frames fr, BsorReplay rep, BotPlayModel model, List<ArmRow> rows)
         {
             double t0 = fr.t[0], t1 = fr.t[fr.t.Length - 1];
             for (int h = 0; h < 2; h++)
@@ -560,7 +560,7 @@ namespace AutoReplay.Core
             readonly double[,,] re = new double[2, 9, RollTau], im = new double[2, 9, RollTau];
             readonly int[,] cnt = new int[2, 9];
 
-            public void Accumulate(Frames fr, BsorReplay rep, AutoPlayModel model)
+            public void Accumulate(Frames fr, BsorReplay rep, BotPlayModel model)
             {
                 int n = fr.t.Length;
                 for (int h = 0; h < 2; h++)

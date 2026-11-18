@@ -4,7 +4,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     public enum ModelTrust
     {
@@ -80,7 +80,7 @@ namespace AutoReplay.Core
                 if (magic.Length != 4 || magic[0] != Magic[0] || magic[1] != Magic[1] || magic[2] != Magic[2] || magic[3] != Magic[3])
                     throw new InvalidDataException("不是 .apmodel 文件");
                 ushort ver = r.ReadUInt16();
-                if (ver > Version) throw new InvalidDataException($".apmodel 版本 {ver} 太新, 請更新 AutoPlay");
+                if (ver > Version) throw new InvalidDataException($".apmodel 版本 {ver} 太新, 請更新 BotPlay");
                 ushort flags = r.ReadUInt16();
                 byte[] salt = r.ReadBytes(16);
                 uint len = r.ReadUInt32();

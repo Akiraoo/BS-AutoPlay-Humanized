@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>生成好的動作: 每幀的頭 / 左手 / 右手姿態 (手的位置已經是 BeatLeader 記錄的手柄位置)</summary>
     public sealed class MotionFrames
@@ -16,7 +16,7 @@ namespace AutoReplay
 
     /// <summary>
     /// 純動作生成 (揮刀規劃 + 頭 + 手), 不依賴 BeatLeader 和遊戲的譜面載入.
-    /// 遊戲內由 AutoReplayGenerator 呼叫; 遊戲外的 tools/ApModelTool generate 也直接編譯這個檔案, 兩邊結果一致.
+    /// 遊戲內由 BotPlayGenerator 呼叫; 遊戲外的 tools/ApModelTool generate 也直接編譯這個檔案, 兩邊結果一致.
     /// </summary>
     public static class MotionGenerator
     {
@@ -61,8 +61,8 @@ namespace AutoReplay
             BombAvoider.BombSpeed = njs;
             NoteSwingPlanner.ReactionTime = rt;
 
-            var leftSwings = NoteSwingPlanner.PlanSwings(leftNotes, bombs, AutoReplayMath.LeftWristBase, true, noArrows);
-            var rightSwings = NoteSwingPlanner.PlanSwings(rightNotes, bombs, AutoReplayMath.RightWristBase, false, noArrows);
+            var leftSwings = NoteSwingPlanner.PlanSwings(leftNotes, bombs, BotPlayMath.LeftWristBase, true, noArrows);
+            var rightSwings = NoteSwingPlanner.PlanSwings(rightNotes, bombs, BotPlayMath.RightWristBase, false, noArrows);
 
             var leftCtx = new HandMotionContext(leftSwings, bombs, 0.37f);
             var rightCtx = new HandMotionContext(rightSwings, bombs, 0.71f);
@@ -128,7 +128,7 @@ namespace AutoReplay
             }
             if (bombs != null && bombs.Count > 0)
             {
-                bl = bombs.Select(b => (t: b.time, p: AutoReplayMath.GetNotePos(b))).OrderBy(b => b.t).ToArray();
+                bl = bombs.Select(b => (t: b.time, p: BotPlayMath.GetNotePos(b))).OrderBy(b => b.t).ToArray();
                 bt = bl.Select(b => b.t).ToArray();
             }
             BombPass();

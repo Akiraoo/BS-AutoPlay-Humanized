@@ -1,6 +1,6 @@
 // 遊戲外用的 Beat Saber 譜面型別替代品 (只有生成器用到的欄位). 列舉數值和遊戲 BeatmapCore.dll 一致.
 using System;
-using AutoReplay.Core;
+using BotPlay.Core;
 
 public enum ColorType { ColorA = 0, ColorB = 1, None = -1 }
 public enum NoteCutDirection { Up = 0, Down = 1, Left = 2, Right = 3, UpLeft = 4, UpRight = 5, DownLeft = 6, DownRight = 7, Any = 8, None = 9 }
@@ -56,7 +56,7 @@ public class ObstacleData
     public float endTime => time + duration;
 }
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>遊戲外: 日誌直接印到終端 (Info 預設不印, 太吵)</summary>
     public sealed class StandaloneLog
@@ -77,11 +77,11 @@ namespace AutoReplay
     /// <summary>遊戲外: 只有一個"目前的模型", 由命令列指定</summary>
     public static class ModelManager
     {
-        public static AutoPlayModel Current { get; set; }
+        public static BotPlayModel Current { get; set; }
         public static string CurrentId { get; set; } = "";
         public static string CurrentFingerprint { get; set; } = "";
         public static ModelTrust CurrentTrust { get; set; }
 
-        public static AutoPlayModel Require() => Current ?? throw new InvalidOperationException("尚未載入 AutoPlay 模型");
+        public static BotPlayModel Require() => Current ?? throw new InvalidOperationException("尚未載入 BotPlay 模型");
     }
 }

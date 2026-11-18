@@ -5,7 +5,7 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace AutoReplay.Tools
+namespace BotPlay.Tools
 {
     /// <summary>
     /// 遊戲外讀譜面: Info.dat + 難度檔案 (v2 / v3 / v4), BPM 變化, 弧線 / 鏈條的計分型別.
@@ -111,7 +111,7 @@ namespace AutoReplay.Tools
         public static LoadedMap Load(string folder, string difficulty, string characteristic = "Standard")
         {
             var map = new LoadedMap { folder = folder, difficulty = difficulty, characteristic = characteristic };
-            AutoReplayMath.NoteCoords.Clear();
+            BotPlayMath.NoteCoords.Clear();
             string infoPath = Path.Combine(folder, "Info.dat");
             if (!File.Exists(infoPath)) infoPath = Path.Combine(folder, "info.dat");
             var infoBytes = File.ReadAllBytes(infoPath);
@@ -374,8 +374,8 @@ namespace AutoReplay.Tools
                     var a = row[0]; var b = row[1];
                     if (a.cutDirection != b.cutDirection || a.cutDirection == NoteCutDirection.Any || a.cutDirection == NoteCutDirection.None) continue;
                     float dx = b.lineIndex - a.lineIndex, dy = (int)b.noteLineLayer - (int)a.noteLineLayer;
-                    // 順時針角度 (0=上, 90=右), 和 AutoReplayMath.GetCutAngle 相同; 先去掉譜面原有的偏移
-                    float cut = AutoReplayMath.GetCutAngle(a) + a.cutDirectionAngleOffset;
+                    // 順時針角度 (0=上, 90=右), 和 BotPlayMath.GetCutAngle 相同; 先去掉譜面原有的偏移
+                    float cut = BotPlayMath.GetCutAngle(a) + a.cutDirectionAngleOffset;
                     float line = (float)(Math.Atan2(dx, dy) * 180.0 / Math.PI);
                     float d = DeltaDeg(cut, line);
                     if (Math.Abs(d) > 90f) d = DeltaDeg(cut, line + 180f);    // 連線方向取和箭頭同向的那一端
@@ -427,11 +427,11 @@ namespace AutoReplay.Tools
             }
         }
 
-        /// <summary>Noodle Extensions 的方塊座標 [x, y] (見 AutoReplayMath.NoteCoords)</summary>
+        /// <summary>Noodle Extensions 的方塊座標 [x, y] (見 BotPlayMath.NoteCoords)</summary>
         static void Coords(NoteData nd, JToken c)
         {
             if (!(c is JArray a) || a.Count < 2 || a[0].Type == JTokenType.Null || a[1].Type == JTokenType.Null) return;
-            try { AutoReplayMath.NoteCoords[nd] = new Vector2((float)a[0], (float)a[1]); } catch { }
+            try { BotPlayMath.NoteCoords[nd] = new Vector2((float)a[0], (float)a[1]); } catch { }
         }
 
         /// <summary>弧線: 頭 / 尾方塊的計分型別 (同時是鏈條頭時組合成 ChainHeadArcTail 等)</summary>

@@ -5,9 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>disable</Nullable>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>AutoReplay.Tools</RootNamespace>
+    <RootNamespace>BotPlay.Tools</RootNamespace>
     <!-- 遊戲外生成回放: 和模組共用生成器原始碼, 用 Standalone/ 裡的 Unity / 遊戲型別替代品 -->
-    <DefineConstants>$(DefineConstants);AUTOPLAY_STANDALONE</DefineConstants>
+    <DefineConstants>$(DefineConstants);BOTPLAY_STANDALONE</DefineConstants>
   </PropertyGroup>
 
   <!-- 和模組共用 Core (模型格式/訓練器), 保證兩邊結果一致 -->
@@ -24,7 +24,7 @@
     <Compile Include="..\..\SwingTemplates.cs" Link="Generator\SwingTemplates.cs" />
     <Compile Include="..\..\RollOffsets.cs" Link="Generator\RollOffsets.cs" />
     <Compile Include="..\..\ArmTemplates.cs" Link="Generator\ArmTemplates.cs" />
-    <Compile Include="..\..\AutoReplayMath.cs" Link="Generator\AutoReplayMath.cs" />
+    <Compile Include="..\..\BotPlayMath.cs" Link="Generator\BotPlayMath.cs" />
   </ItemGroup>
 
   <ItemGroup>

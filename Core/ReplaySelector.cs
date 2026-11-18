@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>挑訓練用 replay 的條件</summary>
     public sealed class SelectionOptions
@@ -96,7 +96,7 @@ namespace AutoReplay.Core
 
             string pid = o.playerId;
             if (string.IsNullOrEmpty(pid))
-                pid = inRange.Where(e => !string.IsNullOrEmpty(e.info.playerId) && e.info.playerId != "Auto Play")
+                pid = inRange.Where(e => !string.IsNullOrEmpty(e.info.playerId) && e.info.playerId != "Bot Play" && e.info.playerId != "Auto Play")
                              .GroupBy(e => e.info.playerId).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
             r.playerId = pid;
             var own = inRange.Where(e => e.info.playerId == pid).ToList();

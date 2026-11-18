@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
-using AutoReplay.Core;
+using BotPlay.Core;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
     /// 真人揮刀模板: 以"切到方塊的瞬間"為 0 點對齊, 統計真人 replay 裡劍的軌跡 (中位數曲線).
@@ -10,7 +10,7 @@ namespace AutoReplay
     ///   beta(τ) : 偏離揮動平面的側向角度 -> 來回揮時的 "8 字" / 同向復位時的繞圈
     /// 按 (和上一刀揮動方向的夾角 0/45/90/135/180°, 揮動方向, 和上一刀的間隔) 分組; 間隔落在兩組之間時線性插值.
     /// 夾角分組很重要: tech 譜常見的 90° 轉向 (例如 下->右) 預揮是從側邊繞進來的, 和來回揮(180°)、同向復位(0°) 都不一樣.
-    /// 資料來自當前載入的 AutoPlay 模型 (ModelManager), 訓練見 Core/ModelTrainer.cs.
+    /// 資料來自當前載入的 BotPlay 模型 (ModelManager), 訓練見 Core/ModelTrainer.cs.
     /// </summary>
     public static class SwingTemplates
     {
@@ -33,7 +33,7 @@ namespace AutoReplay
         public const int DirDown = 0, DirUp = 1, DirSide = 2, DirAny = 3;
 
         static Dictionary<int, List<Template>> _byKey;
-        static AutoPlayModel _builtFor;
+        static BotPlayModel _builtFor;
         static float TauStart, TauStep;
         static int TauCount;
 

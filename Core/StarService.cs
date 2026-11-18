@@ -6,7 +6,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>一個譜面難度的星數. BL 對 unranked 也有 AI 估計星數; SS 只有 ranked 才有.</summary>
     public sealed class StarInfo

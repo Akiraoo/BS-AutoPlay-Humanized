@@ -1,12 +1,12 @@
 using System;
 using System.IO;
-using AutoReplay.Core;
+using BotPlay.Core;
 using Newtonsoft.Json;
 
-namespace AutoReplay.Tools
+namespace BotPlay.Tools
 {
     /// <summary>
-    /// AutoPlay 模型命令列工具 (和遊戲內共用 Core):
+    /// BotPlay 模型命令列工具 (和遊戲內共用 Core):
     ///   train   &lt;Replays資料夾&gt; &lt;輸出 model.json&gt; [--player ID] [--max 80] [--name 名稱] [--author 作者]
     ///   pack    &lt;model.json&gt; &lt;輸出.apmodel&gt; [--sign 私鑰.xml]
     ///   unpack  &lt;in.apmodel&gt; &lt;輸出 model.json&gt;
@@ -102,7 +102,7 @@ namespace AutoReplay.Tools
         static int Pack(string[] a)
         {
             string json = File.ReadAllText(a[1]);
-            var model = JsonConvert.DeserializeObject<AutoPlayModel>(json);
+            var model = JsonConvert.DeserializeObject<BotPlayModel>(json);
             string err = model.Validate();
             if (err != null) throw new InvalidDataException(err);
             string keyPath = Opt(a, "--sign");
@@ -125,7 +125,7 @@ namespace AutoReplay.Tools
             string json; ModelTrust trust;
             if (a[1].EndsWith(ApModelFile.Extension, StringComparison.OrdinalIgnoreCase)) json = ApModelFile.Unpack(File.ReadAllBytes(a[1]), out trust);
             else { json = File.ReadAllText(a[1]); trust = ModelTrust.Unpacked; }
-            var m = JsonConvert.DeserializeObject<AutoPlayModel>(json);
+            var m = JsonConvert.DeserializeObject<BotPlayModel>(json);
             foreach (var l in ModelInfoText.Lines(m)) Console.WriteLine(l);
             Console.WriteLine($"模板 {m.templates.groups.Count} 组");
             Console.WriteLine($"签名状态: {trust}   指纹: {ApModelFile.Fingerprint(json)}");

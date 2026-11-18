@@ -1,4 +1,4 @@
-"""Combine the Python training outputs into one AutoPlay model.json (Core/AutoPlayModel format).
+"""Combine the Python training outputs into one BotPlay model.json (Core/BotPlayModel format).
 usage: export_author_model.py <hand model.json> <rel_templates.json> <roll_offsets.json> <out model.json> --name N --author A --replays K
 """
 import sys, json, datetime

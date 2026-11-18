@@ -1,5 +1,5 @@
 // 遊戲外用的 UnityEngine 數學型別替代品: 只實作生成器用到的部分, 行為照 Unity 的公開定義.
-// 遊戲內不會編譯這個檔案 (只有 tools/ApModelTool 編譯, 並定義 AUTOPLAY_STANDALONE).
+// 遊戲內不會編譯這個檔案 (只有 tools/ApModelTool 編譯, 並定義 BOTPLAY_STANDALONE).
 using System;
 
 namespace UnityEngine

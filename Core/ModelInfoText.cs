@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>把模型資訊排成幾行文字 (遊戲內設定頁和命令列工具共用)</summary>
     public static class ModelInfoText
@@ -11,7 +11,7 @@ namespace AutoReplay.Core
         static string Star(StarStats s, string label) =>
             s == null ? null : $"{label} 中位 {F(s.median)} (P10–P90 {F(s.p10)}–{F(s.p90)})";
 
-        public static List<string> Lines(AutoPlayModel m)
+        public static List<string> Lines(BotPlayModel m)
         {
             var L = new List<string>();
             var meta = m.meta;
@@ -25,7 +25,7 @@ namespace AutoReplay.Core
                 return L;
             }
 
-            L.Add($"訓練器 {meta.trainer} · AutoPlay {t.modVersion}" + (string.IsNullOrEmpty(t.playerName) ? "" : $" · 玩家 {t.playerName}"));
+            L.Add($"訓練器 {meta.trainer} · BotPlay {t.modVersion}" + (string.IsNullOrEmpty(t.playerName) ? "" : $" · 玩家 {t.playerName}"));
             string dev = string.Join(" · ", new[] { t.platform, t.hmd }.Where0());
             if (dev.Length > 0) L.Add($"裝置 {dev} · 遊戲 {t.gameVersions} · BeatLeader {t.beatLeaderVersions}");
 

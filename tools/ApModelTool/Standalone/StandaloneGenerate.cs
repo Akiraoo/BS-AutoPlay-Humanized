@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using AutoReplay.Core;
+using BotPlay.Core;
 using Newtonsoft.Json;
 using UnityEngine;
 
-namespace AutoReplay.Tools
+namespace BotPlay.Tools
 {
     /// <summary>
     /// 遊戲外生成回放: 讀譜面 + 模型 -> MotionGenerator (和遊戲內同一份程式) -> 寫 .bsor.
@@ -70,7 +70,7 @@ namespace AutoReplay.Tools
             var bombs = map.bombs;
             if (leftHanded)
             {
-                notes = notes.Select(n => { var c = n.CopyWith(); c.Mirror(4); if (AutoReplayMath.NoteCoords.TryGetValue(n, out var p)) AutoReplayMath.NoteCoords[c] = new Vector2(-p.x - 1f, p.y); return c; }).ToList();
+                notes = notes.Select(n => { var c = n.CopyWith(); c.Mirror(4); if (BotPlayMath.NoteCoords.TryGetValue(n, out var p)) BotPlayMath.NoteCoords[c] = new Vector2(-p.x - 1f, p.y); return c; }).ToList();
                 bombs = bombs.Select(n => { var c = n.CopyWith(); c.Mirror(4); return c; }).ToList();
             }
             var allNotes = notes.Where(n => n.scoringType != NoteData.ScoringType.Ignore && n.gameplayType != NoteData.GameplayType.Bomb &&
@@ -112,7 +112,7 @@ namespace AutoReplay.Tools
                 WriteBsor(w, map, hash, difficulty, leftHanded, noArrows, score, allNotes, motion);
 
             Console.WriteLine($"{map.songName} [{difficulty}] v{map.formatVersion}  BPM {map.bpm}  NJS {map.njs}  offset {map.offset}  RT {rt * 1000f:F0} ms  JD {jd:F2}");
-            Console.WriteLine($"方塊 {allNotes.Count}  炸彈 {bombs.Count}  牆 {map.obstacles.Count}  幀 {motion.count}  模型 {ModelManager.CurrentId}  身高 {AutoReplayMath.PlayerHeight:F2}  ({sw.ElapsedMilliseconds} ms)");
+            Console.WriteLine($"方塊 {allNotes.Count}  炸彈 {bombs.Count}  牆 {map.obstacles.Count}  幀 {motion.count}  模型 {ModelManager.CurrentId}  身高 {BotPlayMath.PlayerHeight:F2}  ({sw.ElapsedMilliseconds} ms)");
             Console.WriteLine($"已寫入 {outPath}");
             return 0;
         }
@@ -123,7 +123,7 @@ namespace AutoReplay.Tools
             string json; ModelTrust trust;
             if (path.EndsWith(ApModelFile.Extension, StringComparison.OrdinalIgnoreCase)) json = ApModelFile.Unpack(File.ReadAllBytes(path), out trust);
             else { json = File.ReadAllText(path); trust = ModelTrust.Unpacked; }
-            var m = JsonConvert.DeserializeObject<AutoPlayModel>(json);
+            var m = JsonConvert.DeserializeObject<BotPlayModel>(json);
             string err = m == null ? "模型文件是空的" : m.Validate();
             if (err != null) throw new InvalidDataException(err);
             ModelManager.Current = m;
@@ -146,12 +146,12 @@ namespace AutoReplay.Tools
 
             w.Write((byte)0);   // info
             Str(w, "2.0.0"); Str(w, "1.40.8"); Str(w, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-            Str(w, "Auto Play"); Str(w, "Auto Play"); Str(w, "steam");
+            Str(w, "Bot Play"); Str(w, "Bot Play"); Str(w, "steam");
             Str(w, "OpenVR"); Str(w, "Oculus"); Str(w, "Touch");
             Str(w, hash); Str(w, map.songName); Str(w, map.mapper); Str(w, difficulty);
             w.Write(score);
             Str(w, map.characteristic); Str(w, "DefaultEnvironment"); Str(w, noArrows ? "NA" : "");
-            w.Write(0f); w.Write(leftHanded); w.Write(AutoReplayMath.PlayerHeight);
+            w.Write(0f); w.Write(leftHanded); w.Write(BotPlayMath.PlayerHeight);
             w.Write(0f); w.Write(0f); w.Write(0f);
 
             w.Write((byte)1);   // frames
@@ -175,12 +175,12 @@ namespace AutoReplay.Tools
                 V(w, dir);
                 w.Write((int)n.colorType);
                 w.Write(0f); w.Write(0f);
-                V(w, AutoReplayMath.GetNotePos(n)); V(w, normal);
+                V(w, BotPlayMath.GetNotePos(n)); V(w, normal);
                 w.Write(0f); w.Write(0f); w.Write(1f); w.Write(1f);
             }
 
             w.Write((byte)3); w.Write(0u);                                              // walls
-            w.Write((byte)4); w.Write(1u); w.Write(AutoReplayMath.PlayerHeight); w.Write(0f);  // heights
+            w.Write((byte)4); w.Write(1u); w.Write(BotPlayMath.PlayerHeight); w.Write(0f);  // heights
             w.Write((byte)5); w.Write(0u);                                              // pauses
             w.Write((byte)6);                                                           // saber offsets
             for (int k = 0; k < 2; k++) { V(w, Vector3.zero); Q(w, new Quaternion(0f, 0f, 0f, 0f)); }
@@ -195,7 +195,7 @@ namespace AutoReplay.Tools
                 modelTrust = ModelManager.CurrentTrust.ToString(),
                 generatedUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             }));
-            w.Write(1); Str(w, "AutoPlay"); w.Write(mark.Length); w.Write(mark);
+            w.Write(1); Str(w, "BotPlay"); w.Write(mark.Length); w.Write(mark);
         }
 
         static float IncorporateBool(float v, bool flag)

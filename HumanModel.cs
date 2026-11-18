@@ -1,10 +1,10 @@
 using UnityEngine;
-using AutoReplay.Core;
+using BotPlay.Core;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>
-    /// 手部運動學模型 (引數來自當前載入的 AutoPlay 模型, 見 ModelManager / Core.AutoPlayModel).
+    /// 手部運動學模型 (引數來自當前載入的 BotPlay 模型, 見 ModelManager / Core.BotPlayModel).
     /// 回放裡只有手柄(劍)和頭的姿態, 沒有手肘/前臂, 所以"手腕關節限位"用三件事近似:
     ///   1) 位置: 手的位置 = 頭 + b + A·f      (f = 劍的指向; 劍朝哪, 整條手臂就帶著手往哪移)
     ///   2) 扭轉: 劍繞自身軸的滾轉角 = 指向的平滑函式 (前臂旋前/旋後)
@@ -13,10 +13,10 @@ namespace AutoReplay
     /// </summary>
     public static class HumanModel
     {
-        // ---- 頭的基準位置 (AutoPlay 的頭基本固定在這裡, 手的模型以它為原點) ----
-        public static Vector3 HeadBase => new Vector3(0f, AutoReplayMath.HeadHeight, 0f);
+        // ---- 頭的基準位置 (BotPlay 的頭基本固定在這裡, 手的模型以它為原點) ----
+        public static Vector3 HeadBase => new Vector3(0f, BotPlayMath.HeadHeight, 0f);
 
-        // 回放記錄的是手柄位置; AutoPlay 的旋轉中心(手腕)在它後面 PommelOffset 處 (和 AutoReplayGenerator 的 pommelOffset 一致)
+        // 回放記錄的是手柄位置; BotPlay 的旋轉中心(手腕)在它後面 PommelOffset 處 (和 BotPlayGenerator 的 pommelOffset 一致)
         public const float PommelOffset = 0.20f;
 
         // 手腕 z 方向最多往前伸多少 (A 的 z 行 - PommelOffset, 取上界), 炸彈檢測的"夠得著"範圍要用
@@ -87,7 +87,7 @@ namespace AutoReplay
             // 剛超過 knee 的地方方位還是用原始的 (不然還沒追上時, 從限位裡出來的那一幀會跳)
             float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
             float kneeRaw = KneeAt(isLeft, raw);
-            float k = AutoReplayMath.SmoothStep((ang - kneeRaw) / 20f);
+            float k = BotPlayMath.SmoothStep((ang - kneeRaw) / 20f);
             Vector3 use = k >= 1f ? side : Vector3.Slerp(raw, side, k);
             use.z = 0f; use = use.sqrMagnitude > 1e-8f ? use.normalized : raw;
             return LimitForwardSide(isLeft, f, use);

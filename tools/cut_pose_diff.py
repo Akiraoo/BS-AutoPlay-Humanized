@@ -1,5 +1,5 @@
-"""At each cut: how does the human's saber/hand differ from AutoPlay's "aim from the arm-model wrist at the cube" pose?
-Grouped by hand x cut direction. Large systematic differences = a technique AutoPlay doesn't model.
+"""At each cut: how does the human's saber/hand differ from BotPlay's "aim from the arm-model wrist at the cube" pose?
+Grouped by hand x cut direction. Large systematic differences = a technique BotPlay doesn't model.
 usage: cut_pose_diff.py <real.bsor ...>
 """
 import sys, os, json
@@ -39,13 +39,13 @@ for p in sys.argv[1:]:
         i = np.searchsorted(t, n['t']); i = min(max(i, 1), len(t) - 1)
         f = ry(qrot(fr[i, off + 3:off + 7], np.array([0, 0, 1.0])))
         hp = ry(fr[i, off:off + 3])
-        h0 = head[i] * np.array([1, 0, 1]) + np.array([0, 1.5, 0])   # put the human's head on AutoPlay's head height
+        h0 = head[i] * np.array([1, 0, 1]) + np.array([0, 1.5, 0])   # put the human's head on BotPlay's head height
         tgt = note_pos(nid)
         fa = aim(hand, tgt, h0)
         ang = np.degrees(np.arccos(np.clip(f @ fa, -1, 1)))
         dpos = (hp - head[i]) - (wrist_for(hand, fa, h0) + 0.2 * fa - h0)
         acc.setdefault((hand, DIRN[cd]), []).append((ang, *dpos, (nid // 1000) % 10))
-print('hand dir  n   | saber dir vs AutoPlay aim: p50  p90 | hand pos diff (human - AutoPlay) x  y  z [cm] | lanes')
+print('hand dir  n   | saber dir vs BotPlay aim: p50  p90 | hand pos diff (human - BotPlay) x  y  z [cm] | lanes')
 for k in sorted(acc):
     a = np.array(acc[k])
     if len(a) < 15: continue

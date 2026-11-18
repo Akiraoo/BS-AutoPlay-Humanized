@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>
     /// 純託管的 gzip 解壓 (RFC 1952 + RFC 1951 inflate) 和 "stored" gzip 打包.

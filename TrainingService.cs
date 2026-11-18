@@ -3,14 +3,14 @@ using System.Collections;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoReplay.Core;
+using BotPlay.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Zenject;
 
-namespace AutoReplay
+namespace BotPlay
 {
-    /// <summary>訓練設定 (存在 UserData/AutoPlay/settings.json)</summary>
+    /// <summary>訓練設定 (存在 UserData/BotPlay/settings.json)</summary>
     public sealed class TrainSettings
     {
         public const int AllDays = 730;      // 起始滑桿拉到底 = 不限日期
@@ -57,7 +57,7 @@ namespace AutoReplay
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Warn($"[AutoPlay] GetUserInfo failed: {ex.Message}");
+                Plugin.Log?.Warn($"[BotPlay] GetUserInfo failed: {ex.Message}");
                 return null;
             }
         }
@@ -127,7 +127,7 @@ namespace AutoReplay
             {
                 var e = ex is AggregateException ae && ae.InnerException != null ? ae.InnerException : ex;
                 Progress = e is OperationCanceledException ? "訓練已取消" : "訓練失敗: " + e.Message;
-                if (!(e is OperationCanceledException)) Plugin.Log?.Error($"[AutoPlay] Training failed: {e}");
+                if (!(e is OperationCanceledException)) Plugin.Log?.Error($"[BotPlay] Training failed: {e}");
                 throw e;
             }
             finally
@@ -154,7 +154,7 @@ namespace AutoReplay
         public static void Ensure()
         {
             if (_inst != null) return;
-            var go = new GameObject("AutoPlay.AutoTrainer");
+            var go = new GameObject("BotPlay.AutoTrainer");
             DontDestroyOnLoad(go);
             _inst = go.AddComponent<AutoTrainer>();
         }

@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 
-namespace AutoReplay.Core
+namespace BotPlay.Core
 {
     /// <summary>
-    /// AutoPlay 的動作模型: 從真人 replay 統計出來的全部引數.
+    /// BotPlay 的動作模型: 從真人 replay 統計出來的全部引數.
     /// 未打包格式 = 資料夾裡的 model.json (可讀, 本機訓練直接輸出這個);
     /// 打包格式 = .apmodel 單檔 (混淆 + 可選簽名), 見 ApModelFile.
     /// 這個類不依賴 Unity, 遊戲內和命令列工具 (tools/ApModelTool) 共用.
     /// </summary>
-    public sealed class AutoPlayModel
+    public sealed class BotPlayModel
     {
         public const int CurrentFormat = 1;
 
@@ -28,7 +28,7 @@ namespace AutoReplay.Core
         /// <summary>檢查引數是否完整, 不完整時返回原因</summary>
         public string Validate()
         {
-            if (format > CurrentFormat) return $"模型格式版本 {format} 比這個模組新, 請更新 AutoPlay";
+            if (format > CurrentFormat) return $"模型格式版本 {format} 比這個模組新, 請更新 BotPlay";
             foreach (var h in new[] { left, right })
             {
                 if (h == null) return "缺少手部參數";
@@ -63,7 +63,7 @@ namespace AutoReplay.Core
     /// </summary>
     public sealed class TrainingInfo
     {
-        public string modVersion = "";        // 訓練時的 AutoPlay 版本
+        public string modVersion = "";        // 訓練時的 BotPlay 版本
         public string playerName = "";        // 回放裡的玩家名稱 (排行榜上公開的名字)
         public string platform = "";          // steam / oculus ...
         public string hmd = "";               // 最常見的頭盔

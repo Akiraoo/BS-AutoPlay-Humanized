@@ -27,19 +27,19 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 - **In-game training** from your own local replays within a chosen date range (the player ID is checked, so only your own replays are used), with optional background retraining as new replays come in
 - **Model info**: trainer version, date range, filters, BeatLeader / ScoreSaber star distribution and more, with no player ID
 - **Signing**: author-released models carry an RSA signature and show as "Official ✓"; modified models are flagged
-- **Watermark**: generated `.bsor` files record generator version, model name and fingerprint in `customData["AutoPlay"]`
+- **Watermark**: generated `.bsor` files record generator version, model name and fingerprint in `customData["BotPlay"]`
 
 ## ⚖️ Disclaimer
 
 - For **map showcases, replay viewing, and algorithm study/research** only.
-- Generated replays are marked as "Auto Play" and carry the watermark above.
+- Generated replays are marked as "Bot Play" and carry the watermark above.
 - Do not use this to undermine leaderboard or multiplayer fairness. Respect the BeatLeader and Beat Saber communities.
 
 ## 🚀 Installation
 
 1. Install the dependencies: **BSIPA**, **BeatLeader 0.10.666+**, **BeatSaberMarkupLanguage (BSML)**
-2. Put `auto_replay.dll` into `Beat Saber/Plugins/` (from [Releases](../../releases), or build it yourself)
-3. Put a model into `Beat Saber/UserData/AutoPlay/Models/`:
+2. Put `BotPlay.dll` into `Beat Saber/Plugins/` (from [Releases](../../releases), or build it yourself). Delete the old `auto_replay.dll` if present
+3. Put a model into `Beat Saber/UserData/BotPlay/Models/`:
    - the author's sample model: [`sample-model/Akiraoo-ranked30-acc-v3.apmodel`](sample-model/Akiraoo-ranked30-acc-v3.apmodel)
    - or train one from your own replays in-game (see below)
 4. Start the game
@@ -69,7 +69,7 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 | Max per map | Only the newest N replays of the same map + difficulty (default 3), so grinding one map doesn't dominate the model |
 | Total limit | Above this, replays are **sampled evenly** across the range (default 300). Affects training time, not model size |
 | Min BL stars | Filter by BeatLeader stars (maps without stars are kept) |
-| Look up BL / SS stars | Public APIs, no account needed; cached in `UserData/AutoPlay/star-cache.json`; only queried while training |
+| Look up BL / SS stars | Public APIs, no account needed; cached in `UserData/BotPlay/star-cache.json`; only queried while training |
 | Ranked maps only | Only maps ranked on BeatLeader or ScoreSaber |
 | Prefer acc | Take the highest-scoring plays of each map, and the highest-acc replays when over the total limit (acc = score / BL max score) |
 
@@ -99,7 +99,7 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 ```bash
 git clone https://github.com/Akiraoo/BS-BotPlay-Humanized.git
 cd BS-BotPlay-Humanized
-dotnet build auto_replay.csproj -c Release -p:BeatSaberDir="path/to/Beat Saber"
+dotnet build BotPlay.csproj -c Release -p:BeatSaberDir="path/to/Beat Saber"
 ```
 
 - The dll is copied into the game's `Plugins/` by default; pass `-p:CopyToGame=false` to disable

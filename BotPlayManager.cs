@@ -10,27 +10,27 @@ using BeatLeader.Models;
 using BeatLeader.Models.Replay;
 using BeatLeader.Replayer;
 
-namespace AutoReplay
+namespace BotPlay
 {
-    public class AutoReplayManager
+    public class BotPlayManager
     {
-        private static AutoReplayManager _instance;
-        public static AutoReplayManager Instance => _instance ??= new AutoReplayManager();
+        private static BotPlayManager _instance;
+        public static BotPlayManager Instance => _instance ??= new BotPlayManager();
 
         private bool _isProcessing = false;
 
-        public async void StartAutoPlay(StandardLevelDetailView view = null)
+        public async void StartBotPlay(StandardLevelDetailView view = null)
         {
             if (_isProcessing)
             {
-                Plugin.Log?.Warn("AutoPlay is already generating a replay. Please wait...");
+                Plugin.Log?.Warn("BotPlay is already generating a replay. Please wait...");
                 return;
             }
 
             if (ModelManager.Current == null)
             {
-                Plugin.Log?.Warn("[AutoPlay] 沒有載入模型, 無法生成回放. " + (ModelManager.LastError ?? "") +
-                                 " 请到 设定 > Mod Settings > AutoPlay 用自己的回放训练, 或把 .apmodel 放进 " + ModelManager.ModelsDir);
+                Plugin.Log?.Warn("[BotPlay] 沒有載入模型, 無法生成回放. " + (ModelManager.LastError ?? "") +
+                                 " 请到 设定 > Mod Settings > BotPlay 用自己的回放训练, 或把 .apmodel 放进 " + ModelManager.ModelsDir);
                 return;
             }
 
@@ -73,7 +73,7 @@ namespace AutoReplay
                     return;
                 }
 
-                Plugin.Log?.Info($"Generating AutoPlay for: {beatmapLevel.songName} [{beatmapKey.difficulty}]");
+                Plugin.Log?.Info($"Generating BotPlay for: {beatmapLevel.songName} [{beatmapKey.difficulty}]");
 
                 BeatmapLevelsModel levelsModel = null;
                 try
@@ -135,19 +135,19 @@ namespace AutoReplay
                     ? beatmapLevel.levelID.Substring("custom_level_".Length)
                     : beatmapLevel.levelID;
 
-                var replay = AutoReplayGenerator.GenerateReplay(beatmapData, beatmapLevel, beatmapKey, hash, modifiers, leftHanded);
+                var replay = BotPlayGenerator.GenerateReplay(beatmapData, beatmapLevel, beatmapKey, hash, modifiers, leftHanded);
                 ReplayFileSaver.SaveReplay(replay, hash, beatmapKey.difficulty.ToString());
 
                 var bot = ModelManager.Bot;
                 var dummyPlayer = new Player
                 {
-                    id = "Auto Play",
-                    name = string.IsNullOrWhiteSpace(bot.name) ? "Auto Play" : bot.name,
+                    id = "Bot Play",
+                    name = string.IsNullOrWhiteSpace(bot.name) ? "Bot Play" : bot.name,
                     avatar = bot.avatar,
                     country = string.IsNullOrWhiteSpace(bot.country) ? null : bot.country.Trim().ToUpperInvariant()
                 };
 
-                Plugin.Log?.Info($"Starting BeatLeader Replayer with modifiers: {AutoReplayMath.EncodeModifiers(modifiers)}");
+                Plugin.Log?.Info($"Starting BeatLeader Replayer with modifiers: {BotPlayMath.EncodeModifiers(modifiers)}");
                 var replayerSettings = ReplayerSettings.UserSettings ?? new ReplayerSettings();
                 replayerSettings.IgnoreModifiers = false;
                 // BeatLeader 0.10.x: 簽名變為 (replay, player, optionalData, settings, finishCallback, token)
@@ -159,7 +159,7 @@ namespace AutoReplay
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Error($"Error during AutoPlay generation: {ex}");
+                Plugin.Log?.Error($"Error during BotPlay generation: {ex}");
             }
             finally
             {

@@ -11,15 +11,15 @@
 | `gen_cs.py templates.json ../SwingTemplates.Data.cs` | 把模板轉成 C# |
 | `glitch2.py <bsor...>` | 找瞬移 / 扭轉翻轉 |
 | `rollcheck.py model.json <bsor...>` | 和真人扭轉模型比對 |
-| `compare_map.py <autoplay.bsor> <真人.bsor...>` | 同一張譜：逐音符比對揮砍方向、找出劍的指向和真人差很多的時段 |
+| `compare_map.py <botplay.bsor> <真人.bsor...>` | 同一張譜：逐音符比對揮砍方向、找出劍的指向和真人差很多的時段 |
 | `dot_rest_stats.py <Replays資料夾> <份數>` | 點塊方向習慣、長間隔休息姿勢 |
-| `dot_dp_check.py <autoplay.bsor> <真人.bsor...>` | 離線驗證點塊方向規劃（Python 版）和真人的吻合率 |
+| `dot_dp_check.py <botplay.bsor> <真人.bsor...>` | 離線驗證點塊方向規劃（Python 版）和真人的吻合率 |
 | `roll_offset_templates.py <Replays資料夾> <份數> roll_offsets.json` | 反手：切塊前後的扭轉偏移曲線 |
 | `gen_roll_cs.py roll_offsets.json ../RollOffsets.Data.cs` | 把扭轉偏移轉成 C# |
 | `cut_pose_diff.py <bsor...>` / `backhand_check.py <bsor...>` | 切塊瞬間的指向/位置/扭轉和模型的差異 |
 | `roll_motion_fit.py` | 測試扭轉是否和揮動方向有關 |
 | `tech_templates.py <Replays資料夾> <份數> rel_templates.json [額外bsor...]` | 依「轉向角度 0/45/90/135/180°」分組的揮刀模板（目前 C# 用的就是這份） |
-| `sim_planner.py rel_templates.json all_slerp <真人.bsor...>` | **離線模擬** AutoPlay 的劍指向軌跡，和真人回放逐幀比較（不用開遊戲） |
+| `sim_planner.py rel_templates.json all_slerp <真人.bsor...>` | **離線模擬** BotPlay 的劍指向軌跡，和真人回放逐幀比較（不用開遊戲） |
 | `human_baseline.py <真人A.bsor> <真人B.bsor>` | 同一個人兩次遊玩之間的差異，當作「像人」的目標 |
 
 ## ApModelTool（C#，和遊戲內共用 `Core/` 訓練器）

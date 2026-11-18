@@ -1,6 +1,6 @@
 using HarmonyLib;
 
-namespace AutoReplay
+namespace BotPlay
 {
     [HarmonyPatch(typeof(LevelFilteringNavigationController), "DidActivate")]
     public static class LevelFilteringNavigationControllerPatch

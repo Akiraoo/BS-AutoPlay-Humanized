@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using BeatLeader.Models.Replay;
 
-namespace AutoReplay
+namespace BotPlay
 {
-    public static class AutoReplayGenerator
+    public static class BotPlayGenerator
     {
         private static NoteData MirrorNote(NoteData note)
         {
@@ -116,17 +116,17 @@ namespace AutoReplay
             // 做法和 BeatLeader 自己映象音符的方式一致: CopyWith() 複製一份再 Mirror(4), 不改動原資料.
             // Noodle Extensions 的方塊座標 (方塊排到格子外 / 排成長條): 從原始音符讀, 映象的複本 x -> -x - 1
             sortedNotes = sortedNotes.ToList();
-            AutoReplayMath.NoteCoords.Clear();
+            BotPlayMath.NoteCoords.Clear();
             foreach (var n in sortedNotes)
-                if (NoodleCoords.TryGet(n, out var c)) AutoReplayMath.NoteCoords[n] = c;
-            if (AutoReplayMath.NoteCoords.Count > 0) Plugin.Log?.Info($"Noodle coordinates: {AutoReplayMath.NoteCoords.Count} notes");
+                if (NoodleCoords.TryGet(n, out var c)) BotPlayMath.NoteCoords[n] = c;
+            if (BotPlayMath.NoteCoords.Count > 0) Plugin.Log?.Info($"Noodle coordinates: {BotPlayMath.NoteCoords.Count} notes");
 
             if (leftHanded)
             {
                 sortedNotes = sortedNotes.Select(n =>
                 {
                     var m = MirrorNote(n);
-                    if (AutoReplayMath.NoteCoords.TryGetValue(n, out var c)) AutoReplayMath.NoteCoords[m] = new UnityEngine.Vector2(-c.x - 1f, c.y);
+                    if (BotPlayMath.NoteCoords.TryGetValue(n, out var c)) BotPlayMath.NoteCoords[m] = new UnityEngine.Vector2(-c.x - 1f, c.y);
                     return m;
                 }).ToList();
             }
@@ -181,31 +181,31 @@ namespace AutoReplay
                     fps = 90,
                     head = new BeatLeader.Models.Replay.Transform
                     {
-                        position = AutoReplayMath.ToBLVector(motion.headPos[i]),
-                        rotation = AutoReplayMath.ToBLQuaternion(motion.headRot[i])
+                        position = BotPlayMath.ToBLVector(motion.headPos[i]),
+                        rotation = BotPlayMath.ToBLQuaternion(motion.headRot[i])
                     },
                     leftHand = new BeatLeader.Models.Replay.Transform
                     {
-                        position = AutoReplayMath.ToBLVector(motion.leftPos[i]),
-                        rotation = AutoReplayMath.ToBLQuaternion(motion.leftRot[i])
+                        position = BotPlayMath.ToBLVector(motion.leftPos[i]),
+                        rotation = BotPlayMath.ToBLQuaternion(motion.leftRot[i])
                     },
                     rightHand = new BeatLeader.Models.Replay.Transform
                     {
-                        position = AutoReplayMath.ToBLVector(motion.rightPos[i]),
-                        rotation = AutoReplayMath.ToBLQuaternion(motion.rightRot[i])
+                        position = BotPlayMath.ToBLVector(motion.rightPos[i]),
+                        rotation = BotPlayMath.ToBLQuaternion(motion.rightRot[i])
                     }
                 });
             }
 
-            Plugin.Log?.Info($"AutoPlay motion generated in {genWatch.ElapsedMilliseconds} ms ({totalFrames} frames)");
+            Plugin.Log?.Info($"BotPlay motion generated in {genWatch.ElapsedMilliseconds} ms ({totalFrames} frames)");
 
             replay.info = new ReplayInfo
             {
                 version = "2.0.0",
                 gameVersion = "1.40.8",
                 timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(),
-                playerID = "Auto Play",
-                playerName = string.IsNullOrWhiteSpace(ModelManager.Bot.name) ? "Auto Play" : ModelManager.Bot.name,
+                playerID = "Bot Play",
+                playerName = string.IsNullOrWhiteSpace(ModelManager.Bot.name) ? "Bot Play" : ModelManager.Bot.name,
                 platform = "steam",
                 trackingSytem = "OpenVR",
                 hmd = "Oculus",
@@ -217,10 +217,10 @@ namespace AutoReplay
                 score = totalScore,
                 mode = key.beatmapCharacteristic.serializedName,
                 environment = level.GetEnvironmentName(key.beatmapCharacteristic, key.difficulty).ToString(),
-                modifiers = AutoReplayMath.EncodeModifiers(modifiers),
+                modifiers = BotPlayMath.EncodeModifiers(modifiers),
                 jumpDistance = 0f,
                 leftHanded = leftHanded,
-                height = AutoReplayMath.PlayerHeight,
+                height = BotPlayMath.PlayerHeight,
                 startTime = 0f,
                 failTime = 0f,
                 // BeatLeader 裡 speed != 0 會被當成"練習模式"設定(PracticeSettings), 回放就會以練習模式啟動.
@@ -231,13 +231,13 @@ namespace AutoReplay
             replay.frames = frames;
             replay.notes = noteEvents;
             replay.walls = new List<WallEvent>();
-            replay.heights = new List<AutomaticHeight> { new AutomaticHeight { height = AutoReplayMath.PlayerHeight, time = 0f } };
+            replay.heights = new List<AutomaticHeight> { new AutomaticHeight { height = BotPlayMath.PlayerHeight, time = 0f } };
             replay.pauses = new List<Pause>();
             replay.saberOffsets = new SaberOffsets();
-            // 浮水印: 標明這是 AutoPlay 生成的回放, 以及用的是哪個模型 (BeatLeader 會原樣儲存 customData)
+            // 浮水印: 標明這是 BotPlay 生成的回放, 以及用的是哪個模型 (BeatLeader 會原樣儲存 customData)
             replay.customData = new Dictionary<string, byte[]>
             {
-                ["AutoPlay"] = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new
+                ["BotPlay"] = System.Text.Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new
                 {
                     generator = "BS-BotPlay-Humanized",
                     version = Plugin.Version,

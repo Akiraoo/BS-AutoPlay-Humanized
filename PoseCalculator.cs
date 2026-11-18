@@ -4,7 +4,7 @@ using UnityEngine;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
 
-namespace AutoReplay
+namespace BotPlay
 {
     /// <summary>頭部目標姿態 (還沒平滑): 位置 + 俯仰/滾轉角</summary>
     public struct HeadTarget
@@ -30,7 +30,7 @@ namespace AutoReplay
         public readonly Vector3[] armD, armN, armF;
         public readonly int[] armDir;
         public readonly float[] armGap;
-        // 身體平移 (躲牆時整個人往旁邊/往下移, 手也跟著走). 由 AutoReplayGenerator 根據頭的軌跡提供
+        // 身體平移 (躲牆時整個人往旁邊/往下移, 手也跟著走). 由 BotPlayGenerator 根據頭的軌跡提供
         public Func<float, Vector3> bodyOffset = t => Vector3.zero;
 
         public const int StripMinNotes = 4;
@@ -88,7 +88,7 @@ namespace AutoReplay
     {
         // ================= 待機微動引數 =================
         // 真人 replay: 手幾乎從不完全靜止 (角速度 <20°/s 的時間約 1%), 頭的朝向也有約 2° 的晃動.
-        // 原本 4° / 2 cm 而且頻率太低: 長間隔裡劍幾乎靜止 (3~5°/s), 真人是 30~50°/s. 現在按真人 replay 校準 (見 AutoReplayMath.HandNoise)
+        // 原本 4° / 2 cm 而且頻率太低: 長間隔裡劍幾乎靜止 (3~5°/s), 真人是 30~50°/s. 現在按真人 replay 校準 (見 BotPlayMath.HandNoise)
         public const float HandIdleAngle = 9.0f;     // 手的旋轉微動幅度(度)
         public const float HandIdlePos = 0.05f;      // 手的位置微動幅度(米)
         public const float HitCalmInner = 0.05f;     // 命中前後這麼近完全不加旋轉微動 (保證劍尖準確穿過方塊)
@@ -125,14 +125,14 @@ namespace AutoReplay
         // 返回的是目標姿態, 平滑由呼叫方負責
         public static HeadTarget CalculateHeadTarget(float t, List<ObstacleData> obstacles, bool mirror = false)
         {
-            float targetY = AutoReplayMath.HeadHeight;
+            float targetY = BotPlayMath.HeadHeight;
             float targetPitch = 0f;
 
             // 蹲下: 照真人的蹲牆曲線 (DuckAmount)
             float duck = DuckAmount(t, obstacles, mirror);
             if (duck > 0f)
             {
-                targetY = Mathf.Lerp(targetY, Mathf.Min(targetY, AutoReplayMath.DuckHeight), duck);
+                targetY = Mathf.Lerp(targetY, Mathf.Min(targetY, BotPlayMath.DuckHeight), duck);
                 targetPitch = Mathf.Max(targetPitch, DuckPitch * duck);
             }
 
@@ -174,9 +174,9 @@ namespace AutoReplay
             foreach (var (s0, e0, amp) in _leanEvents)
             {
                 if (t < s0 - LeanStart) break;
-                float up = AutoReplayMath.SmoothStep((t - (s0 - LeanStart)) / LeanRise);
+                float up = BotPlayMath.SmoothStep((t - (s0 - LeanStart)) / LeanRise);
                 v = Mathf.Lerp(v, Mathf.Abs(v) > Mathf.Abs(amp) && Mathf.Sign(v) == Mathf.Sign(amp) ? v : amp, up);
-                if (t > e0 + LeanHold) v *= 1f - AutoReplayMath.SmoothStep((t - (e0 + LeanHold)) / LeanReturn);
+                if (t > e0 + LeanHold) v *= 1f - BotPlayMath.SmoothStep((t - (e0 + LeanHold)) / LeanReturn);
             }
             return v;
         }
@@ -215,10 +215,10 @@ namespace AutoReplay
         // 高度規則: 底邊 = 層高 (0.25 + 0.6*層) - 0.15 + 身高偏移, 高 = h * 0.6 (tools/wall_eval.py 用同一套, 和真人回放對得上)
         public const float HeadClear = 0.15f;   // 頭 (連同頭顯) 和牆之間要留的距離
 
-        public static float WallBottom(ObstacleData o) => 0.25f + 0.6f * (int)o.lineLayer - 0.15f + AutoReplayMath.NoteYOffset;
+        public static float WallBottom(ObstacleData o) => 0.25f + 0.6f * (int)o.lineLayer - 0.15f + BotPlayMath.NoteYOffset;
         public static float WallTop(ObstacleData o) => WallBottom(o) + 0.6f * o.height;
-        public static bool WallBelowHead(ObstacleData o) => WallTop(o) <= AutoReplayMath.HeadHeight - HeadClear;
-        public static bool IsCeilingWall(ObstacleData o) => WallBottom(o) >= AutoReplayMath.DuckHeight + HeadClear * 0.8f;
+        public static bool WallBelowHead(ObstacleData o) => WallTop(o) <= BotPlayMath.HeadHeight - HeadClear;
+        public static bool IsCeilingWall(ObstacleData o) => WallBottom(o) >= BotPlayMath.DuckHeight + HeadClear * 0.8f;
 
         // ================= 蹲牆曲線 =================
         // 真人 17 份回放 / 146 次獨立蹲牆 (蓋住中間兩軌的頂牆), 以牆到達為 0:
@@ -249,8 +249,8 @@ namespace AutoReplay
             foreach (var (s0, e0) in _duckIntervals)
             {
                 if (t < s0 - DuckDownStart || t > e0 + DuckHoldAfter + DuckUpTime) continue;
-                float down = AutoReplayMath.SmoothStep((t - (s0 - DuckDownStart)) / (DuckDownStart + DuckDownEnd));
-                float up = 1f - AutoReplayMath.SmoothStep((t - (e0 + DuckHoldAfter)) / DuckUpTime);
+                float down = BotPlayMath.SmoothStep((t - (s0 - DuckDownStart)) / (DuckDownStart + DuckDownEnd));
+                float up = 1f - BotPlayMath.SmoothStep((t - (e0 + DuckHoldAfter)) / DuckUpTime);
                 best = Mathf.Max(best, Mathf.Min(down, up));
             }
             // 矮牆 (先蹲後站的組合): 矮牆經過時頭要高過牆頂, 來不及就站快一點
@@ -258,8 +258,8 @@ namespace AutoReplay
                 foreach (var (s0, e0, cap) in _lowWalls)
                 {
                     if (t < s0 - LowWallRise || t > e0 + 0.15f) continue;
-                    float rise = AutoReplayMath.SmoothStep((t - (s0 - LowWallRise)) / (LowWallRise - 0.03f));
-                    float release = 1f - AutoReplayMath.SmoothStep((t - (e0 + 0.03f)) / 0.12f);
+                    float rise = BotPlayMath.SmoothStep((t - (s0 - LowWallRise)) / (LowWallRise - 0.03f));
+                    float release = 1f - BotPlayMath.SmoothStep((t - (e0 + 0.03f)) / 0.12f);
                     float w = Mathf.Min(rise, release);
                     best = Mathf.Min(best, Mathf.Lerp(1f, cap, w));
                 }
@@ -271,7 +271,7 @@ namespace AutoReplay
         {
             var res = new List<(float, float, float)>();
             if (obstacles == null) return res;
-            float range = AutoReplayMath.HeadHeight - AutoReplayMath.DuckHeight;
+            float range = BotPlayMath.HeadHeight - BotPlayMath.DuckHeight;
             foreach (var obs in obstacles)
             {
                 if (!WallBelowHead(obs)) continue;
@@ -279,8 +279,8 @@ namespace AutoReplay
                 int c0 = Mathf.Max(lineIndex, 1), c1 = Mathf.Min(lineIndex + obs.width - 1, 2);
                 if (c0 > c1) continue;
                 float need = WallTop(obs) + HeadClear;                         // 頭至少要這麼高
-                if (need <= AutoReplayMath.DuckHeight) continue;               // 蹲到底也碰不到
-                float cap = range > 1e-3f ? Mathf.Clamp01((AutoReplayMath.HeadHeight - need) / range) : 0f;
+                if (need <= BotPlayMath.DuckHeight) continue;               // 蹲到底也碰不到
+                float cap = range > 1e-3f ? Mathf.Clamp01((BotPlayMath.HeadHeight - need) / range) : 0f;
                 res.Add((obs.time, obs.time + obs.duration, cap));
             }
             return res;
@@ -315,13 +315,13 @@ namespace AutoReplay
         public static (Vector3 position, Quaternion rotation) ApplyHeadIdle(float t, Vector3 pos, float pitch, float roll)
         {
             pos += new Vector3(
-                HeadIdleX * AutoReplayMath.Noise(t * 0.6f, 11f),
-                HeadIdleY * AutoReplayMath.Noise(t * 0.9f, 12f),
-                HeadIdleZ * AutoReplayMath.Noise(t * 0.5f, 13f));
+                HeadIdleX * BotPlayMath.Noise(t * 0.6f, 11f),
+                HeadIdleY * BotPlayMath.Noise(t * 0.9f, 12f),
+                HeadIdleZ * BotPlayMath.Noise(t * 0.5f, 13f));
             var rot = Quaternion.Euler(
-                pitch + HeadIdlePitch * AutoReplayMath.Noise(t * 0.7f, 14f),
-                HeadIdleYaw * AutoReplayMath.Noise(t * 0.45f, 15f),
-                roll + HeadIdleRoll * AutoReplayMath.Noise(t * 0.55f, 16f));
+                pitch + HeadIdlePitch * BotPlayMath.Noise(t * 0.7f, 14f),
+                HeadIdleYaw * BotPlayMath.Noise(t * 0.45f, 15f),
+                roll + HeadIdleRoll * BotPlayMath.Noise(t * 0.55f, 16f));
             return (pos, rot);
         }
 
@@ -414,7 +414,7 @@ namespace AutoReplay
                     {
                         float d = Mathf.Abs((i - u) * sdt) / HitPinWindow;
                         if (d >= 1f) continue;
-                        float k = 1f - AutoReplayMath.SmoothStep(d);
+                        float k = 1f - BotPlayMath.SmoothStep(d);
                         q[i] = Quaternion.Slerp(Quaternion.identity, corr, k) * q[i];
                     }
                 }
@@ -456,9 +456,9 @@ namespace AutoReplay
                 float t = t0 + (i - pad) * sdt;
                 Vector3 dirSlow = fs[i].sqrMagnitude > 1e-6f ? fs[i].normalized : f[i];
                 wrist[i] = HumanModel.WristForDir(isLeft, dirSlow) + ctx.bodyOffset(t) + ArmOffset(t, isLeft, ctx) + new Vector3(
-                    HandIdlePos * AutoReplayMath.HandPosNoise(t, s + 3f),
-                    HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.9f, s + 4f),
-                    HandIdlePos * AutoReplayMath.HandPosNoise(t * 0.8f, s + 5f));
+                    HandIdlePos * BotPlayMath.HandPosNoise(t, s + 3f),
+                    HandIdlePos * BotPlayMath.HandPosNoise(t * 0.9f, s + 4f),
+                    HandIdlePos * BotPlayMath.HandPosNoise(t * 0.8f, s + 5f));
             }
         }
 
@@ -479,7 +479,7 @@ namespace AutoReplay
             if (t >= ctx.armTimes[m - 1]) return At(m - 1);
             int lo = 0, hi = m - 1;
             while (hi - lo > 1) { int mid = (lo + hi) >> 1; if (ctx.armTimes[mid] <= t) lo = mid; else hi = mid; }
-            float w = AutoReplayMath.SmoothStep((t - ctx.armTimes[lo]) / Mathf.Max(1e-4f, ctx.armTimes[hi] - ctx.armTimes[lo]));
+            float w = BotPlayMath.SmoothStep((t - ctx.armTimes[lo]) / Mathf.Max(1e-4f, ctx.armTimes[hi] - ctx.armTimes[lo]));
             return At(lo) * (1f - w) + At(hi) * w;
         }
 
@@ -528,8 +528,8 @@ namespace AutoReplay
             {
                 float s = ctx.seed;
                 var jitter = Quaternion.Euler(
-                    HandIdleAngle * w * AutoReplayMath.HandNoise(t, s + 1f),
-                    HandIdleAngle * w * AutoReplayMath.HandNoise(t * 0.83f, s + 2f),
+                    HandIdleAngle * w * BotPlayMath.HandNoise(t, s + 1f),
+                    HandIdleAngle * w * BotPlayMath.HandNoise(t * 0.83f, s + 2f),
                     0f);
                 rot = jitter * rot;
             }
@@ -538,10 +538,10 @@ namespace AutoReplay
                 // 炸彈經過時劍不要僵住: 慢慢在躲避姿勢附近晃 (真人炸彈經過時劍角速度中位約 54°/s; 原本是 0).
                 // 晃到太靠近炸彈的部分, 最後由 MotionGenerator.AvoidBombs 推開
                 float s = ctx.seed;
-                float wb = bombNear * AutoReplayMath.SmoothStep((NearestDistance(ctx.hitTimes, t) - HitCalmInner) / HitCalmRamp);
+                float wb = bombNear * BotPlayMath.SmoothStep((NearestDistance(ctx.hitTimes, t) - HitCalmInner) / HitCalmRamp);
                 var sway = Quaternion.Euler(
-                    BombSway * wb * AutoReplayMath.HandNoise(t * 1.7f, s + 21f),
-                    BombSway * wb * AutoReplayMath.HandNoise(t * 1.5f, s + 22f),
+                    BombSway * wb * BotPlayMath.HandNoise(t * 1.7f, s + 21f),
+                    BombSway * wb * BotPlayMath.HandNoise(t * 1.5f, s + 22f),
                     0f);
                 rot = sway * rot;
             }
@@ -601,7 +601,7 @@ namespace AutoReplay
             bombNear = 0f;
 
             float dHit = NearestDistance(ctx.hitTimes, t);
-            w *= AutoReplayMath.SmoothStep((dHit - HitCalmInner) / HitCalmRamp);
+            w *= BotPlayMath.SmoothStep((dHit - HitCalmInner) / HitCalmRamp);
 
             if (ctx.bombTimes.Length > 0)
             {
@@ -613,7 +613,7 @@ namespace AutoReplay
                     float d = t < b - BombCalmBefore ? (b - BombCalmBefore) - t
                             : t > b + BombCalmAfter ? t - (b + BombCalmAfter)
                             : 0f;
-                    bombNear = Mathf.Max(bombNear, 1f - AutoReplayMath.SmoothStep(d / 0.15f));
+                    bombNear = Mathf.Max(bombNear, 1f - BotPlayMath.SmoothStep(d / 0.15f));
                 }
                 w *= 1f - bombNear;
             }
