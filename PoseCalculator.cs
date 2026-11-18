@@ -350,6 +350,7 @@ namespace AutoReplay
             var rollB = RollSpring(rvs, sdt, true);
             var q = new Quaternion[ns];
             int hc = 0;
+            float rollOff = 0f;
             for (int i = 0; i < ns; i++)
             {
                 float t = t0 + (i - pad) * sdt;
@@ -363,6 +364,19 @@ namespace AutoReplay
                     if (d < bestD) { bestD = d; best = RollOffsets.At(isLeft, ctx.hitDirs[h], t - ctx.hitTimes[h]); }
                 }
                 q[i] = HumanModel.Compose(fwd[i], roll + best);
+                // Compose 的滾轉基準在 "劍指向正後方" 附近是奇異的: 指向一跨過那裡, 同樣的滾轉角會翻 180°,
+                // 後面的四元數平滑會把劍尖甩到別的方向 (ranked 批次 / Konpeito Extremists: 一幀 110~150°).
+                // 偵測到這種翻轉時加一個滾轉偏移接上前一幀, 之後偏移以 RollOffsetDecay 度/秒慢慢歸零
+                if (i > 0)
+                {
+                    Quaternion qi = Quaternion.AngleAxis(rollOff, fwd[i]) * q[i];
+                    Quaternion trans = Quaternion.FromToRotation(fwd[i - 1], fwd[i]) * q[i - 1];
+                    float tw = TwistDeg(qi, trans, fwd[i]);
+                    if (Mathf.Abs(tw) > RollFlipDeg) rollOff = Mathf.DeltaAngle(0f, rollOff - tw);
+                    float step = RollOffsetDecay * sdt;
+                    rollOff = Mathf.Abs(rollOff) <= step ? 0f : rollOff - Mathf.Sign(rollOff) * step;
+                    q[i] = Quaternion.AngleAxis(rollOff, fwd[i]) * q[i];
+                }
             }
             q = SmoothQuat(q, RotSmoothSigma / sdt);
 
@@ -400,6 +414,20 @@ namespace AutoReplay
                 outPos[j] = wrist[i];
                 outRot[j] = q[i];
             }
+        }
+
+        const float RollFlipDeg = 25f;          // 相鄰兩個取樣之間滾轉差超過這個 = Compose 的奇異點翻轉 (正常的扭轉每個取樣只有幾度)
+        const float RollOffsetDecay = 360f;     // 接上翻轉的滾轉偏移每秒歸零多少度
+
+        // a 相對 b (兩者指向都是 f) 多轉了多少度 (繞 f)
+        static float TwistDeg(Quaternion a, Quaternion b, Vector3 f)
+        {
+            Quaternion tw = a * Quaternion.Inverse(b);
+            if (tw.w < 0f) tw = new Quaternion(-tw.x, -tw.y, -tw.z, -tw.w);
+            tw.ToAngleAxis(out float ang, out Vector3 axis);
+            if (ang > 180f) ang -= 360f;
+            if (Vector3.Dot(axis, f) < 0f) ang = -ang;
+            return ang;
         }
 
         // 手腕位置 = 人體模型(延遲跟隨的劍指向) + 身體平移 + 位置微動
