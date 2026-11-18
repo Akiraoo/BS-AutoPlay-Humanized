@@ -33,6 +33,8 @@ namespace AutoReplay
         // 身體平移 (躲牆時整個人往旁邊/往下移, 手也跟著走). 由 AutoReplayGenerator 根據頭的軌跡提供
         public Func<float, Vector3> bodyOffset = t => Vector3.zero;
 
+        public const int StripMinNotes = 4;
+
         public HandMotionContext(List<NoteSwingData> swings, List<NoteData> bombs, float seed)
         {
             int n = swings?.Count ?? 0;
@@ -42,9 +44,20 @@ namespace AutoReplay
             for (int i = 0; i < n; i++) { hitTimes[i] = swings[i].time; hitTargets[i] = swings[i].target; hitDirs[i] = swings[i].cutDirection; }
             // swings 本來就按時間排好序
 
+            // 連成一刀的長串 (StripMinNotes 個以上: Noodle 的長條、長鏈條) 照 chain 處理: 只有第一個方塊做一次手臂動作,
+            // 後面的方塊不再各自套 "往上揮再收回" 的模板, 劍只沿著方塊滑過去
+            // (Great Asset 的長條: 原本每 1/8 拍手就來回一次, 劍尖走一下停一下往回退)
+            var inStrip = new bool[n];
+            for (int i = 0; i < n;)
+            {
+                int e = i;
+                while (e + 1 < n && swings[e + 1].isChainedWithPrev) e++;
+                if (e - i + 1 >= StripMinNotes) for (int j = i + 1; j <= e; j++) inStrip[j] = true;
+                i = e + 1;
+            }
             var at = new List<int>();
             for (int i = 0; i < n; i++)
-                if (at.Count == 0 || swings[i].time - swings[at[at.Count - 1]].time > 0.06f) at.Add(i);
+                if (!inStrip[i] && (at.Count == 0 || swings[i].time - swings[at[at.Count - 1]].time > 0.06f)) at.Add(i);
             int m = at.Count;
             armTimes = new float[m]; armD = new Vector3[m]; armN = new Vector3[m]; armF = new Vector3[m]; armDir = new int[m]; armGap = new float[m];
             for (int k = 0; k < m; k++)
