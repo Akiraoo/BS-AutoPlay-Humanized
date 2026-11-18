@@ -29,7 +29,16 @@ namespace BotPlay.Core
     /// </summary>
     public static partial class ModelTrainer
     {
-        public const string TrainerVersion = "BotPlay-trainer/1";
+        /// <summary>
+        /// 訓練器版本. 訓練出來的模型內容有變 (多了 / 改了學到的東西) 就加 1, 只改介面或篩選選項不用加.
+        ///   v1  手的位置 / 扭轉 / 限位, 按轉向分組的揮刀模板, 反手扭轉
+        ///   v2  記錄玩家身高 (身高感知)
+        ///   v3  手臂位置模板, 揮刀模板改成對齊峰值
+        ///   v4  個人習慣 style (點塊角度, 側閃, 下蹲, 炸彈間距); 不再用惡搞譜訓練
+        /// 舊模型 meta.trainer 是 "AutoPlay-trainer/1" (改名前, 對應 v1~v4 都有可能, 看有沒有 style / arm 區塊).
+        /// </summary>
+        public const int TrainerRevision = 4;
+        public const string TrainerVersion = "BotPlay-trainer v4";
 
         // ---- 和 Python 版一致的常量 ----
         const double MergeGap = 0.06;                                    // 0.06s 內的切塊算同一刀
