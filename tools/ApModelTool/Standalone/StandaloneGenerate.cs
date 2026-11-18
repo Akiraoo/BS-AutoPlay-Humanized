@@ -69,7 +69,7 @@ namespace AutoReplay.Tools
             var bombs = map.bombs;
             if (leftHanded)
             {
-                notes = notes.Select(n => { var c = n.CopyWith(); c.Mirror(4); return c; }).ToList();
+                notes = notes.Select(n => { var c = n.CopyWith(); c.Mirror(4); if (AutoReplayMath.NoteCoords.TryGetValue(n, out var p)) AutoReplayMath.NoteCoords[c] = new Vector2(-p.x - 1f, p.y); return c; }).ToList();
                 bombs = bombs.Select(n => { var c = n.CopyWith(); c.Mirror(4); return c; }).ToList();
             }
             var allNotes = notes.Where(n => n.scoringType != NoteData.ScoringType.Ignore && n.gameplayType != NoteData.GameplayType.Bomb &&

@@ -113,10 +113,27 @@ namespace AutoReplay
             return a < 0f ? a + 360f : a;
         }
 
+        /// <summary>
+        /// Noodle Extensions 的方塊座標 (customData.coordinates / v2 的 _position, [x, y]: x = 軌道 - 2, y = 層, 可以是小數).
+        /// 有的譜 (例如 Great Asset) 用它把方塊排到格子外, 或排成一條長條要慢慢拖過去; 原始的 lineIndex 那時只是佔位.
+        /// 用參考比對 (同一個 NoteData 物件); 生成前由呼叫端填好, 左手映象的複本要另外放 (x -> -x - 1)
+        /// </summary>
+        public static readonly Dictionary<NoteData, Vector2> NoteCoords = new Dictionary<NoteData, Vector2>(new RefEq());
+        sealed class RefEq : IEqualityComparer<NoteData>
+        {
+            public bool Equals(NoteData a, NoteData b) => ReferenceEquals(a, b);
+            public int GetHashCode(NoteData n) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(n);
+        }
+
+        /// <summary>方塊在格子上的位置 (軌道, 層), 有 Noodle 座標時用座標</summary>
+        public static Vector2 NoteGrid(NoteData note) =>
+            NoteCoords.Count > 0 && NoteCoords.TryGetValue(note, out var c) ? new Vector2(c.x + 2f, c.y) : new Vector2(note.lineIndex, (int)note.noteLineLayer);
+
         public static Vector3 GetNotePos(NoteData note)
         {
-            float noteX = (note.lineIndex - 1.5f) * 0.60f;
-            float noteY = 0.72f + ((int)note.noteLineLayer) * 0.53f + NoteYOffset; // 身高 1.50 時 Layer 0: 0.72, 1: 1.25, 2: 1.78
+            Vector2 g = NoteGrid(note);
+            float noteX = (g.x - 1.5f) * 0.60f;
+            float noteY = 0.72f + g.y * 0.53f + NoteYOffset; // 身高 1.50 時 Layer 0: 0.72, 1: 1.25, 2: 1.78
             return new Vector3(noteX, noteY, CutDistanceZ);
         }
 

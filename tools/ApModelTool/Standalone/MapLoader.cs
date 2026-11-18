@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace AutoReplay.Tools
 {
@@ -110,6 +111,7 @@ namespace AutoReplay.Tools
         public static LoadedMap Load(string folder, string difficulty, string characteristic = "Standard")
         {
             var map = new LoadedMap { folder = folder, difficulty = difficulty, characteristic = characteristic };
+            AutoReplayMath.NoteCoords.Clear();
             string infoPath = Path.Combine(folder, "Info.dat");
             if (!File.Exists(infoPath)) infoPath = Path.Combine(folder, "info.dat");
             var infoBytes = File.ReadAllBytes(infoPath);
@@ -207,6 +209,7 @@ namespace AutoReplay.Tools
                     lineIndex = (int)n["_lineIndex"], noteLineLayer = Layer((int)n["_lineLayer"]),
                     cutDirection = (NoteCutDirection)((int?)n["_cutDirection"] ?? 1),
                 };
+                Coords(nd, n["_customData"]?["_position"]);
                 if (type == 3)
                 {
                     nd.colorType = ColorType.None; nd.gameplayType = NoteData.GameplayType.Bomb; nd.scoringType = NoteData.ScoringType.NoScore;
@@ -248,14 +251,16 @@ namespace AutoReplay.Tools
             foreach (var n in d["colorNotes"] ?? new JArray())
             {
                 float beat = (float?)n["b"] ?? 0f;
-                color.Add(new NoteData
+                var nd3 = new NoteData
                 {
                     beat = beat, time = bpm.Time(beat),
                     lineIndex = (int?)n["x"] ?? 0, noteLineLayer = Layer((int?)n["y"] ?? 0),
                     colorType = ((int?)n["c"] ?? 0) == 0 ? ColorType.ColorA : ColorType.ColorB,
                     cutDirection = (NoteCutDirection)((int?)n["d"] ?? 0),
                     cutDirectionAngleOffset = (float?)n["a"] ?? 0f,
-                });
+                };
+                Coords(nd3, n["customData"]?["coordinates"]);
+                color.Add(nd3);
             }
             foreach (var n in d["bombNotes"] ?? new JArray())
             {
@@ -298,12 +303,14 @@ namespace AutoReplay.Tools
             {
                 var x = At("colorNotesData", n["i"]);
                 float beat = (float?)n["b"] ?? 0f;
-                color.Add(new NoteData
+                var nd4 = new NoteData
                 {
                     beat = beat, time = bpm.Time(beat), lineIndex = (int?)x["x"] ?? 0, noteLineLayer = Layer((int?)x["y"] ?? 0),
                     colorType = ((int?)x["c"] ?? 0) == 0 ? ColorType.ColorA : ColorType.ColorB,
                     cutDirection = (NoteCutDirection)((int?)x["d"] ?? 0), cutDirectionAngleOffset = (float?)x["a"] ?? 0f,
-                });
+                };
+                Coords(nd4, x["customData"]?["coordinates"] ?? n["customData"]?["coordinates"]);
+                color.Add(nd4);
             }
             foreach (var n in d["bombNotes"] ?? new JArray())
             {
@@ -418,6 +425,13 @@ namespace AutoReplay.Tools
                     });
                 }
             }
+        }
+
+        /// <summary>Noodle Extensions 的方塊座標 [x, y] (見 AutoReplayMath.NoteCoords)</summary>
+        static void Coords(NoteData nd, JToken c)
+        {
+            if (!(c is JArray a) || a.Count < 2 || a[0].Type == JTokenType.Null || a[1].Type == JTokenType.Null) return;
+            try { AutoReplayMath.NoteCoords[nd] = new Vector2((float)a[0], (float)a[1]); } catch { }
         }
 
         /// <summary>弧線: 頭 / 尾方塊的計分型別 (同時是鏈條頭時組合成 ChainHeadArcTail 等)</summary>

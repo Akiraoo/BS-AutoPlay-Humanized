@@ -647,7 +647,7 @@ namespace AutoReplay
         static float DotFlowAngle(List<NoteData> notes, int i, bool up, bool isLeft)
         {
             float m = isLeft ? -1f : 1f;
-            Vector2 P(NoteData n) => new Vector2(m * (n.lineIndex - 1.5f) * 0.6f, (int)n.noteLineLayer * 0.53f);
+            Vector2 P(NoteData n) { Vector2 g = AutoReplayMath.NoteGrid(n); return new Vector2(m * (g.x - 1.5f) * 0.6f, g.y * 0.53f); }
             Vector2 p1 = P(notes[i]);
             Vector2 dp = i > 0 ? p1 - P(notes[i - 1]) : Vector2.zero;
             Vector2 dn = i + 1 < notes.Count ? P(notes[i + 1]) - p1 : Vector2.zero;
@@ -692,7 +692,7 @@ namespace AutoReplay
                 // 按所在的排偏好方向: 真人點塊 最下排 90% 往下揮 (上下交替的串 99%), 最上排 94% 往上, 中間排 75% 往上.
                 // 原本上下兩個方向代價一樣, 一整串只靠後面的箭頭決定起始方向, 會變成下排往上揮、上排往下揮
                 {
-                    int layer = (int)notes[i].noteLineLayer;
+                    int layer = Mathf.Clamp(Mathf.RoundToInt(AutoReplayMath.NoteGrid(notes[i]).y), 0, 2);
                     for (int k = 0; k < cand[i].Count; k++)
                         prior[i][k] += DotLayerPenalty(layer, cand[i][k].y);
                 }

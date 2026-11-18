@@ -114,9 +114,21 @@ namespace AutoReplay
             // 左手模式: 遊戲會把譜面左右映象 (軌道翻轉、紅藍互換、切割方向映象).
             // BeatLeader 用"時間 + 音符 ID"匹配事件, ID 來自映象後的譜面, 所以這裡也必須用映象後的音符.
             // 做法和 BeatLeader 自己映象音符的方式一致: CopyWith() 複製一份再 Mirror(4), 不改動原資料.
+            // Noodle Extensions 的方塊座標 (方塊排到格子外 / 排成長條): 從原始音符讀, 映象的複本 x -> -x - 1
+            sortedNotes = sortedNotes.ToList();
+            AutoReplayMath.NoteCoords.Clear();
+            foreach (var n in sortedNotes)
+                if (NoodleCoords.TryGet(n, out var c)) AutoReplayMath.NoteCoords[n] = c;
+            if (AutoReplayMath.NoteCoords.Count > 0) Plugin.Log?.Info($"Noodle coordinates: {AutoReplayMath.NoteCoords.Count} notes");
+
             if (leftHanded)
             {
-                sortedNotes = sortedNotes.Select(MirrorNote).ToList();
+                sortedNotes = sortedNotes.Select(n =>
+                {
+                    var m = MirrorNote(n);
+                    if (AutoReplayMath.NoteCoords.TryGetValue(n, out var c)) AutoReplayMath.NoteCoords[m] = new UnityEngine.Vector2(-c.x - 1f, c.y);
+                    return m;
+                }).ToList();
             }
 
             var allNotes = sortedNotes
@@ -238,6 +250,38 @@ namespace AutoReplay
             };
 
             return replay;
+        }
+    }
+
+    /// <summary>
+    /// 讀 Noodle Extensions 的方塊座標. 有裝 CustomJSONData 時音符是 CustomNoteData, 帶一個 customData (字典);
+    /// 用反射讀, 不需要直接參考那個組件 (沒裝的話就什麼都讀不到, 照原本的格子位置)
+    /// </summary>
+    static class NoodleCoords
+    {
+        static readonly System.Collections.Generic.Dictionary<Type, Func<object, object>> _getters = new System.Collections.Generic.Dictionary<Type, Func<object, object>>();
+
+        public static bool TryGet(NoteData note, out UnityEngine.Vector2 coords)
+        {
+            coords = default;
+            try
+            {
+                var t = note.GetType();
+                if (!_getters.TryGetValue(t, out var get))
+                {
+                    var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+                    var prop = t.GetProperty("customData", flags);
+                    var field = prop == null ? t.GetField("customData", flags) ?? t.GetField("<customData>k__BackingField", flags) : null;
+                    get = prop != null ? (o => prop.GetValue(o)) : field != null ? (Func<object, object>)(o => field.GetValue(o)) : null;
+                    _getters[t] = get;
+                }
+                if (get == null || !(get(note) is System.Collections.IDictionary d)) return false;
+                object v = d.Contains("coordinates") ? d["coordinates"] : d.Contains("_position") ? d["_position"] : null;
+                if (!(v is System.Collections.IList l) || l.Count < 2 || l[0] == null || l[1] == null) return false;
+                coords = new UnityEngine.Vector2(Convert.ToSingle(l[0], System.Globalization.CultureInfo.InvariantCulture), Convert.ToSingle(l[1], System.Globalization.CultureInfo.InvariantCulture));
+                return true;
+            }
+            catch { return false; }
         }
     }
 }
