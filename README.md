@@ -40,7 +40,7 @@
 1. 先裝好前置模組：**BSIPA**、**BeatLeader 0.10.666+**、**BeatSaberMarkupLanguage (BSML)**
 2. 把 `BotPlay.dll` 放進 `Beat Saber/Plugins/`（從 [Releases](../../releases) 下載，或自己從原始碼建置）。舊版的 `auto_replay.dll` 要刪掉
 3. 放一個模型到 `Beat Saber/UserData/BotPlay/Models/`：
-   - 直接用作者的範例模型：[`sample-model/Akiraoo-ranked30-acc-v3.apmodel`](sample-model/Akiraoo-ranked30-acc-v3.apmodel)
+   - 直接用作者的範例模型：[`sample-model/Akiraoo-ranked30-acc-v4.apmodel`](sample-model/Akiraoo-ranked30-acc-v4.apmodel)
    - 或是進遊戲後用自己的回放訓練（見下方）
 4. 啟動遊戲
 

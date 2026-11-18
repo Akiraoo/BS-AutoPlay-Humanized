@@ -40,7 +40,7 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 1. Install the dependencies: **BSIPA**, **BeatLeader 0.10.666+**, **BeatSaberMarkupLanguage (BSML)**
 2. Put `BotPlay.dll` into `Beat Saber/Plugins/` (from [Releases](../../releases), or build it yourself). Delete the old `auto_replay.dll` if present
 3. Put a model into `Beat Saber/UserData/BotPlay/Models/`:
-   - the author's sample model: [`sample-model/Akiraoo-ranked30-acc-v3.apmodel`](sample-model/Akiraoo-ranked30-acc-v3.apmodel)
+   - the author's sample model: [`sample-model/Akiraoo-ranked30-acc-v4.apmodel`](sample-model/Akiraoo-ranked30-acc-v4.apmodel)
    - or train one from your own replays in-game (see below)
 4. Start the game
 

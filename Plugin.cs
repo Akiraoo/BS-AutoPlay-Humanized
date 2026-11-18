@@ -12,7 +12,7 @@ namespace BotPlay
         public static Plugin Instance { get; private set; }
         public static IPALogger Log { get; private set; }
         public const string HarmonyId = "com.botplay.beatsaber";
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
         private Harmony _harmony;
 
         [Init]
