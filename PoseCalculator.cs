@@ -24,6 +24,7 @@ namespace AutoReplay
         public readonly int[] hitDirs;          // 和 hitTimes 一一對應: 切割方向 (反手扭轉用)
         public readonly float[] bombTimes;
         public readonly float seed;
+        public Vector3 limitSide; public float limitT = float.MinValue;   // 限位往哪一側拉的狀態 (RawForward 按時間順序逐幀呼叫)
         // 手臂模板用: 每一刀 (疊塊/幾乎同時的合成一刀) 的時間、揮刀座標系、方向分類、和前後一刀的較短間隔
         public readonly float[] armTimes;
         public readonly Vector3[] armD, armN, armF;
@@ -503,7 +504,9 @@ namespace AutoReplay
                     0f);
                 rot = sway * rot;
             }
-            return HumanModel.LimitForward(isLeft, rot * Vector3.forward);
+            float dtl = ctx.limitT > float.MinValue ? t - ctx.limitT : 0f;
+            ctx.limitT = t;
+            return HumanModel.LimitForward(isLeft, rot * Vector3.forward, ref ctx.limitSide, Mathf.Max(0f, dtl));
         }
 
         static float[] Kernel(float sigma)

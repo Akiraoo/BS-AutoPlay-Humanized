@@ -66,10 +66,51 @@ namespace AutoReplay
         }
 
         /// <summary>軟限位: 劍偏離正前方的角度超過 knee 後被逐漸壓縮, 最多到 top (上限 + LimitOver). 防戳頭另外在 MotionGenerator.AvoidHead 按實際距離處理</summary>
+        public static float LimitSideTurnRate = 1500f;   // 限位後往哪一側拉 (繞正前方的方位) 每秒最多轉幾度
+
+        /// <summary>
+        /// 有狀態的版本: 按時間順序逐幀呼叫. 指向接近正後方時, 原始的 "往哪一側拉" 一跨過正後方就從左邊換到右邊,
+        /// 限位後的劍會一幀內甩過去 (ranked 批次測試: 一幀 60~140°). 這裡讓那個方位每秒最多轉 LimitSideTurnRate 度.
+        /// side = 上一幀的方位 (z = 0 的單位向量; 零向量 = 還沒有)
+        /// </summary>
+        public static Vector3 LimitForward(bool isLeft, Vector3 f, ref Vector3 side, float dt)
+        {
+            Vector3 raw = new Vector3(f.x, f.y, 0f);
+            raw = raw.sqrMagnitude > 1e-8f ? raw.normalized : (side.sqrMagnitude > 0.5f ? side : Vector3.up);
+            if (side.sqrMagnitude < 0.5f) side = raw;
+            else
+            {
+                float a = Mathf.Atan2(side.x * raw.y - side.y * raw.x, side.x * raw.x + side.y * raw.y) * Mathf.Rad2Deg, step = LimitSideTurnRate * dt;
+                side = Mathf.Abs(a) <= step ? raw : Quaternion.AngleAxis(Mathf.Sign(a) * step, Vector3.forward) * side;
+                side.z = 0f; side.Normalize();
+            }
+            // 剛超過 knee 的地方方位還是用原始的 (不然還沒追上時, 從限位裡出來的那一幀會跳)
+            float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
+            float kneeRaw = KneeAt(isLeft, raw);
+            float k = AutoReplayMath.SmoothStep((ang - kneeRaw) / 20f);
+            Vector3 use = k >= 1f ? side : Vector3.Slerp(raw, side, k);
+            use.z = 0f; use = use.sqrMagnitude > 1e-8f ? use.normalized : raw;
+            return LimitForwardSide(isLeft, f, use);
+        }
+
+        static float KneeAt(bool isLeft, Vector3 side)
+        {
+            float lim = Mathf.Min(MaxForwardAngle, LimitAt(P(isLeft), Mathf.Atan2(side.y, side.x) * Mathf.Rad2Deg));
+            return LimitKneeAtLimit ? lim - LimitKneeBelow : lim - LimitSoftZone;
+        }
+
         public static Vector3 LimitForward(bool isLeft, Vector3 f)
         {
+            Vector3 raw = new Vector3(f.x, f.y, 0f);
+            if (raw.sqrMagnitude < 1e-8f) raw = Vector3.up;
+            return LimitForwardSide(isLeft, f, raw.normalized);
+        }
+
+        // side: 往哪一側拉 (z = 0 的單位向量). 沒超過限位時原樣回傳 f
+        static Vector3 LimitForwardSide(bool isLeft, Vector3 f, Vector3 side)
+        {
             float ang = Mathf.Acos(Mathf.Clamp(f.z, -1f, 1f)) * Mathf.Rad2Deg;
-            float az = Mathf.Atan2(f.y, f.x) * Mathf.Rad2Deg;
+            float az = Mathf.Atan2(side.y, side.x) * Mathf.Rad2Deg;
             float lim = Mathf.Min(MaxForwardAngle, LimitAt(P(isLeft), az));
             float knee = LimitKneeAtLimit ? lim - LimitKneeBelow : lim - LimitSoftZone;
             float top = LimitKneeAtLimit ? lim + LimitOver : lim;      // 最多到這裡
@@ -77,9 +118,6 @@ namespace AutoReplay
 
             float zone = Mathf.Max(1f, top - knee);
             float newAng = knee + zone * Tanh((ang - knee) / zone);
-            Vector3 side = new Vector3(f.x, f.y, 0f);
-            if (side.sqrMagnitude < 1e-8f) side = Vector3.up;
-            side.Normalize();
             float r = newAng * Mathf.Deg2Rad;
             return (Vector3.forward * Mathf.Cos(r) + side * Mathf.Sin(r)).normalized;
         }

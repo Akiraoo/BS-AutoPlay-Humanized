@@ -255,10 +255,11 @@ namespace AutoReplay
                 if (kPre >= 0)
                 {
                     float wPre = AutoReplayMath.SmoothStep((t - (sStart[kPre] - PreWindow(kPre) - RestFade)) / RestFade);
-                    if (wPre > 0f) f = Vector3.Slerp(f, PreDir(kPre, t), wPre);
+                    if (wPre > 0f) f = SlerpVia(f, PreDir(kPre, t), wPre, v[strokes[kPre][0]]);
                 }
                 return f.normalized;
             }
+            int lastK = -1; Vector3 lastC = Vector3.zero; float lastT = 0f;   // DirAt 上一次的控制點 (同一個間隔內保持連續; 關鍵幀按時間順序算)
             Vector3 DirAt(float t)
             {
                 if (t <= sStart[0]) return ViaRest(-1, 0, t);
@@ -275,7 +276,39 @@ namespace AutoReplay
                 //  直接球面插值後中段誤差降到約 30°, 和真人自己兩次遊玩之間的差異相當)
                 float u = (t - sEnd[k]) / Mathf.Max(1e-4f, sStart[k + 1] - sEnd[k]);
                 float w = AutoReplayMath.SmoothStep((u - BlendDelay) / (1f - BlendDelay));
-                return Vector3.Slerp(fPost, FrameDir(nextS, qa, qb), w).normalized;
+                // 收勢和預揮的夾角在間隔中途可能跨過 180° (例如連續下切: 收勢朝後下方, 預揮從後上方來),
+                // 最短弧的中點會一下從前方換到後方, 劍一幀內翻過去 (ranked 批次: 一幀 25~30 m/s).
+                // 所以插值經過的中間點 (控制點) 跨關鍵幀記住, 每秒最多轉 RouteTurnRate 度, 換邊時是平滑地繞過去.
+                // 控制點跟得上時就是原本的最短弧
+                Vector3 fPre = FrameDir(nextS, qa, qb);
+                if ((Legacy & 4) != 0) return Vector3.Slerp(fPost, fPre, w).normalized;
+                Vector3 a0 = fPost.normalized, b0 = fPre.normalized;
+                // 目標控制點 = 最短弧的中點 (前方是炸彈飛來的方向, 不刻意從前面繞; 真人的模板本來就多半從後方 / 側面接過去).
+                // 兩端幾乎相反時中點不穩定: 沿用上一幀的控制點
+                Vector3 target = a0 + b0;
+                if (target.sqrMagnitude > 0.04f) target.Normalize();
+                else if (lastK == k) target = lastC;
+                else { Vector3 ab0 = a0 - b0; target = Vector3.Cross(ab0, Vector3.right); target = target.sqrMagnitude > 1e-8f ? target.normalized : Vector3.up; }
+                Vector3 c = target;
+                if (lastK == k)
+                {
+                    Vector3 ab = a0 - b0;
+                    c = lastC;
+                    if (ab.sqrMagnitude > 1e-8f) { Vector3 uu = ab.normalized; c -= uu * Vector3.Dot(c, uu); }   // 控制點要和兩端等距
+                    c = c.sqrMagnitude > 1e-8f ? c.normalized : target;
+                    float ang = Vector3.Angle(c, target), step = RouteTurnRate * Mathf.Max(0f, t - lastT);
+                    if (ang > step && ang > 1e-3f)
+                    {
+                        Vector3 ax = Vector3.Cross(c, target);
+                        c = ax.sqrMagnitude > 1e-10f ? Quaternion.AngleAxis(step, ax.normalized) * c : c;
+                    }
+                    else c = target;
+                }
+                lastK = k; lastC = c; lastT = t;
+                Vector3 r = Vector3.Slerp(Vector3.Slerp(a0, c, w), Vector3.Slerp(c, b0, w), w).normalized;
+                if (DebugKeysTo > DebugKeysFrom && t >= DebugKeysFrom && t <= DebugKeysTo)
+                    Plugin.Log?.Info($"dirat {(isLeft ? "L" : "R")} t={t:F4} k={k} post=({pa:F1},{pb:F1}) pre=({qa:F1},{qb:F1}) w={w:F2} c={c} target={target} r={r}");
+                return r;
             }
 
             // 關鍵幀時刻: 均勻網格 (筆畫內部除外) + 命中幀 + 每筆一個結束幀
@@ -328,6 +361,14 @@ namespace AutoReplay
             {
                 Plugin.Log?.Warn("[BombAvoider v6] 传进来的 bombs 是空的, 所以没有执行躲避! 检查调用方有没有把炸弹解析/传入。");
             }
+
+            if (DebugKeysTo > DebugKeysFrom)
+                foreach (var key in track)
+                    if (key.t >= DebugKeysFrom && key.t <= DebugKeysTo)
+                    {
+                        var f = key.q * Vector3.forward;
+                        Plugin.Log?.Info($"key {(isLeft ? "L" : "R")} t={key.t:F4} tag={key.tag} f=({f.x:F2},{f.y:F2},{f.z:F2})");
+                    }
 
             // 加密/偏移會改變下標, 所以按 tag 重新定位命中幀和每筆結束幀
             {
@@ -403,9 +444,56 @@ namespace AutoReplay
         }
 
         // ================= 工具 =================
+
+        /// <summary>
+        /// 方向的球面插值, 但兩端幾乎相反時固定從 hint (朝方塊的方向, 也就是身體前方) 那側繞過去.
+        /// 直接 Slerp 在兩端接近 180° 時, 路徑平面由叉積決定, 兩端稍微動一下平面就整個翻過去,
+        /// 劍會在一幀內從背後跳到前面 (ranked 批次測試裡手速 40~60 m/s 的瞬移都是這個).
+        /// 做法: 球面二次 Bézier, 控制點 = a + b (+ 夾角大時加上 hint). 控制點在測地線中點時和 Slerp 完全一樣.
+        /// </summary>
+        internal static Vector3 SlerpVia(Vector3 a, Vector3 b, float w, Vector3 hint)
+        {
+            a.Normalize(); b.Normalize();
+            if (!ViaControl(a, b, hint, out Vector3 c)) return Vector3.Slerp(a, b, w).normalized;
+            return Vector3.Slerp(Vector3.Slerp(a, c, w), Vector3.Slerp(c, b, w), w).normalized;
+        }
+
+        /// <summary>SlerpVia 的控制點 (a, b 為單位向量). 夾角不大時回傳 false (直接 Slerp 就好)</summary>
+        internal static bool ViaControl(Vector3 a, Vector3 b, Vector3 hint, out Vector3 c)
+        {
+            c = Vector3.zero;
+            float dot = Vector3.Dot(a, b);
+            float g = AutoReplayMath.SmoothStep((ViaDotStart - dot) / (ViaDotStart + 1f));   // dot >= ViaDotStart 時 0, dot = -1 時 1
+            if (g <= 0f) return false;
+            Vector3 ab = a - b;
+            Vector3 h = hint;
+            if (ab.sqrMagnitude > 1e-6f) { Vector3 u = ab.normalized; h -= Vector3.Dot(h, u) * u; }   // 只取和兩端連線垂直的部分
+            if (h.sqrMagnitude < 1e-4f) h = Vector3.Cross(ab, Vector3.right);
+            c = a + b + h.normalized * (g * 1.5f);
+            if (c.sqrMagnitude < 1e-6f) return false;
+            c.Normalize();
+            return true;
+        }
+        const float ViaDotStart = -0.5f;   // 夾角超過 120° 才開始偏向 hint 那側
+        public static int Legacy = 0;   // debug: 位元 1 = 關鍵幀用 Quaternion.Slerp, 2 = 躲炸彈過渡不繞前方, 4 = 收勢->預揮 直接 Slerp
+        public static float RouteTurnRate = 900f;   // 收勢 -> 預揮 插值的中間點每秒最多轉幾度
+
         static PoseKey HitKey(NoteSwingData s)
         {
             return s.keys[s.keys.Length - 1];
+        }
+
+        /// <summary>
+        /// 相鄰關鍵幀之間插值: 只讓劍尖沿大圓弧走 (滾轉從 a 平行搬運過去), 不用 b 的滾轉.
+        /// 關鍵幀的滾轉是 Compose(指向, 0) 給的, 劍指向正後方附近時那個滾轉會突然翻 180°,
+        /// 直接 Quaternion.Slerp 會讓劍尖在兩個關鍵幀之間甩出去 (ranked 批次測試裡一幀 150° 的跳動).
+        /// 這裡只有指向會被用到 (扭轉之後換成真人模型的), 所以丟掉關鍵幀的滾轉沒有影響.
+        /// </summary>
+        internal static Quaternion KeySlerp(Quaternion a, Quaternion b, float u)
+        {
+            Vector3 fa = a * Vector3.forward, fb = b * Vector3.forward;
+            if ((Legacy & 1) != 0 || Vector3.Dot(fa, fb) < -0.9f) return Quaternion.Slerp(a, b, u);   // 關鍵幀間隔很短, 不會出現
+            return Quaternion.Slerp(a, Quaternion.FromToRotation(fa, fb) * a, u);
         }
 
         static Quaternion SampleSeq(PoseKey prev, PoseKey[] keys, float t)
@@ -419,7 +507,7 @@ namespace AutoReplay
                 {
                     float d = b.t - a.t;
                     if (d <= 1e-6f) return b.q;
-                    return Quaternion.Slerp(a.q, b.q, Mathf.Clamp01((t - a.t) / d));
+                    return KeySlerp(a.q, b.q, Mathf.Clamp01((t - a.t) / d));
                 }
                 a = b;
             }
@@ -568,7 +656,8 @@ namespace AutoReplay
         }
 
         public static float DotLayerPref = 0.6f;       // 點塊方向和所在排不符 (下排往上 / 上排往下) 的代價
-        public static bool DebugDots = false;          // debug: 印出點塊各方向的炸彈代價
+        public static float DebugKeysFrom, DebugKeysTo;   // debug: 印出這段時間內的關鍵幀指向
+        public static bool DebugDots = false;        // debug: 印出點塊各方向的炸彈代價
 
         static Vector3[] PlanDotDirections(List<NoteData> notes, bool isLeft, List<NoteData> bombs = null, Vector3 wrist = default)
         {
@@ -875,17 +964,35 @@ namespace AutoReplay
             if (u <= 0f) return a;
             if (u >= 1f) return b;
             Vector3 fa = a * Vector3.forward, fb = b * Vector3.forward;
+            // 兩個指向接近相反時, 最短大圓弧的平面不穩定 (每個關鍵幀的 fa 稍微不同, 弧就在背後 / 前面之間翻來翻去,
+            // 劍會在一幀內翻 150°). 這時固定經過前方的控制點 c 繞過去 (和揮刀之間的 SlerpVia 一樣)
+            if ((NoteSwingPlanner.Legacy & 2) == 0 && NoteSwingPlanner.ViaControl(fa.normalized, fb.normalized, Vector3.forward, out Vector3 c))
+            {
+                Quaternion qEndV = Quaternion.FromToRotation(c, fb) * Quaternion.FromToRotation(fa, c) * a;
+                float angV = TwistAngle(b, qEndV, fb);
+                Vector3 fuV = NoteSwingPlanner.SlerpVia(fa, fb, u, Vector3.forward);
+                Vector3 mid = Vector3.Slerp(fa, c, u);   // 分兩段搬運滾轉 (經過 fa->c 弧上的點, 不會遇到正反向的奇異點)
+                Quaternion qdV = Quaternion.FromToRotation(mid, fuV) * Quaternion.FromToRotation(fa, mid) * a;
+                return Quaternion.AngleAxis(angV * u, fuV) * qdV;
+            }
             Quaternion rot = AimRotation(fa, fb);
             Quaternion qEnd = rot * a;                          // 指向 = fb, 滾轉 = 平行搬運
-            Quaternion tw = b * Quaternion.Inverse(qEnd);       // 剩下的滾轉差 (軸 = fb)
+            float ang = TwistAngle(b, qEnd, fb);
+            Quaternion qd = Quaternion.Slerp(Quaternion.identity, rot, u) * a;
+            Vector3 fu = qd * Vector3.forward;
+            return Quaternion.AngleAxis(ang * u, fu) * qd;
+        }
+
+        // b 相對 qEnd (兩者指向相同 = fb) 還差多少滾轉 (度, 繞 fb)
+        static float TwistAngle(Quaternion b, Quaternion qEnd, Vector3 fb)
+        {
+            Quaternion tw = b * Quaternion.Inverse(qEnd);
             if (tw.w < 0f) tw = new Quaternion(-tw.x, -tw.y, -tw.z, -tw.w);
             float ang; Vector3 axis;
             tw.ToAngleAxis(out ang, out axis);
             if (ang > 180f) ang -= 360f;
             if (Vector3.Dot(axis, fb) < 0f) ang = -ang;
-            Quaternion qd = Quaternion.Slerp(Quaternion.identity, rot, u) * a;
-            Vector3 fu = qd * Vector3.forward;
-            return Quaternion.AngleAxis(ang * u, fu) * qd;
+            return ang;
         }
 
         // fa -> fb 的最短旋轉; 幾乎正反向時固定從"朝前"那一側繞過去
@@ -1183,7 +1290,7 @@ namespace AutoReplay
             if (lo >= keys.Count) return keys[keys.Count - 1].q;
             PoseKey a = keys[lo - 1], b = keys[lo];
             float d = b.t - a.t;
-            return d > 1e-6f ? Quaternion.Slerp(a.q, b.q, Mathf.Clamp01((t - a.t) / d)) : b.q;
+            return d > 1e-6f ? NoteSwingPlanner.KeySlerp(a.q, b.q, Mathf.Clamp01((t - a.t) / d)) : b.q;
         }
 
         static int LowerBound(List<PoseKey> keys, float t)

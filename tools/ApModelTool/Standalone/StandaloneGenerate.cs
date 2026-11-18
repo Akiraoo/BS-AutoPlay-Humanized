@@ -41,7 +41,13 @@ namespace AutoReplay.Tools
             if (Array.IndexOf(a, "--bomb-up") >= 0) BombAvoider.PreferUp = true;   // debug
             string span = opt(a, "--bomb-span", null);   // debug: 一串炸彈最長跨度 (秒)
             if (span != null) BombAvoider.MaxClusterSpan = float.Parse(span, System.Globalization.CultureInfo.InvariantCulture);
-            NoteSwingPlanner.DebugDots = Array.IndexOf(a, "--debug-dots") >= 0;
+            string pfr = opt(a, "--push-far", null); if (pfr != null) MotionGenerator.PushFarRate = float.Parse(pfr, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string ptr = opt(a, "--push-turn", null); if (ptr != null) MotionGenerator.PushTurnRate = float.Parse(ptr, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string lg = opt(a, "--legacy", null); if (lg != null) NoteSwingPlanner.Legacy = int.Parse(lg);   // debug
+            string lsr = opt(a, "--limit-side-rate", null); if (lsr != null) HumanModel.LimitSideTurnRate = float.Parse(lsr, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            string dk = opt(a, "--debug-keys", null);   // debug: "起,迄" 秒, 印出這段的關鍵幀指向
+            if (dk != null) { var p = dk.Split(','); NoteSwingPlanner.DebugKeysFrom = float.Parse(p[0], System.Globalization.CultureInfo.InvariantCulture); NoteSwingPlanner.DebugKeysTo = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture); }
+            NoteSwingPlanner.DebugDots =Array.IndexOf(a, "--debug-dots") >= 0;
             string dbc = opt(a, "--dot-bomb-cost", null);   // debug: 點塊方向規劃裡炸彈的代價 (0 = 不看炸彈)
             if (dbc != null) NoteSwingPlanner.DotBombCost = float.Parse(dbc, System.Globalization.CultureInfo.InvariantCulture);
             string upm = opt(a, "--up-margin", null);

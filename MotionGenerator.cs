@@ -115,10 +115,10 @@ namespace AutoReplay
             PoseCalculator.BuildHandTrack(startTime, dt, totalFrames, rightSwings, bombs, false, rightCtx, m.rightPos, m.rightRot);
 
             // 炸彈: 劍身離炸彈太近時以手腕為軸推開 (規劃時已經躲過, 這裡處理最後的手臂動作 / 晃動造成的誤差)
-            if (bombs != null && bombs.Count > 0)
+            (float t, Vector3 p)[] bl = null; float[] bt = null;
+            void BombPass()
             {
-                var bl = bombs.Select(b => (t: b.time, p: AutoReplayMath.GetNotePos(b))).OrderBy(b => b.t).ToArray();
-                var bt = bl.Select(b => b.t).ToArray();
+                if (bl == null) return;
                 for (int i = 0; i < totalFrames; i++)
                 {
                     float t = startTime + i * dt;
@@ -126,17 +126,29 @@ namespace AutoReplay
                     m.rightRot[i] = AvoidBombs(t, m.rightPos[i], m.rightRot[i], bl, bt, rightCtx.hitTimes);
                 }
             }
+            if (bombs != null && bombs.Count > 0)
+            {
+                bl = bombs.Select(b => (t: b.time, p: AutoReplayMath.GetNotePos(b))).OrderBy(b => b.t).ToArray();
+                bt = bl.Select(b => b.t).ToArray();
+            }
+            BombPass();
 
             // 劍別穿過頭: 劍身離頭心太近時, 以手腕為軸把劍往外推 (只動指向頭的那些幀, 其他方向的收勢幅度不受影響)
+            // 推開的方向每隻手各自記住, 而且轉向有速度上限: 劍 / 劍柄剛好穿過頭心 / 眼睛時, 原始的推開方向會一幀內翻到另一側
+            // (ranked 144 張批次測試: 一幀內 50~150° 的跳動幾乎都是這個), 這樣會改成從原本那側繞過去
+            var headL = new PushState(); var headR = new PushState(); var eyeL = new PushState(); var eyeR = new PushState();
             for (int i = 0; i < totalFrames; i++)
             {
                 Vector3 hc = m.headPos[i] - m.headRot[i] * new Vector3(0f, 0f, HeadCenterBack);
-                m.leftRot[i] = AvoidHead(m.leftPos[i], m.leftRot[i], hc);
-                m.rightRot[i] = AvoidHead(m.rightPos[i], m.rightRot[i], hc);
+                m.leftRot[i] = AvoidHead(m.leftPos[i], m.leftRot[i], hc, ref headL, dt);
+                m.rightRot[i] = AvoidHead(m.rightPos[i], m.rightRot[i], hc, ref headR, dt);
                 // 劍柄別插進眼睛: 劍柄 (手腕 ~ 控制器前 5 cm) 離頭顯太近時, 把整隻手往外推
-                m.leftPos[i] = AvoidEyes(m.leftPos[i], m.leftRot[i], m.headPos[i]);
-                m.rightPos[i] = AvoidEyes(m.rightPos[i], m.rightRot[i], m.headPos[i]);
+                m.leftPos[i] = AvoidEyes(m.leftPos[i], m.leftRot[i], m.headPos[i], ref eyeL, dt);
+                m.rightPos[i] = AvoidEyes(m.rightPos[i], m.rightRot[i], m.headPos[i], ref eyeR, dt);
             }
+
+            // 躲頭 / 躲眼可能把劍推向炸彈 (ranked 批次: 587555CF 劍離炸彈 10 cm): 再推一次炸彈
+            BombPass();
 
             // 回放記錄的是手柄位置: 手腕往劍的方向前移 PommelOffset
             var pommelOffset = new Vector3(0f, 0f, HumanModel.PommelOffset);
@@ -200,39 +212,89 @@ namespace AutoReplay
         public static float EyeClearSoft = 0.05f;
         const float HiltFront = 0.05f;               // 劍柄算到控制器前方多遠
 
-        static Vector3 AvoidEyes(Vector3 wrist, Quaternion rot, Vector3 eye)
+        public static float PushTurnRate = 720f;   // 推開方向最快每秒轉幾度 (180° 約 0.25 秒繞過去)
+        public static float PushFarRate = 2880f;   // 已經離開頭 / 眼睛附近時追回原始方向的速度 (不然會一直扭著揮刀)
+
+        /// <summary>躲頭 / 躲眼 正在推的方向 (單位向量); active = 還在推 (或推開方向還沒轉回原始方向)</summary>
+        struct PushState { public bool active; public Vector3 dir; }
+
+        // 把 cur 往 raw 轉, 每幀最多轉 maxDeg 度 (都垂直於 axis 時就是繞 axis 轉)
+        static Vector3 TurnToward(Vector3 cur, Vector3 raw, float maxDeg)
+        {
+            float ang = Vector3.Angle(cur, raw);
+            if (ang <= maxDeg || ang < 1e-3f) return raw;
+            Vector3 ax = Vector3.Cross(cur, raw);
+            if (ax.sqrMagnitude < 1e-10f) return cur;   // 正好相反: 這幀先不轉 (下一幀 raw 一動就有方向)
+            return Quaternion.AngleAxis(maxDeg, ax.normalized) * cur;
+        }
+
+        static Vector3 AvoidEyes(Vector3 wrist, Quaternion rot, Vector3 eye, ref PushState st, float dt)
         {
             Vector3 f = rot * Vector3.forward;
             Vector3 ab = f * (HumanModel.PommelOffset + HiltFront);
-            for (int it = 0; it < 2; it++)
+            float c = EyeClear, z = EyeClearSoft;
+            float s = Mathf.Clamp01(Vector3.Dot(eye - wrist, ab) / ab.sqrMagnitude);
+            Vector3 v = wrist + ab * s - eye;
+            float d = v.magnitude;
+            bool near = d < c + z;
+            Vector3 raw = d > 1e-4f ? v / d : (st.active ? st.dir : Vector3.down);
+            if (!st.active)
             {
-                float s = Mathf.Clamp01(Vector3.Dot(eye - wrist, ab) / ab.sqrMagnitude);
-                Vector3 v = wrist + ab * s - eye;
-                float d = v.magnitude, c = EyeClear, z = EyeClearSoft;
-                if (d >= c + z) break;
-                float want = c + z * Mathf.Exp((d - c) / z - 1f);
-                Vector3 dir = d > 1e-4f ? v / d : Vector3.down;
-                wrist += dir * (want - d);
+                if (!near) return wrist;
+                st.active = true; st.dir = raw;
+            }
+            else st.dir = TurnToward(st.dir, raw, (near ? PushTurnRate : PushFarRate) * dt).normalized;
+            if (!near && Vector3.Angle(st.dir, raw) < 2f) { st.active = false; return wrist; }
+            float want = near ? c + z * Mathf.Exp((d - c) / z - 1f) : d;
+            // 把劍柄最近點放到 eye + dir * want (dir = raw 時就是原本沿 v 推 want - d)
+            wrist += st.dir * want - v;
+            // 推完再檢查一次 (劍柄最近點可能換位置), 只沿目前方向補
+            s = Mathf.Clamp01(Vector3.Dot(eye - wrist, ab) / ab.sqrMagnitude);
+            v = wrist + ab * s - eye; d = v.magnitude;
+            if (d < c + z && d > 1e-4f)
+            {
+                float want2 = c + z * Mathf.Exp((d - c) / z - 1f);
+                wrist += v / d * (want2 - d);
             }
             return wrist;
         }
 
-        static Quaternion AvoidHead(Vector3 wrist, Quaternion rot, Vector3 hc)
+        static Quaternion AvoidHead(Vector3 wrist, Quaternion rot, Vector3 hc, ref PushState st, float dt)
         {
             Vector3 f = rot * Vector3.forward;
             Vector3 v = hc - wrist;
+            float dist = v.magnitude;
             float along = Vector3.Dot(v, f);
-            if (along <= 0f || along >= BladeLen) return rot;          // 頭在劍的後面或劍尖外面: 線段最近點是端點, 不會更近
-            Vector3 perp = v - f * along;
-            float d = perp.magnitude, dist = v.magnitude;
             float c = HeadClear, z = HeadClearSoft;
-            if (d >= c + z || dist < 1e-3f) return rot;                // 夠遠 (手腕離頭比 want 還近時 asin 取 90°: 劍儘量垂直於手腕->頭的方向)
-            float want = c + z * Mathf.Exp((d - c) / z - 1f);           // d = c+z 時 want = d, 斜率 1 平滑接上; d -> 0 時 want -> c + z/e
-            Vector3 away = d > 1e-5f ? -perp / d : Vector3.Cross(f, Vector3.up).normalized;
-            float delta = Mathf.Asin(Mathf.Clamp01(want / dist)) - Mathf.Asin(Mathf.Clamp01(d / dist));
-            Vector3 axis = Vector3.Cross(f, away);
-            if (axis.sqrMagnitude < 1e-10f) return rot;
-            return Quaternion.AngleAxis(delta * Mathf.Rad2Deg, axis.normalized) * rot;
+            bool inSeg = along > 0f && along < BladeLen;              // 頭在劍的後面或劍尖外面: 線段最近點是端點, 不會更近
+            Vector3 perp = v - f * along;
+            float d = perp.magnitude;
+            bool near = inSeg && d < c + z && dist > 1e-3f;
+            if (!st.active && !near) return rot;
+            if (dist < 1e-3f) return rot;
+            Vector3 h = v / dist;
+            // 推開方向 = 劍的指向在 "垂直於 手腕->頭心" 平面上的分量 (就是原本的 -perp 方向)
+            Vector3 raw = f - h * Vector3.Dot(f, h);
+            if (raw.sqrMagnitude > 1e-8f) raw.Normalize();
+            else raw = st.active ? st.dir : Vector3.Cross(f, Vector3.up).normalized;
+            if (!st.active) { st.active = true; st.dir = raw; }
+            else
+            {
+                Vector3 pd = st.dir - h * Vector3.Dot(st.dir, h);   // 頭和手腕會動: 先投影回目前的平面
+                st.dir = pd.sqrMagnitude > 1e-8f ? pd.normalized : raw;
+                st.dir = TurnToward(st.dir, raw, (near ? PushTurnRate : PushFarRate) * dt).normalized;
+            }
+            if (!near && Vector3.Angle(st.dir, raw) < 2f) { st.active = false; return rot; }
+            // 劍和 手腕->頭心 的夾角: 原始 theta, 需要 thetaWant (d = dist sin theta)
+            float theta = Mathf.Acos(Mathf.Clamp(Vector3.Dot(f, h), -1f, 1f));
+            float thetaOut = theta;
+            if (near)
+            {
+                float want = c + z * Mathf.Exp((d - c) / z - 1f);       // d = c+z 時 want = d, 斜率 1 平滑接上; d -> 0 時 want -> c + z/e
+                thetaOut = Mathf.Max(theta, Mathf.Asin(Mathf.Clamp01(want / dist)));   // 手腕離頭比 want 還近時 asin 取 90°
+            }
+            Vector3 fOut = (h * Mathf.Cos(thetaOut) + st.dir * Mathf.Sin(thetaOut)).normalized;
+            return Quaternion.FromToRotation(f, fOut) * rot;
         }
 
         /// <summary>BeatLeader 用 "時間 + 音符 ID" 匹配事件: ID = (計分型別+2)*10000 + 列*1000 + 層*100 + 顏色*10 + 方向</summary>
