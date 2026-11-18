@@ -135,7 +135,7 @@ namespace AutoReplay
         // 原本: 牆到前 0.3 秒目標瞬間切到 0.42~0.45 m / 12°, 牆一過就彈回 -> 幅度是真人的 2.7 倍, 而且每次一樣, 牆多就暈.
         public static float LeanBase => Lean != null ? Mathf.Clamp(Lean.peak, 0.05f, 0.40f) : 0.16f;   // 最遠橫移中位數 (模型直接量到的)
         public static float LeanVariation => Lean != null && Lean.peak > 0.02f ? Mathf.Clamp(0.25f * (Lean.peakP90 - Lean.peakP10) / Lean.peak / RefLeanSpread, 0f, 0.5f) : 0.25f;   // 每次隨機 ±25% (按牆的時間決定)
-        public const float LeanClear = 0.12f;          // 頭離牆邊至少要這麼遠
+        public const float LeanClear = 0.16f;          // 頭離牆邊至少要這麼遠 (通用的安全距離, 不是個人習慣; 0.12 時學到幅度較小的模型會擦到牆邊)
         public const float LeanStart = 0.35f;          // 牆到前多久開始移
         public const float LeanRise = 0.45f;           // 移到最遠要多久 (牆到時已移了約 90%: 真人最遠點在牆過後 0.2~0.3 s,
                                                        //  但牆到時只移了 9 cm, 照抄會擦到牆邊)
