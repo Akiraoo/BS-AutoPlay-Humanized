@@ -23,6 +23,7 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
   - Sabers follow the body when dodging walls; head tilt is kept small so it's comfortable to watch
   - Wall ducks and side dodges, bomb avoidance and angled dot cuts follow real habits; sabers stay out of the head and eyes
 - **Personal habits live in the model**: dot cut angles, up/down preference per row, wall dodge / duck curves and bomb clearance are measured from your replays (and their maps) at training time
+- **Scores come from the motion**: each cut's pre-swing, follow-through and accuracy are measured on the generated saber path instead of a fixed 115; how far away you cut notes (how early) and how far off-center your cuts land are learned from your replays too (trainer v5+)
 - **Models are separate files** (`.apmodel`): swap them, train your own, share them
 - **In-game training** from your own local replays within a chosen date range (the player ID is checked, so only your own replays are used), with optional background retraining as new replays come in
 - **Model info**: trainer version, date range, filters, BeatLeader / ScoreSaber star distribution and more, with no player ID
@@ -40,7 +41,7 @@ Generate a human-like `.bsor` replay for any selected map in one click and watch
 1. Install the dependencies: **BSIPA**, **BeatLeader 0.10.666+**, **BeatSaberMarkupLanguage (BSML)**
 2. Put `BotPlay.dll` into `Beat Saber/Plugins/` (from [Releases](../../releases), or build it yourself). Delete the old `auto_replay.dll` if present
 3. Put a model into `Beat Saber/UserData/BotPlay/Models/`:
-   - the author's sample model: [`sample-model/Akiraoo-ranked30-acc-v4.apmodel`](sample-model/Akiraoo-ranked30-acc-v4.apmodel)
+   - the author's sample model: [`sample-model/Akiraoo-ranked30-acc-v5.apmodel`](sample-model/Akiraoo-ranked30-acc-v5.apmodel)
    - or train one from your own replays in-game (see below)
 4. Start the game
 

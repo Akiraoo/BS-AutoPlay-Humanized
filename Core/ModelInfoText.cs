@@ -66,6 +66,10 @@ namespace BotPlay.Core
             L.Add("蹲牆: " + (k == null ? def : $"{k.count} 次 · 下降 {F(k.depth, "0.00")} m · 牆到前 {F(-k.startTime)} s 開始 · 牆到後 {F(k.recoverTime)} s 站回"));
             var b = st?.bombs;
             L.Add("炸彈: " + (b == null ? def : $"{b.count} 顆 · 劍離炸彈 中位 {F(b.clearMedian, "0.00")} m (P10 {F(b.clearP10, "0.00")}) · 劍在上方 {F(b.upShare * 100, "0")}%"));
+            var c = st?.cuts;
+            float Mid(float[] t) => c?.q != null && t != null ? c.Sample(t, 0.5f) : 0f;
+            L.Add("切擊: " + (c == null ? "沒有 (訓練器 v5 以前), 方塊時間切在正中心" :
+                $"{c.count} 刀 · 切的時候方塊離你 中位 左 {F(Mid(c.depth?[0]), "0.00")} / 右 {F(Mid(c.depth?[1]), "0.00")} m · 切點偏移 中位 左 {F(Mid(c.offsetAll?[0]) * 100, "0.0")} / 右 {F(Mid(c.offsetAll?[1]) * 100, "0.0")} cm"));
             return L;
         }
 

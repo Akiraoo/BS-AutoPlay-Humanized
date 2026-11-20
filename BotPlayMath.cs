@@ -119,7 +119,7 @@ namespace BotPlay
         /// 用參考比對 (同一個 NoteData 物件); 生成前由呼叫端填好, 左手映象的複本要另外放 (x -> -x - 1)
         /// </summary>
         public static readonly Dictionary<NoteData, Vector2> NoteCoords = new Dictionary<NoteData, Vector2>(new RefEq());
-        sealed class RefEq : IEqualityComparer<NoteData>
+        internal sealed class RefEq : IEqualityComparer<NoteData>
         {
             public bool Equals(NoteData a, NoteData b) => ReferenceEquals(a, b);
             public int GetHashCode(NoteData n) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(n);

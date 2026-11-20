@@ -33,6 +33,10 @@ namespace BotPlay.Core
         public float time;
         public int type;      // 0 good, 1 bad, 2 miss, 3 bomb
         public int saberType; // 只有 good/bad 有, 其餘 -1
+        public float timeDev;     // 提早切為正 (秒): eventTime = 方塊時間 - timeDev
+        public float cutX, cutY, cutZ;        // 切點 (世界座標)
+        public float normX, normY, normZ;     // 切面法線
+        public float cutDist;                 // 方塊中心到切面的距離 (米)
         public int Color => (id / 10) % 10;
         public int CutDirection => id % 10;
     }
@@ -77,9 +81,11 @@ namespace BotPlay.Core
                         r.ReadSingle();            // saberSpeed
                         r.ReadBytes(12);           // saberDir
                         note.saberType = r.ReadInt32();
-                        r.ReadBytes(4 * 2);        // timeDeviation, cutDirDeviation
-                        r.ReadBytes(12 * 2);       // cutPoint, cutNormal
-                        r.ReadBytes(4 * 4);        // cutDistanceToCenter, cutAngle, beforeCutRating, afterCutRating
+                        note.timeDev = r.ReadSingle(); r.ReadSingle();          // timeDeviation, cutDirDeviation
+                        note.cutX = r.ReadSingle(); note.cutY = r.ReadSingle(); note.cutZ = r.ReadSingle();
+                        note.normX = r.ReadSingle(); note.normY = r.ReadSingle(); note.normZ = r.ReadSingle();
+                        note.cutDist = r.ReadSingle();
+                        r.ReadBytes(4 * 3);        // cutAngle, beforeCutRating, afterCutRating
                     }
                     rep.notes.Add(note);
                 }

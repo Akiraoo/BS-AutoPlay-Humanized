@@ -23,6 +23,7 @@
   - 躲牆時光劍會跟著身體移動，頭部傾斜角度收斂，觀看不暈
   - 躲牆（蹲下、左右閃）、躲炸彈、點塊斜切都照真人的習慣；劍不會穿過頭或戳到眼睛
 - **個人習慣存進模型**：點塊斜切角度、上下排揮向、閃牆 / 蹲牆曲線、躲炸彈的距離，訓練時從你的回放（和對應譜面）量出來
+- **分數照動作算**：每刀的前揮、後揮、準度都從生成的劍軌跡算出來，不再每刀寫死 115 分；切的時候方塊離你多遠（提早多少切）、切面偏離方塊中心多少，也是從你的回放學的（訓練器 v5 起）
 - **模型是獨立檔案**（`.apmodel`），可以換、可以自己訓練、可以分享
 - **遊戲內訓練**：選日期範圍，用你自己的本機回放訓練出你的動作風格（會驗證玩家 ID，只用你本人的回放）；可以開啟持續追蹤，在背景自動重訓
 - **模型資訊**：訓練版本、日期範圍、篩選條件、BeatLeader / ScoreSaber 星數分佈等，不含任何玩家 ID
@@ -40,7 +41,7 @@
 1. 先裝好前置模組：**BSIPA**、**BeatLeader 0.10.666+**、**BeatSaberMarkupLanguage (BSML)**
 2. 把 `BotPlay.dll` 放進 `Beat Saber/Plugins/`（從 [Releases](../../releases) 下載，或自己從原始碼建置）。舊版的 `auto_replay.dll` 要刪掉
 3. 放一個模型到 `Beat Saber/UserData/BotPlay/Models/`：
-   - 直接用作者的範例模型：[`sample-model/Akiraoo-ranked30-acc-v4.apmodel`](sample-model/Akiraoo-ranked30-acc-v4.apmodel)
+   - 直接用作者的範例模型：[`sample-model/Akiraoo-ranked30-acc-v5.apmodel`](sample-model/Akiraoo-ranked30-acc-v5.apmodel)
    - 或是進遊戲後用自己的回放訓練（見下方）
 4. 啟動遊戲
 

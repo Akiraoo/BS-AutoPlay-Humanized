@@ -175,6 +175,42 @@ namespace BotPlay.Core
         public LeanStyle lean;
         public DuckStyle duck;
         public BombStyle bombs;
+        public CutStyle cuts;
+    }
+
+    /// <summary>
+    /// 切擊: 切的時候方塊離玩家多遠 (深度), 以及切面偏離方塊中心多少 (有號). 都是分位數表, 生成器照表抽樣.
+    /// 深度 = 0.72 + NJS × 提早的時間 (米, 方塊在方塊時間時的 z 是 0.72). 真人的深度和 NJS 幾乎無關 (時間偏移才和 1/NJS 成正比), 所以存深度不存毫秒.
+    /// 切點偏移 = (方塊中心 - 切點) · n, n 是切面法線, 方向統一成: 法線偏左右時朝身體外側 (左手朝左、右手朝右), 偏上下時朝上 (見 CanonSign).
+    ///   正 = 方塊中心在外側 / 上方, 也就是切在內側 / 下方.
+    /// </summary>
+    public sealed class CutStyle
+    {
+        public int count;
+        public float[] q;                 // 分位點 (遞增, 0~1), 下面每張表都在這些分位點取值
+        public float[][] depth;           // [手 0=左 1=右]
+        public float depthCorr;           // 同一隻手相鄰兩刀深度的相關係數 (節奏感: 一段時間內偏早 / 偏晚)
+        public float[][] offset;          // [手 * 9 + 切割方向 0..8]; 樣本不夠的組是 null (生成器改用同一隻手的 offsetAll)
+        public float[][] offsetAll;       // [手] 不分方向
+
+        /// <summary>切面法線 (nx, ny) 要乘上的正負號, 讓它指向 外側 (偏左右時) / 上方 (偏上下時)</summary>
+        public static float CanonSign(float nx, float ny, bool isRight)
+        {
+            if (Math.Abs(nx) >= Math.Abs(ny)) return (nx >= 0f) == isRight ? 1f : -1f;
+            return ny >= 0f ? 1f : -1f;
+        }
+
+        /// <summary>分位數表 table 在 u (0~1) 的值, 線性插值, 兩端外面取端點</summary>
+        public float Sample(float[] table, float u)
+        {
+            if (table == null || q == null || table.Length != q.Length || q.Length == 0) return 0f;
+            if (u <= q[0]) return table[0];
+            int n = q.Length;
+            if (u >= q[n - 1]) return table[n - 1];
+            int i = 1; while (i < n - 1 && q[i] < u) i++;
+            float w = (u - q[i - 1]) / Math.Max(1e-6f, q[i] - q[i - 1]);
+            return table[i - 1] + (table[i] - table[i - 1]) * w;
+        }
     }
 
     /// <summary>點塊: 實際切割角度 (偏離正上 / 正下, 往外為正, 度) = c0 + c1*dx_prev + c2*dx_next + c3*dy_prev + c4*dy_next (位移單位: 米, 往外為正)</summary>

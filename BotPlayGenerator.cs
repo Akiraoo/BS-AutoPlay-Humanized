@@ -160,16 +160,19 @@ namespace BotPlay
             var motion = MotionGenerator.Generate(allNotes, bombs, obstacles, njs, rt, leftHanded, noArrows);
             int totalFrames = motion.count;
 
+            // 每刀的切擊資料照生成的軌跡算 (提早多少切、切點偏移、前後揮角度), 不再全部寫死 115
+            var cuts = CutScorer.Score(motion);
             var noteEvents = new List<NoteEvent>();
             int totalScore = 0;
             int combo = 0;
             foreach (var note in allNotes)
             {
-                noteEvents.Add(NoteEventBuilder.Create115NoteEvent(note, noArrows));
+                CutScorer.Cut? cut = cuts.TryGetValue(note, out var c) ? c : (CutScorer.Cut?)null;
+                noteEvents.Add(NoteEventBuilder.CreateNoteEvent(note, noArrows, cut));
                 combo++;
                 int mult = combo >= 14 ? 8 : (combo >= 6 ? 4 : (combo >= 2 ? 2 : 1));
                 // 鏈條頭最高 85、鏈條切片最高 20, 不是每個塊都是 115
-                totalScore += ScoreModel.GetNoteScoreDefinition(note.scoringType).maxCutScore * mult;
+                totalScore += (cut != null ? cut.Value.cutScore : ScoreModel.GetNoteScoreDefinition(note.scoringType).maxCutScore) * mult;
             }
 
             var frames = new List<Frame>(totalFrames);

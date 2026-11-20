@@ -12,6 +12,7 @@ namespace BotPlay
         public int count;
         public Vector3[] headPos, leftPos, rightPos;
         public Quaternion[] headRot, leftRot, rightRot;
+        public List<NoteSwingData> leftSwings, rightSwings;   // 規劃結果 (命中時間 / 位置), CutScorer 用
     }
 
     /// <summary>
@@ -75,6 +76,7 @@ namespace BotPlay
                 headPos = new Vector3[totalFrames], headRot = new Quaternion[totalFrames],
                 leftPos = new Vector3[totalFrames], leftRot = new Quaternion[totalFrames],
                 rightPos = new Vector3[totalFrames], rightRot = new Quaternion[totalFrames],
+                leftSwings = leftSwings, rightSwings = rightSwings,
             };
 
             // 頭: 目標姿態用臨界阻尼彈簧平滑 (原本躲牆時頭是瞬移的), 再疊加待機微動.

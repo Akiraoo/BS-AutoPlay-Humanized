@@ -12,7 +12,7 @@ namespace BotPlay.Core
     /// </summary>
     public static partial class ModelTrainer
     {
-        const int MinDots = 300, MinLean = 30, MinDuck = 15, MinBombs = 300;
+        const int MinDots = 300, MinLean = 30, MinDuck = 15, MinBombs = 300, MinCuts = 2000, MinCutGroup = 150;
         const int MaxBombsPerReplay = 400;
 
         static string GameDirFrom(string replaysDir)
@@ -52,6 +52,52 @@ namespace BotPlay.Core
                 double headH = MedianHeadY(fr);
                 AddWalls(fr, map, yoff, headH);
                 AddBombs(fr, map, yoff);
+                AddCuts(rep, map, yoff);
+            }
+
+            // ---------------- 切擊: 深度 / 切點偏移 ----------------
+            static readonly float[] CutQ = { 0.02f, 0.05f, 0.1f, 0.15f, 0.2f, 0.25f, 0.3f, 0.35f, 0.4f, 0.45f, 0.5f, 0.55f, 0.6f, 0.65f, 0.7f, 0.75f, 0.8f, 0.85f, 0.9f, 0.95f, 0.98f };
+            readonly List<double>[] cutDepth = { new List<double>(), new List<double>() };
+            readonly List<double>[] cutOff = Enumerable.Range(0, 18).Select(_ => new List<double>()).ToArray();
+            double depSx, depSy, depSxx, depSyy, depSxy; int depPairs;
+            int cutCount;
+
+            void AddCuts(BsorReplay rep, MapObjects map, double yoff)
+            {
+                // 左手模式 / 變速: 方塊座標和時間尺度不同, 不統計
+                if (rep.leftHanded || map.njs <= 0 || rep.HasSpeedModifier("FS", "SF", "SS")) return;
+                for (int h = 0; h < 2; h++)
+                {
+                    var seq = rep.notes.Where(n => n.type == 0 && n.saberType == h && n.id / 10000 == 3).OrderBy(n => n.time).ToList();
+                    double prevDepth = double.NaN, prevT = double.NegativeInfinity;
+                    foreach (var n in seq)
+                    {
+                        int line = (n.id / 1000) % 10, layer = (n.id / 100) % 10;
+                        if (line > 3 || layer > 2) continue;
+                        double cx = (line - 1.5) * 0.6, cy = 0.72 + layer * 0.53 + yoff;
+                        double nl = Math.Sqrt(n.normX * n.normX + n.normY * n.normY);
+                        if (nl < 0.8) continue;   // 切面法線幾乎朝前後: 量不準
+                        double s = ((cx - n.cutX) * n.normX + (cy - n.cutY) * n.normY) / nl;
+                        if (Math.Abs(Math.Abs(s) - n.cutDist) > 0.03) continue;   // 和遊戲記的距離對不上 (方塊不在標準格子上)
+                        s *= CutStyle.CanonSign(n.normX, n.normY, h == 1);
+                        double depth = 0.72 + map.njs * n.timeDev;
+                        if (depth < 0.2 || depth > 3.0) continue;
+                        cutDepth[h].Add(depth);
+                        cutOff[h * 9 + Math.Min(8, n.CutDirection)].Add(s);
+                        cutCount++;
+                        if (!double.IsNaN(prevDepth) && n.time - prevT < 1.0)
+                        {
+                            depSx += prevDepth; depSy += depth; depSxx += prevDepth * prevDepth; depSyy += depth * depth; depSxy += prevDepth * depth; depPairs++;
+                        }
+                        prevDepth = depth; prevT = n.time;
+                    }
+                }
+            }
+
+            static float[] Quantiles(List<double> v)
+            {
+                var a = v.ToArray(); Array.Sort(a);
+                return CutQ.Select(q => (float)a[Math.Min(a.Length - 1, (int)Math.Round(q * (a.Length - 1)))]).ToArray();
             }
 
             // ---------------- 點塊 ----------------
@@ -231,7 +277,30 @@ namespace BotPlay.Core
                     log?.Invoke($"炸彈習慣: {bombDist.Count} 顆, 距離中位 {st.bombs.clearMedian:F2} m, P10 {st.bombs.clearP10:F2} m, 劍在上方 {st.bombs.upShare * 100:F0}%");
                 }
                 else log?.Invoke($"炸彈樣本 {bombDist.Count} 顆, 不夠 ({MinBombs}), 用預設");
-                return st.dots == null && st.lean == null && st.duck == null && st.bombs == null ? null : st;
+
+                if (cutCount >= MinCuts && cutDepth[0].Count >= MinCutGroup && cutDepth[1].Count >= MinCutGroup)
+                {
+                    double corr = 0;
+                    if (depPairs > 50)
+                    {
+                        double mx = depSx / depPairs, my = depSy / depPairs;
+                        double vx = depSxx / depPairs - mx * mx, vy = depSyy / depPairs - my * my;
+                        corr = vx > 1e-9 && vy > 1e-9 ? (depSxy / depPairs - mx * my) / Math.Sqrt(vx * vy) : 0;
+                    }
+                    st.cuts = new CutStyle
+                    {
+                        count = cutCount, q = (float[])CutQ.Clone(),
+                        depth = new[] { Quantiles(cutDepth[0]), Quantiles(cutDepth[1]) },
+                        depthCorr = (float)Clamp(corr, 0, 0.95),
+                        offset = cutOff.Select(l => l.Count >= MinCutGroup ? Quantiles(l) : null).ToArray(),
+                        offsetAll = Enumerable.Range(0, 2).Select(h => Quantiles(Enumerable.Range(0, 9).SelectMany(d => cutOff[h * 9 + d]).ToList())).ToArray(),
+                    };
+                    int mid = Array.IndexOf(CutQ, 0.5f);
+                    log?.Invoke($"切擊習慣: {cutCount} 刀, 深度中位 左 {st.cuts.depth[0][mid]:F2} / 右 {st.cuts.depth[1][mid]:F2} m (相鄰相關 {st.cuts.depthCorr:F2}), " +
+                                $"切點偏移中位 左 {st.cuts.offsetAll[0][mid] * 100:F1} / 右 {st.cuts.offsetAll[1][mid] * 100:F1} cm");
+                }
+                else log?.Invoke($"切擊樣本 {cutCount} 刀, 不夠 ({MinCuts}), 用預設 (不加偏移)");
+                return st.dots == null && st.lean == null && st.duck == null && st.bombs == null && st.cuts == null ? null : st;
             }
 
             static string Fmt(float[] a) => "[" + string.Join(", ", a.Select(x => x.ToString("0.##"))) + "]";

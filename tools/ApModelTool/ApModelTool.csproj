@@ -25,6 +25,7 @@
     <Compile Include="..\..\RollOffsets.cs" Link="Generator\RollOffsets.cs" />
     <Compile Include="..\..\ArmTemplates.cs" Link="Generator\ArmTemplates.cs" />
     <Compile Include="..\..\BotPlayMath.cs" Link="Generator\BotPlayMath.cs" />
+    <Compile Include="..\..\CutScorer.cs" Link="Generator\CutScorer.cs" />
   </ItemGroup>
 
   <ItemGroup>

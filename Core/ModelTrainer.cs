@@ -35,10 +35,11 @@ namespace BotPlay.Core
         ///   v2  記錄玩家身高 (身高感知)
         ///   v3  手臂位置模板, 揮刀模板改成對齊峰值
         ///   v4  個人習慣 style (點塊角度, 側閃, 下蹲, 炸彈間距); 不再用惡搞譜訓練
+        ///   v5  切擊習慣 style.cuts (切的時候方塊的深度 = 提早多少切, 切面偏離方塊中心多少); 生成的分數改成照軌跡算
         /// 舊模型 meta.trainer 是 "AutoPlay-trainer/1" (改名前, 對應 v1~v4 都有可能, 看有沒有 style / arm 區塊).
         /// </summary>
-        public const int TrainerRevision = 4;
-        public const string TrainerVersion = "BotPlay-trainer v4";
+        public const int TrainerRevision = 5;
+        public const string TrainerVersion = "BotPlay-trainer v5";
 
         // ---- 和 Python 版一致的常量 ----
         const double MergeGap = 0.06;                                    // 0.06s 內的切塊算同一刀

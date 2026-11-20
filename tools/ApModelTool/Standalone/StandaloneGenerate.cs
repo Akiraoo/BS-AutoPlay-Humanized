@@ -45,6 +45,7 @@ namespace BotPlay.Tools
             string ptr = opt(a, "--push-turn", null); if (ptr != null) MotionGenerator.PushTurnRate = float.Parse(ptr, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string lg = opt(a, "--legacy", null); if (lg != null) NoteSwingPlanner.Legacy = int.Parse(lg);   // debug
             string lsr = opt(a, "--limit-side-rate", null); if (lsr != null) HumanModel.LimitSideTurnRate = float.Parse(lsr, System.Globalization.CultureInfo.InvariantCulture);   // debug
+            if (Array.IndexOf(a, "--no-cut-habits") >= 0) NoteSwingPlanner.CutHabits = false;   // debug: 方塊時間命中、瞄準中心 (舊版)
             string ssa = opt(a, "--strip-amp", null); if (ssa != null) NoteSwingPlanner.StripSwingAmp = float.Parse(ssa, System.Globalization.CultureInfo.InvariantCulture);   // debug
             string dk = opt(a, "--debug-keys", null);   // debug: "起,迄" 秒, 印出這段的關鍵幀指向
             if (dk != null) { var p = dk.Split(','); NoteSwingPlanner.DebugKeysFrom = float.Parse(p[0], System.Globalization.CultureInfo.InvariantCulture); NoteSwingPlanner.DebugKeysTo = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture); }
@@ -99,20 +100,25 @@ namespace BotPlay.Tools
             float rt = MotionGenerator.ReactionTime(map.njs, map.bpm, map.offset, out float jd);
             var motion = MotionGenerator.Generate(allNotes, bombs, map.obstacles, map.njs, rt, leftHanded, noArrows);
 
-            int score = 0, combo = 0;
+            // 每刀的切擊資料照生成的軌跡算 (和遊戲內 BotPlayGenerator 一樣); --perfect = 舊版全部 115
+            var cuts = Array.IndexOf(a, "--perfect") >= 0 ? new Dictionary<NoteData, CutScorer.Cut>() : CutScorer.Score(motion);
+            int score = 0, combo = 0, maxScore = 0;
             foreach (var n in allNotes)
             {
                 combo++;
                 int mult = combo >= 14 ? 8 : combo >= 6 ? 4 : combo >= 2 ? 2 : 1;
-                score += MotionGenerator.MaxCutScore(n.scoringType) * mult;
+                int max = MotionGenerator.MaxCutScore(n.scoringType);
+                score += (cuts.TryGetValue(n, out var c) ? c.cutScore : max) * mult;
+                maxScore += max * mult;
             }
 
             using (var fs = File.Create(outPath))
             using (var w = new BinaryWriter(fs))
-                WriteBsor(w, map, hash, difficulty, leftHanded, noArrows, score, allNotes, motion);
+                WriteBsor(w, map, hash, difficulty, leftHanded, noArrows, score, allNotes, motion, cuts);
 
             Console.WriteLine($"{map.songName} [{difficulty}] v{map.formatVersion}  BPM {map.bpm}  NJS {map.njs}  offset {map.offset}  RT {rt * 1000f:F0} ms  JD {jd:F2}");
             Console.WriteLine($"方塊 {allNotes.Count}  炸彈 {bombs.Count}  牆 {map.obstacles.Count}  幀 {motion.count}  模型 {ModelManager.CurrentId}  身高 {BotPlayMath.PlayerHeight:F2}  ({sw.ElapsedMilliseconds} ms)");
+            Console.WriteLine($"分數 {score} / {maxScore} ({100.0 * score / Math.Max(1, maxScore):F2}%)");
             Console.WriteLine($"已寫入 {outPath}");
             return 0;
         }
@@ -139,7 +145,7 @@ namespace BotPlay.Tools
         static void Q(BinaryWriter w, Quaternion q) { w.Write(q.x); w.Write(q.y); w.Write(q.z); w.Write(q.w); }
 
         static void WriteBsor(BinaryWriter w, LoadedMap map, string hash, string difficulty, bool leftHanded, bool noArrows,
-                              int score, List<NoteData> notes, MotionFrames m)
+                              int score, List<NoteData> notes, MotionFrames m, Dictionary<NoteData, CutScorer.Cut> cuts)
         {
             w.Write(0x442d3d69);
             w.Write((byte)1);
@@ -164,19 +170,20 @@ namespace BotPlay.Tools
                 V(w, m.rightPos[i]); Q(w, m.rightRot[i]);
             }
 
-            w.Write((byte)2);   // notes (全部 115 good, 和遊戲內 NoteEventBuilder 一樣)
+            w.Write((byte)2);   // notes (切擊資料來自 CutScorer, 和遊戲內 NoteEventBuilder 一樣; 沒有的退回 115)
             w.Write((uint)notes.Count);
             foreach (var n in notes)
             {
-                w.Write(MotionGenerator.NoteId(n, noArrows)); w.Write(n.time); w.Write(n.time); w.Write(0);
+                bool has = cuts.TryGetValue(n, out var c);
+                w.Write(MotionGenerator.NoteId(n, noArrows)); w.Write(has ? n.time - c.timeDev : n.time); w.Write(n.time); w.Write(0);
                 CutVectors(n.cutDirection, out var dir, out var normal);
                 w.Write(true); w.Write(true); w.Write(true); w.Write(false);
-                w.Write(IncorporateBool(42f, true));
-                V(w, dir);
+                w.Write(IncorporateBool(has ? c.speed : 42f, true));
+                V(w, has ? c.saberDir : dir);
                 w.Write((int)n.colorType);
-                w.Write(0f); w.Write(0f);
-                V(w, BotPlayMath.GetNotePos(n)); V(w, normal);
-                w.Write(0f); w.Write(0f); w.Write(1f); w.Write(1f);
+                w.Write(has ? c.timeDev : 0f); w.Write(has ? c.dirDev : 0f);
+                V(w, has ? c.point : BotPlayMath.GetNotePos(n)); V(w, has ? c.normal : normal);
+                w.Write(has ? c.dist : 0f); w.Write(has ? c.dirDev - 90f : 0f); w.Write(has ? c.before : 1f); w.Write(has ? c.after : 1f);
             }
 
             w.Write((byte)3); w.Write(0u);                                              // walls

@@ -8,6 +8,28 @@ namespace BotPlay
 {
     public static class NoteEventBuilder
     {
+        /// <summary>照生成的軌跡算出來的切擊資料 (CutScorer) 寫事件; cut 為 null 時退回舊版的 115 分</summary>
+        public static NoteEvent CreateNoteEvent(NoteData note, bool noArrows, CutScorer.Cut? cut)
+        {
+            var ev = Create115NoteEvent(note, noArrows);
+            if (cut == null) return ev;
+            var c = cut.Value;
+            var ci = ev.noteCutInfo;
+            ci.saberSpeed = c.speed;
+            ci.saberDir = BotPlayMath.ToBLVector(c.saberDir);
+            ci.cutPoint = BotPlayMath.ToBLVector(c.point);
+            ci.cutNormal = BotPlayMath.ToBLVector(c.normal);
+            ci.cutDistanceToCenter = c.dist;
+            ci.cutDirDeviation = c.dirDev;
+            ci.cutAngle = c.dirDev - 90f;
+            ci.beforeCutRating = c.before;
+            ci.afterCutRating = c.after;
+            ci.timeDeviation = c.timeDev;
+            ev.noteCutInfo = ci;
+            ev.eventTime = note.time - c.timeDev;
+            return ev;
+        }
+
         public static NoteEvent Create115NoteEvent(NoteData note, bool noArrows = false)
         {
             Vector3 notePos = BotPlayMath.GetNotePos(note);

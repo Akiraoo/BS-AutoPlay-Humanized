@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using BotPlay.Core;
 
 namespace BotPlay
 {
@@ -21,7 +22,9 @@ namespace BotPlay
         public Quaternion hitPose;
         public Quaternion endPose;
         public bool isChainedWithPrev;
-        public Vector3 target;         // 方塊中心 (命中時劍要穿過這裡)
+        public Vector3 target;         // 命中時劍要穿過的點 (方塊中心 + 個人的切點偏移; z = 切的時候方塊的深度)
+        public NoteData note;          // 對應的方塊 (CutScorer 用)
+        public Vector3 noteCenter;     // 切的時候方塊中心的位置 (time 時刻)
         public int cutDirection;       // 譜面上的切割方向 (0..7 箭頭, 8 點塊), 用於反手扭轉
         public Vector3 swingDir;       // 命中時劍的揮動方向 (3D, 垂直於命中指向; 點塊是規劃出來的方向), 手臂模板用
 
@@ -171,6 +174,22 @@ namespace BotPlay
                 i = e + 1;
             }
             int m = strokes.Count;
+
+            // ---------- 2.5 個人的切擊習慣: 每一筆提早多少切 (深度), 切面偏離中心多少 ----------
+            // 模型沒有 cuts 時: 方塊時間命中, 瞄準 CutDistanceZ 的中心 (和舊版一樣)
+            var hitT = new float[n];
+            var center = new Vector3[n];
+            var aim = new Vector3[n];
+            PlanCutHabits(notes, strokes, axis, isLeft, noArrows, hitT, center, aim);
+            for (int i = 0; i < n; i++)
+            {
+                if (aim[i] == center[i] && center[i].z == BotPlayMath.CutDistanceZ) continue;
+                hitQ[i] = HumanModel.AimAt(isLeft, aim[i]);
+                v[i] = hitQ[i] * Vector3.forward;
+                Vector3 ax = Vector3.Cross(v[i], dir[i]);
+                if (ax.sqrMagnitude < 1e-4f) ax = Vector3.Cross(v[i], Vector3.up);
+                axis[i] = ax.normalized;
+            }
             if (DebugKeysTo > DebugKeysFrom) foreach (var st in strokes) if (st[1] - st[0] >= 3 && notes[st[0]].time >= DebugKeysFrom && notes[st[0]].time <= DebugKeysTo) Plugin.Log?.Info($"stroke {(isLeft ? "L" : "R")} {notes[st[0]].time:F3}-{notes[st[1]].time:F3} n={st[1] - st[0] + 1} dur={notes[st[1]].time - notes[st[0]].time:F3}");
 
             // ---------- 3. 每個筆畫和前後筆畫的關係 (間隔, 是否來回反向) ----------
@@ -186,8 +205,8 @@ namespace BotPlay
             var preScale = new float[m];
             for (int k = 0; k < m; k++)
             {
-                sStart[k] = notes[strokes[k][0]].time;
-                sEnd[k] = notes[strokes[k][1]].time;
+                sStart[k] = hitT[strokes[k][0]];
+                sEnd[k] = hitT[strokes[k][1]];
             }
             for (int k = 0; k < m; k++)
             {
@@ -219,7 +238,7 @@ namespace BotPlay
             var hitIdx = new int[n];
             var endQ = new Quaternion[n];
             var endT = new float[n];
-            for (int i = 0; i < n; i++) { endQ[i] = hitQ[i]; endT[i] = notes[i].time; }
+            for (int i = 0; i < n; i++) { endQ[i] = hitQ[i]; endT[i] = hitT[i]; }
 
             float side = isLeft ? -1f : 1f;   // 模板的側向角以右手為準, 左手映象
 
@@ -322,7 +341,7 @@ namespace BotPlay
             var keyTimes = new List<(float t, byte tag)>();
             for (int k = 0; k < m; k++)
             {
-                for (int i = strokes[k][0]; i <= strokes[k][1]; i++) keyTimes.Add((notes[i].time, (byte)1));
+                for (int i = strokes[k][0]; i <= strokes[k][1]; i++) keyTimes.Add((hitT[i], (byte)1));
                 float nextT = k + 1 < m ? sStart[k + 1] : sEnd[k] + 1f;
                 keyTimes.Add((sEnd[k] + Mathf.Min(0.1f, 0.4f * (nextT - sEnd[k])), (byte)2));
             }
@@ -401,14 +420,16 @@ namespace BotPlay
 
                 var sw = new NoteSwingData
                 {
-                    time = notes[i].time,
+                    time = hitT[i],
                     tStart = keys[0].t,
                     tEnd = endT[i],
                     startPose = keys[0].q,
                     hitPose = hitQ[i],
                     endPose = endQ[i],
                     isChainedWithPrev = chained[i],
-                    target = BotPlayMath.GetNotePos(notes[i]),
+                    target = aim[i],
+                    note = notes[i],
+                    noteCenter = center[i],
                     cutDirection = noArrows ? (int)NoteCutDirection.Any : (int)notes[i].cutDirection,
                     swingDir = (dir[i] - v[i] * Vector3.Dot(dir[i], v[i])).normalized,
                     keys = keys,
@@ -423,6 +444,75 @@ namespace BotPlay
             }
 
             return result;
+        }
+
+        // ================= 切擊習慣 =================
+        public static bool CutHabits = true;   // debug: false = 方塊時間命中、瞄準中心 (舊版)
+        public static float MinDepth = 0.8f, MinStackDepth = 1.4f;   // 切的時候方塊至少離多遠 (米): 單塊 / 一刀好幾塊
+
+        /// <summary>
+        /// 按模型的 style.cuts 決定每一刀: 命中時間 hitT (提早切), 方塊在那時的中心 center, 劍要穿過的點 aim (中心 - 偏移 × 法線).
+        /// 同一筆 (一刀連打) 用同一個深度和偏移. 深度相鄰兩筆照模型的相關係數連續變化 (高斯 copula, AR(1)).
+        /// 抽樣的種子只看這隻手的音符, 同一張譜每次生成結果一樣.
+        /// </summary>
+        static void PlanCutHabits(List<NoteData> notes, List<int[]> strokes, Vector3[] axis, bool isLeft, bool noArrows,
+                                  float[] hitT, Vector3[] center, Vector3[] aim)
+        {
+            int n = notes.Count;
+            var cs = CutHabits ? ModelManager.Current?.style?.cuts : null;
+            int h = isLeft ? 0 : 1;
+            if (cs == null || cs.depth == null || cs.depth.Length < 2 || cs.depth[h] == null || BombAvoider.BombSpeed <= 0f)
+            {
+                for (int i = 0; i < n; i++) { hitT[i] = notes[i].time; center[i] = aim[i] = BotPlayMath.GetNotePos(notes[i]); }
+                return;
+            }
+            uint seed = isLeft ? 0x9E3779B9u : 0x85EBCA6Bu;
+            foreach (var note in notes) seed = seed * 16777619u ^ (uint)Mathf.RoundToInt(note.time * 1000f) ^ (uint)note.lineIndex * 31u;
+            var rng = new System.Random((int)seed);
+            float rho = Mathf.Clamp(cs.depthCorr, 0f, 0.95f);
+            double zPrev = Gauss(rng);
+            float prevEnd = float.NegativeInfinity;
+            foreach (var st in strokes)
+            {
+                int i0 = st[0], i1 = st[1];
+                double z = rho * zPrev + Math.Sqrt(1 - rho * rho) * Gauss(rng); zPrev = z;
+                float depth = cs.Sample(cs.depth[h], (float)NormalCdf(z));
+                // 一刀切好幾塊 (疊塊 / 斜對角) 時方塊離得越近, 從手腕看兩塊的夾角越大, 劍要在同一瞬間掃過去 (ranked 批次: 深度 0.8 m 時劍速 90 m/s).
+                // 這時至少在 MinStackDepth 切 (接近舊版固定的 1.5 m); 單塊也不要近過 MinDepth
+                bool multi = false; for (int i = i0 + 1; i <= i1; i++) if (Vector3.Distance(BotPlayMath.GetNotePos(notes[i]), BotPlayMath.GetNotePos(notes[i0])) > 0.3f) { multi = true; break; }
+                depth = Mathf.Max(depth, multi ? MinStackDepth : MinDepth);
+                float lead = Mathf.Clamp((depth - BombAvoider.BombHitZ) / BombAvoider.BombSpeed, -0.05f, 0.15f);
+                // 筆畫之間不能因為各自提早不同而順序顛倒 (留 5 ms)
+                if (notes[i0].time - lead < prevEnd + 0.005f) lead = notes[i0].time - prevEnd - 0.005f;
+                depth = BombAvoider.BombHitZ + lead * BombAvoider.BombSpeed;
+                int cd = noArrows ? 8 : Mathf.Clamp((int)notes[i0].cutDirection, 0, 8);
+                float[] table = cs.offset != null && h * 9 + cd < cs.offset.Length ? cs.offset[h * 9 + cd] : null;
+                if (table == null) table = cs.offsetAll?[h];
+                float off = cs.Sample(table, (float)rng.NextDouble());
+                for (int i = i0; i <= i1; i++)
+                {
+                    hitT[i] = notes[i].time - lead;
+                    Vector3 c = BotPlayMath.GetNotePos(notes[i]); c.z = depth;
+                    center[i] = c;
+                    Vector3 nc = axis[i] * CutStyle.CanonSign(axis[i].x, axis[i].y, !isLeft);
+                    aim[i] = c - nc * off;
+                }
+                prevEnd = hitT[i1];
+            }
+        }
+
+        static double Gauss(System.Random r)
+        {
+            double u1 = 1.0 - r.NextDouble(), u2 = r.NextDouble();
+            return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+        }
+
+        static double NormalCdf(double x)
+        {
+            // Abramowitz-Stegun 7.1.26
+            double t = 1.0 / (1.0 + 0.3275911 * Math.Abs(x) / Math.Sqrt(2));
+            double y = 1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.Exp(-x * x / 2);
+            return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
         }
 
         // ================= 取樣 =================
