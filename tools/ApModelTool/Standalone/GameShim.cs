@@ -70,7 +70,7 @@ namespace BotPlay
 
     public static class Plugin
     {
-        public const string Version = "1.3.0-standalone";
+        public const string Version = "1.4.0-standalone";
         public static StandaloneLog Log = new StandaloneLog();
     }
 
